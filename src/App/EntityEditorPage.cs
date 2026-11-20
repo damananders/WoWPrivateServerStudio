@@ -189,7 +189,7 @@ namespace AndersCraftStudio
                 }
                 resultInfo.Text = t.Rows.Count == 0 ? "No matches." : t.Rows.Count >= 200 ? "First 200 matches. Type more to narrow it down." : $"{t.Rows.Count} match(es).";
             }
-            catch (Exception ex) { resultInfo.Text = "Search failed: " + ex.Message; }
+            catch (Exception ex) { resultInfo.Text = "Search failed: " + Friendly.Text(ex); }
         }
 
         public void SearchFor(string q) { searchBox.Text = q; RunSearch(); }
@@ -214,7 +214,7 @@ namespace AndersCraftStudio
                     else rows[table] = StandInRow(db, dt, table, keyCol, newId);
                 }
             }
-            catch (Exception ex) { w.Toast($"Couldn't load {D.Singular} #{newId}: {ex.Message}", "bad"); id = null; return; }
+            catch (Exception ex) { w.Toast($"Couldn't load {D.Singular} #{newId}: {Friendly.Text(ex)}", "bad"); id = null; return; }
             if (rows[D.Table] == null) { w.Toast($"There's no {D.Singular} with ID {newId}.", "warn"); id = null; return; }
             foreach (ListBoxItem li in results.Items) li.IsSelected = (long)li.Tag == newId;
             tab ??= D.Tabs[0];
@@ -713,7 +713,7 @@ namespace AndersCraftStudio
                 w.Toast($"Staged a copy as {D.Singular} #{newId}" + (extra > 0 ? $" (plus {extra} linked row)" : "") + ". It's an INSERT in your changeset; it shows up here after you apply it. " +
                         (session.Count > 0 ? "Your unstaged edits were not copied; the copy uses the database values." : ""), "ok");
             }
-            catch (Exception ex) { w.Toast("Couldn't stage the copy: " + ex.Message, "bad"); }
+            catch (Exception ex) { w.Toast("Couldn't stage the copy: " + Friendly.Text(ex), "bad"); }
         }
 
         // ================================================================== for screenshots

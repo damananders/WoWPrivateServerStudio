@@ -90,7 +90,7 @@ namespace AndersCraftStudio
                 adminPass = passBox.Password;
                 passBox.Password = "";
             }
-            catch (Exception ex) { admin = null; adminPass = null; ShowLogin(ex.Message); return; }
+            catch (Exception ex) { admin = null; adminPass = null; ShowLogin(Friendly.Text(ex)); return; }
             finally { Mouse.OverrideCursor = null; }
             ShowConsole();
         }
@@ -159,7 +159,7 @@ namespace AndersCraftStudio
                     _ => SetupTab(),
                 };
             }
-            catch (Exception ex) { tabBody.Content = U.Callout(ex.Message, "bad"); }
+            catch (Exception ex) { tabBody.Content = U.Callout(Friendly.Text(ex), "bad"); }
         }
 
         List<string> Databases() { try { return admin.Table("SHOW DATABASES").Rows.Cast<DataRow>().Select(r => Convert.ToString(r[0])).ToList(); } catch { return new List<string>(); } }
@@ -195,7 +195,7 @@ namespace AndersCraftStudio
         {
             var res = new List<AdminResult>();
             try { Mouse.OverrideCursor = Cursors.Wait; if (db != null) admin.Use(db); }
-            catch (Exception ex) { Mouse.OverrideCursor = null; res.Add(new AdminResult { Sql = "USE " + db, Error = ex.Message }); return res; }
+            catch (Exception ex) { Mouse.OverrideCursor = null; res.Add(new AdminResult { Sql = "USE " + db, Error = Friendly.Text(ex) }); return res; }
             try
             {
                 foreach (var s in stmts)
@@ -217,7 +217,7 @@ namespace AndersCraftStudio
             if (backup && backupTables != null && db != null)
             {
                 try { var f = DumpTables(db, backupTables, true, null, CancellationToken.None); w.Toast("Copy saved: " + f, "ok"); }
-                catch (Exception ex) { if (MessageBox.Show(w, "The backup copy failed: " + ex.Message + "\n\nGo ahead anyway?", "Backup", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return false; }
+                catch (Exception ex) { if (MessageBox.Show(w, "The backup copy failed: " + Friendly.Text(ex) + "\n\nGo ahead anyway?", "Backup", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return false; }
             }
             var res = Run(stmts, db);
             var bad = res.FirstOrDefault(r => !r.Ok);
@@ -341,7 +341,7 @@ namespace AndersCraftStudio
             var newView = U.Btn("New view…", () =>
             {
                 var f = new AdminFormWindow(w, "New view", "A saved SELECT that works like a read-only table.", ("name", "View name", "", null), ("sql", "SELECT …", "SELECT entry, name FROM creature_template WHERE `rank` = 3", "multi"));
-                if (f.ShowDialog() == true) { try { Do("Create view", new[] { AdminSql.CreateView(f["name"], f["sql"]) }, dbSel, null, () => ShowTab("databases")); } catch (Exception ex) { w.Toast(ex.Message, "bad"); } }
+                if (f.ShowDialog() == true) { try { Do("Create view", new[] { AdminSql.CreateView(f["name"], f["sql"]) }, dbSel, null, () => ShowTab("databases")); } catch (Exception ex) { w.Toast(Friendly.Text(ex), "bad"); } }
             });
             sp.Children.Add(U.Card(U.Stack(U.Row(U.H2($"{dbSel} · {t.Rows.Count} table(s)"), new Border { Width = 12 }, newTable, newView), grid), new Thickness(18, 14, 18, 14), new Thickness(0, 0, 0, 12)));
             sp.Children.Add(detail);
@@ -392,7 +392,7 @@ namespace AndersCraftStudio
                     if (f.ShowDialog() == true) Run1("Rename table", () => AdminSql.RenameTable(tableSel, f["to"]), null, () => ShowTab("databases"));
                 });
                 A("Empty it (truncate)…", () => Run1("Empty " + tableSel, () => AdminSql.TruncateTable(tableSel), bk), "BtnGhost", "Removes every row. You'll type its name to confirm.");
-                A("Save a copy…", () => { try { w.Toast("Saved: " + DumpTables(dbSel, new[] { tableSel }, true, null, CancellationToken.None), "ok"); } catch (Exception ex) { w.Toast(ex.Message, "bad"); } }, null, "Structure + data to Documents\\AndersCraft Studio\\dumps.");
+                A("Save a copy…", () => { try { w.Toast("Saved: " + DumpTables(dbSel, new[] { tableSel }, true, null, CancellationToken.None), "ok"); } catch (Exception ex) { w.Toast(Friendly.Text(ex), "bad"); } }, null, "Structure + data to Documents\\AndersCraft Studio\\dumps.");
             }
             A(isView ? "Drop view…" : "Drop table…", () => Run1((isView ? "Drop view " : "Drop table ") + tableSel, () => isView ? AdminSql.DropView(tableSel) : AdminSql.DropTable(tableSel), isView ? null : bk, () => ShowTab("databases")), "BtnGhost");
             sp.Children.Add(U.Card(U.Stack(U.H2((isView ? "View " : "Table ") + tableSel), colGrid, actions), new Thickness(18, 14, 18, 14), new Thickness(0, 0, 0, 12)));
@@ -409,7 +409,7 @@ namespace AndersCraftStudio
         void Run1(string title, Func<string> build, IList<string> backupTables, Action after = null)
         {
             string sql;
-            try { sql = build(); } catch (Exception ex) { w.Toast(ex.Message, "bad"); return; }
+            try { sql = build(); } catch (Exception ex) { w.Toast(Friendly.Text(ex), "bad"); return; }
             Do(title, new[] { sql }, dbSel, backupTables, after ?? (() => ShowTab("databases")));
         }
 
@@ -433,7 +433,7 @@ namespace AndersCraftStudio
                 var specs = f["cols"].Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).Select(ParseColumnLine).ToList();
                 Do("Create table", new[] { AdminSql.CreateTable(f["name"].Trim(), specs) }, dbSel, null, () => { tableSel = f["name"].Trim(); ShowTab("databases"); });
             }
-            catch (Exception ex) { w.Toast(ex.Message, "bad"); }
+            catch (Exception ex) { w.Toast(Friendly.Text(ex), "bad"); }
         }
 
         public static AdminSql.ColumnSpec ParseColumnLine(string line)
@@ -513,7 +513,7 @@ namespace AndersCraftStudio
                 {
                     var f = files[i];
                     List<string> stmts;
-                    try { stmts = SqlBatch.Split(File.ReadAllText(f)); } catch (Exception ex) { IoLog($"{Path.GetFileName(f)}: can't read: {ex.Message}"); bad++; if (stopOnError) break; continue; }
+                    try { stmts = SqlBatch.Split(File.ReadAllText(f)); } catch (Exception ex) { IoLog($"{Path.GetFileName(f)}: can't read: {Friendly.Text(ex)}"); bad++; if (stopOnError) break; continue; }
                     int fileErr = 0;
                     foreach (var s in stmts)
                     {
@@ -612,7 +612,7 @@ namespace AndersCraftStudio
             {
                 var u = Sel(); if (u == null) return;
                 try { grants.Text = string.Join("\n", admin.Table($"SHOW GRANTS FOR {AdminSql.Account(u.Value.user, u.Value.host)}").Rows.Cast<DataRow>().Select(r => Convert.ToString(r[0]))); }
-                catch (Exception ex) { grants.Text = ex.Message; }
+                catch (Exception ex) { grants.Text = Friendly.Text(ex); }
             };
             var actions = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
             void A(string text, Action a, string style = null) { var b = U.Btn(text, a, style); b.Margin = new Thickness(0, 0, 8, 6); actions.Children.Add(b); }
@@ -653,7 +653,7 @@ namespace AndersCraftStudio
                 var sql = grant ? AdminSql.Grant(privs, f["db"], f["table"], u.Value.user, u.Value.host, f["wg"] == "1") : AdminSql.Revoke(privs, f["db"], f["table"], u.Value.user, u.Value.host);
                 Do(grant ? "Grant" : "Revoke", new[] { sql }, null, null, () => ShowTab("users"));
             }
-            catch (Exception ex) { w.Toast(ex.Message, "bad"); }
+            catch (Exception ex) { w.Toast(Friendly.Text(ex), "bad"); }
         }
 
         // ================================================================== connections
@@ -676,7 +676,7 @@ namespace AndersCraftStudio
         {
             var sp = new StackPanel();
             var ver = admin.Scalar("SELECT VERSION()");
-            var up = long.TryParse(admin.Scalar("SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Uptime'") ?? "0", out var u) ? TimeSpan.FromSeconds(u) : TimeSpan.Zero;
+            var up = long.TryParse(UptimeOf(admin.Table("SHOW GLOBAL STATUS LIKE 'Uptime'")) ?? "0", out var u) ? TimeSpan.FromSeconds(u) : TimeSpan.Zero;
             sp.Children.Add(U.Card(U.Stack(U.H2("Server"), U.CheckRow(U.Check.Info, "Version", ver), U.CheckRow(U.Check.Info, "Running for", up == TimeSpan.Zero ? "?" : $"{(int)up.TotalDays} d {up.Hours} h {up.Minutes} min"), U.CheckRow(U.Check.Info, "Signed in as", admin.User + "@" + admin.Host)), new Thickness(18, 14, 18, 14), new Thickness(0, 0, 0, 12)));
             foreach (var (title, sql) in new[] { ("Status counters", "SHOW GLOBAL STATUS"), ("Settings (variables)", "SHOW GLOBAL VARIABLES") })
             {
@@ -689,6 +689,8 @@ namespace AndersCraftStudio
             sp.Children.Add(U.T("Change a setting for the running server with SET GLOBAL name = value in the SQL console; to keep it after a restart, put it in MySQL's my.ini.", 12.5, "Muted"));
             return U.Scroll(sp);
         }
+
+        static string UptimeOf(DataTable t) => t.Rows.Count > 0 ? Convert.ToString(t.Rows[0][1]) : null;
 
         // ================================================================== set up AzerothCore
         readonly ServerSetup.Plan plan = new ServerSetup.Plan();
@@ -726,7 +728,7 @@ namespace AndersCraftStudio
             {
                 Check();
                 List<string> stmts;
-                try { stmts = ServerSetup.Statements(plan); } catch (Exception ex) { w.Toast(ex.Message, "bad"); return; }
+                try { stmts = ServerSetup.Statements(plan); } catch (Exception ex) { w.Toast(Friendly.Text(ex), "bad"); return; }
                 var folders = plan.ImportBase ? ServerSetup.BaseFolders(plan).ToList() : new List<(string, string)>();
                 if (plan.ImportBase && folders.Any(f => !Directory.Exists(f.Item2))) { w.Toast("A base folder is missing: point Studio at AzerothCore's data\\sql folder.", "bad"); return; }
                 var shown = stmts.ToList();
@@ -903,7 +905,7 @@ namespace AndersCraftStudio
                         ok++;
                     }
                 }
-                catch (Exception ex) { log.AppendLine(ex.Message); }
+                catch (Exception ex) { log.AppendLine(Friendly.Text(ex)); }
                 finally { Mouse.OverrideCursor = null; pw.Password = ""; }
                 Succeeded = ok == stmts.Count && stmts.Count > 0;
                 result.Content = Succeeded ? U.Callout($"Done: {ok} statement(s) ran.", "ok") : U.Callout($"{ok} of {stmts.Count} statement(s) ran, then:\n{log}", "bad", "Stopped");

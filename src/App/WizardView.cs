@@ -200,7 +200,7 @@ namespace AndersCraftStudio
         void LoadConf(string path, bool rebuild = true)
         {
             try { conf = ConfParser.ParseFile(path); confError = null; p.ConfPath = path; }
-            catch (Exception ex) { conf = null; confError = ex.Message; }
+            catch (Exception ex) { conf = null; confError = Friendly.Text(ex); }
             if (conf?.World != null)
             {
                 p.Core = conf.Core; p.Host = conf.World.Host; p.Port = conf.World.Port; p.WorldDb = conf.World.Database;
@@ -408,7 +408,7 @@ namespace AndersCraftStudio
                     p.SandboxExists = prof.SandboxExists;
                     if (writes.Count == 0) p.AccountsVerifiedUtc = DateTime.UtcNow;
                 }
-                catch (Exception ex) { res.Add((U.Check.Bad, prof.RoUser + " logs in", "no: " + ex.Message, "Did the script run without errors? Check the user name, password and host.")); }
+                catch (Exception ex) { res.Add((U.Check.Bad, prof.RoUser + " logs in", "no: " + Friendly.Text(ex), "Did the script run without errors? Check the user name, password and host.")); }
                 try
                 {
                     using var db = new ReadOnlyDb(prof.Host, prof.Port, prof.RwUser, rw, prof.WorldDb);   // logging in only; read-only session
@@ -418,7 +418,7 @@ namespace AndersCraftStudio
                     res.Add(bad.Count == 0 ? (U.Check.Ok, prof.RwUser + " is limited", "row changes only", null)
                                            : (U.Check.Warn, prof.RwUser + " is limited", "has extra rights: " + string.Join(", ", bad), "It works, but has more power than Studio needs. Re-run the script on a fresh account to limit it."));
                 }
-                catch (Exception ex) { res.Add((U.Check.Bad, prof.RwUser + " logs in", "no: " + ex.Message, "You can still browse. Apply needs this account.")); }
+                catch (Exception ex) { res.Add((U.Check.Bad, prof.RwUser + " logs in", "no: " + Friendly.Text(ex), "You can still browse. Apply needs this account.")); }
                 return res;
             }).ContinueWith(t => Dispatcher.Invoke(() =>
             {

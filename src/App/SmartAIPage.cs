@@ -216,7 +216,7 @@ namespace AndersCraftStudio
                 baseline = RowDiff.Overlay(S.Changes.Pending, "smart_scripts", SmartRow.KeyColumns, dbRows, r => r.Lit("entryorguid") == id.ToString(CultureInfo.InvariantCulture) && r.Lit("source_type") == src.ToString(CultureInfo.InvariantCulture));
                 rows = baseline.Select(r => SmartRow.FromValues(c => r.Disp(c))).OrderBy(r => r.Id).ToList();
             }
-            catch (Exception ex) { w.Toast("Couldn't load the script: " + ex.Message, "bad"); baseline = new List<RowValues>(); rows = new List<SmartRow>(); }
+            catch (Exception ex) { w.Toast("Couldn't load the script: " + Friendly.Text(ex), "bad"); baseline = new List<RowValues>(); rows = new List<SmartRow>(); }
             existsCache.Clear();
             sel = rows.Count > 0 ? 0 : -1;
             RefreshList(); BuildEditor(); RefreshChecks();
@@ -266,7 +266,7 @@ namespace AndersCraftStudio
                 var touched = copy.Changes.Where(c => c.Table == "smart_scripts" && (!ids.Contains(c.Id) || c.ForwardSql != S.Changes.Pending.Changes.FirstOrDefault(p => p.Id == c.Id)?.ForwardSql)).ToList();
                 sqlBox.Text = touched.Count == 0 ? "-- No unstaged edits." : string.Join("\n", touched.Select(c => c.ForwardSql));
             }
-            catch (Exception ex) { sqlBox.Text = "-- " + ex.Message; }
+            catch (Exception ex) { sqlBox.Text = "-- " + Friendly.Text(ex); }
         }
 
         void Changed() { RefreshList(); RefreshChecks(); if (sel >= 0 && sel < rows.Count) sentence.Text = SmartAI.Sentence(rows[sel], Resolve); }
@@ -452,7 +452,7 @@ namespace AndersCraftStudio
                 w.Toast(n == 0 ? "No changes to stage." : $"Staged {n} change(s) to this script. Review them on Changes.", n == 0 ? "info" : "ok");
                 Open(sourceType, entry, true);
             }
-            catch (Exception ex) { w.Toast("Not staged: " + ex.Message, "bad"); }
+            catch (Exception ex) { w.Toast("Not staged: " + Friendly.Text(ex), "bad"); }
         }
 
         // for screenshots

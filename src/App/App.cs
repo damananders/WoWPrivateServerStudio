@@ -84,10 +84,13 @@ namespace AndersCraftStudio
             Current.DispatcherUnhandledException += (s, e) =>
             {
                 e.Handled = true;
-                try { File.AppendAllText(Path.Combine(ProfileStore.DefaultRoot, "errors.log"), DateTime.Now + " " + e.Exception + Environment.NewLine); } catch { }
-                try { MainWindow.Instance?.Toast("Something went wrong (details saved to errors.log): " + e.Exception.Message, "bad"); } catch { }
+                Log.Error("Unhandled", e.Exception);
+                try { MainWindow.Instance?.Toast(Friendly.Text(e.Exception) + "  (Details are in Help › Open logs.)", "bad"); } catch { }
             };
             MainWindow.Fresh = fresh;
+            AppDomain.CurrentDomain.UnhandledException += (s, e) => Log.Error("Crash", e.ExceptionObject as Exception);
+            System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (s, e) => { Log.Error("Background task", e.Exception); e.SetObserved(); };
+            Log.Info($"Studio {AppInfo.Version} started" + (screens != null ? " (screenshots)" : ""));
             MainWindow.OnlyM7 = args.Contains("--m7");
             MainWindow.OnlyM8 = args.Contains("--m8");
             MainWindow.OnlyM9 = args.Contains("--m9");      // screenshots only: just the 0.7 screens

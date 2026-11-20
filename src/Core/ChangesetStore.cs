@@ -21,11 +21,24 @@ namespace AndersCraftStudio.Core
         {
             Folder = folder;
             Directory.CreateDirectory(folder);
-            Pending = LoadFile(PendingPath) ?? new Changeset { Name = "Staged changes" };
+            Pending = LoadFile(PendingPath);
+            if (Pending == null && File.Exists(PendingPath))
+            {
+                // the file is there but can't be read (e.g. the PC lost power mid-write): keep it and fall back to the last good copy
+                var keep = Path.Combine(folder, $"pending.damaged-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+                try { File.Copy(PendingPath, keep, true); } catch { }
+                Pending = LoadFile(PendingPath + ".bak");
+                RecoveryNote = Pending != null
+                    ? $"Your staged changes file was damaged, so Studio restored the previous copy ({Pending.Changes.Count} change(s)). The damaged file is kept as {Path.GetFileName(keep)}."
+                    : $"Your staged changes file was damaged and no earlier copy could be read. It is kept as {Path.GetFileName(keep)}; Studio started with an empty list.";
+            }
+            Pending ??= new Changeset { Name = "Staged changes" };
             Pending.FilePath = PendingPath;
         }
 
         public string PendingPath => Path.Combine(Folder, "pending.json");
+        /// <summary>Set when the staged-changes file had to be recovered at start-up (shown to the user once).</summary>
+        public string RecoveryNote { get; private set; }
 
         public static Changeset LoadFile(string path)
         {
@@ -44,7 +57,9 @@ namespace AndersCraftStudio.Core
             cs.FilePath ??= Path.Combine(Folder, "applied_" + cs.Id + ".json");
             var tmp = cs.FilePath + ".tmp";
             File.WriteAllText(tmp, JsonSerializer.Serialize(cs, JO));
-            File.Move(tmp, cs.FilePath, true);
+            // swap the new file in and keep the previous one as .bak (both steps are all-or-nothing on NTFS)
+            if (File.Exists(cs.FilePath)) File.Replace(tmp, cs.FilePath, cs.FilePath + ".bak", true);
+            else File.Move(tmp, cs.FilePath, true);
         }
 
         public void SavePending() => Save(Pending);

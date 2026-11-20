@@ -118,7 +118,7 @@ namespace AndersCraftStudio
             {
                 timer.Stop(); list.Items.Clear();
                 List<(long id, string name, string extra)> hits;
-                try { hits = search(box.Text); } catch (Exception ex) { status.Text = "Search failed: " + ex.Message; return; }
+                try { hits = search(box.Text); } catch (Exception ex) { status.Text = "Search failed: " + Friendly.Text(ex); return; }
                 foreach (var h in hits)
                 {
                     var row = new DockPanel();

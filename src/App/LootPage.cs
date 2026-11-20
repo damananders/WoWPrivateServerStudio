@@ -119,7 +119,7 @@ namespace AndersCraftStudio
                     foreach (var r in t.Rows) AddResult(Convert.ToInt64(r[0]), $"{r[1]} row(s)");
                 }
             }
-            catch (Exception ex) { results.Items.Add(new ListBoxItem { Content = U.T(ex.Message, 12, "Bad"), IsEnabled = false }); }
+            catch (Exception ex) { results.Items.Add(new ListBoxItem { Content = U.T(Friendly.Text(ex), 12, "Bad"), IsEnabled = false }); }
         }
 
         void AddResult(long en, string what) => results.Items.Add(new ListBoxItem { Content = U.Stack(U.T("#" + en, 13, "Text", FontWeights.SemiBold, false), U.T(what, 11.5, "Muted", null, false)), Tag = en });

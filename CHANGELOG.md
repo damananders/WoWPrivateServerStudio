@@ -1,0 +1,18 @@
+# Changelog
+
+Full notes for each version are in [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
+## 0.9.0
+3D viewer for creatures (dressed humanoid NPCs included), game objects and WMO buildings, items and spell effects with
+particles; animations; body-armour texture import; editable event/spell scripts; DBC tabs; friendlier error messages, a
+log for problem reports, recovery of a damaged staged-changes file; MariaDB backup fix.
+
+## 0.8.0
+Admin console (everything HeidiSQL does, including setting up AzerothCore's databases) and the rest of Keira3's editors.
+Setup wizard can run its scripts itself.
+
+## 0.7.0
+Game objects, NPC text and page text editors; CSV import into database tables; item model import.
+
+## 0.6.0
+First public release.

@@ -99,7 +99,7 @@ SOFTWARE.";
             {
                 string who = null, ver = null;
                 if (S.HasReadAccount)
-                    try { using var db = S.OpenRead(p.WorldDb); var t = db.Query("SELECT CURRENT_USER(), VERSION()", 1); who = Convert.ToString(t.Rows[0][0]); ver = Convert.ToString(t.Rows[0][1]); } catch (Exception ex) { who = "can't connect: " + ex.Message; }
+                    try { using var db = S.OpenRead(p.WorldDb); var t = db.Query("SELECT CURRENT_USER(), VERSION()", 1); who = Convert.ToString(t.Rows[0][0]); ver = Convert.ToString(t.Rows[0][1]); } catch (Exception ex) { who = "can't connect: " + Friendly.Text(ex); }
                 srv.Children.Add(U.CheckRow(U.Check.Info, "Profile", p.Name, null, 150));
                 srv.Children.Add(U.CheckRow(File.Exists(p.ConfPath) ? U.Check.Ok : U.Check.Warn, "worldserver.conf", p.ConfPath ?? "(not set)", null, 150));
                 srv.Children.Add(U.CheckRow(U.Check.Info, "MySQL", $"{p.Host}:{p.Port}" + (ver != null ? $" · version {ver}" : ""), null, 150));
@@ -140,6 +140,7 @@ SOFTWARE.";
             {
                 ("creatures", "Creatures", "NPCs and monsters"), ("items", "Items", "Gear and everything in bags"), ("quests", "Quests", "Text, objectives, rewards"),
                 ("gameobjects", "Game objects", "Chests, doors, herbs, signs"), ("npctext", "NPC text", "Gossip greetings"), ("pagetext", "Page text", "Books and letters"),
+                ("admin", "Admin console", "Direct SQL, users, import/export, server setup"),
                 ("loot", "Loot", "Drops and the simulator"), ("smartai", "SmartAI", "Behaviour as sentences"), ("world", "World tables", "Conditions, waypoints, gossip, events, area triggers"),
                 ("templates", "Templates", "Ready-made actions"), ("spells", "Spells", "Spell.dbc with a live tooltip"), ("dbc", "DBC tables", "All 246 client tables"),
                 ("assets", "Asset import", "Icons, models, sounds"), ("patches", "Client patches", "Build and install MPQs"), ("sql", "SQL browser", "Every table, read-only queries"),
@@ -289,8 +290,8 @@ SOFTWARE.";
                 using var db = S.OpenRead(S.Profile.WorldDb);
                 res = cur.Build(Values(), db, target, S.Profiles.Settings.CustomIdStart);
             }
-            catch (TemplateException ex) { result.Content = U.Callout(ex.Message, "warn", "Check the form"); return; }
-            catch (Exception ex) { result.Content = U.Callout(ex.Message, "bad", "Couldn't build it"); return; }
+            catch (TemplateException ex) { result.Content = U.Callout(Friendly.Text(ex), "warn", "Check the form"); return; }
+            catch (Exception ex) { result.Content = U.Callout(Friendly.Text(ex), "bad", "Couldn't build it"); return; }
             if (stage) { S.SaveChanges(); w.Toast($"Staged {res.Changes.Count} change(s). Review them on Changes.", "ok"); }
             var sp = new StackPanel();
             sp.Children.Add(U.Eyebrow(stage ? "Staged" : "Preview — nothing staged yet"));
@@ -617,7 +618,7 @@ SOFTWARE.";
                     }
                 }
             }
-            catch (Exception ex) { stack.Children.Add(U.Callout(ex.Message, "warn")); }
+            catch (Exception ex) { stack.Children.Add(U.Callout(Friendly.Text(ex), "warn")); }
             body.Content = stack;
         }
 
@@ -672,10 +673,15 @@ SOFTWARE.";
             sp.Children.Add(Section("What you need",
                 P("• An AzerothCore 3.3.5a server you run yourself (its worldserver.conf on this PC or a reachable path) and its MySQL / MariaDB database.\n• MySQL's mysqldump.exe (comes with MySQL Server) for the backup Studio takes before every Apply.\n• Optional: your 3.3.5a game client folder, for icons, client DBCs and building patches.\n• Windows 10/11 (64-bit). The self-contained download needs nothing else; the small download needs the .NET 10 Desktop Runtime.")));
             sp.Children.Add(Section("Set up in five minutes",
-                P("1. Start Studio. The setup wizard opens.\n2. Step 2 finds worldserver.conf (Auto-detect or Browse). Studio reads which databases the server uses; it never stores the server's own MySQL password.\n3. Step 3 makes two MySQL accounts just for Studio: one that can only read (used for all browsing), one that can only change rows in the world database (used only by Apply). Copy the script, run it once yourself as MySQL root (HeidiSQL, Workbench or the mysql command line), then press \"Test the accounts\".\n4. Step 4 (optional): your game client folder.\n5. Step 5 (recommended): create a sandbox, a full copy of the world database to practise on. Apply goes there until you unlock Live in Settings."),
+                P("1. Start Studio. The setup wizard opens.\n2. Step 2 finds worldserver.conf (Auto-detect or Browse). Studio reads which databases the server uses; it never stores the server's own MySQL password.\n3. Step 3 makes two MySQL accounts just for Studio: one that can only read (used for all browsing), one that can only change rows in the world database (used only by Apply). Press \"Run it now as admin…\" and type your MySQL root password once (used for that run, never saved), or copy the script into any MySQL tool. Then press \"Test the accounts\".\n4. Step 4 (optional): your game client folder.\n5. Step 5 (recommended): create a sandbox, a full copy of the world database to practise on (\"Run it now as admin…\" again). Apply goes there until you unlock Live in Settings.\n\nNo server yet? Install MySQL, open Admin console › Set up AzerothCore: it creates the three databases and the server's account and loads AzerothCore's base tables. Start authserver and worldserver once, then run this wizard."),
                 U.Btn("Open the setup wizard", () => w.ShowWizard(1, true), "BtnPrimary")));
             sp.Children.Add(Section("The safety model (why nothing breaks by accident)",
                 P("Every screen shows the same four steps: Edit → Stage → Review → Apply.\n• Browsing and queries use the read-only account in READ ONLY sessions, and every statement is checked again by Studio.\n• Edits are never written directly: they are staged into a changeset file with the old value, the new value and the SQL to undo it.\n• Changes shows every staged change side by side. Apply backs up the affected tables with mysqldump first, asks you to type APPLY (or APPLY LIVE), and runs everything in one transaction that is re-checked row by row. Any mismatch rolls it all back.\n• History keeps every Apply with its backup and a Roll back button.\n• Client data (DBC files, patches) never overwrites originals: edits leave as files in Studio's own folders, and installing a patch backs up anything it replaces.")));
+            sp.Children.Add(Section("Admin console (instead of HeidiSQL)",
+                P("For MySQL administration the editors deliberately leave out: run any SQL directly, databases, tables, columns, indexes and views, users and permissions, connections, server status, importing .sql files or whole folders, exporting databases, and setting up AzerothCore's databases from scratch.\n• It needs an admin login (usually root) that you type each time; Studio keeps it in memory only and forgets it when you disconnect or close Studio.\n• Statements there run straight away. Anything that deletes asks you to type the object's name; account, permission and connection changes are marked as permanent; a copy of a table is offered before risky changes.\n• For content, keep using the editors: they stage, preview and back up every change."),
+                U.Btn("Open the Admin console", () => w.Navigate("admin"))));
+            sp.Children.Add(Section("3D viewer",
+                P("Creatures, game objects, items and spell effects show in 3D in their editors (Creatures and Game objects › Basics, Items › Display, Spells › Visuals) and in Asset import. Drag to turn, right-drag to move, wheel to zoom, double-click to reset; pick an animation and press Play. It reads your client's archives (setup step 4), never changes them, and shows imported files from your patch work folders before you install them. Particle effects are an approximation of the game's.")));
             var gloss = new[]
             {
                 ("Entry", "The ID of a template: creature_template.entry, item_template.entry, quest_template.ID."),
@@ -702,6 +708,10 @@ SOFTWARE.";
             sp.Children.Add(Section("Where your files are",
                 P("Settings and saved passwords (encrypted for your Windows user): %APPDATA%\\AndersCraftStudio\nChangesets, backups, patch work folders and built patches: Documents\\AndersCraft Studio (change it in Settings)."),
                 U.Row(U.Btn("About AndersCraft Studio", () => AboutWindow.ShowAbout(w)), U.Btn("Settings", () => w.Navigate("settings"), "BtnGhost"))));
+            sp.Children.Add(Section("Something went wrong?",
+                P("Studio keeps a log of errors and important actions (passwords are removed before anything is written), one file per day for the last 14 days. To report a problem, open the logs, attach today's file, and describe what you did at github.com/damananders/WoWPrivateServerStudio/issues. Studio sends nothing anywhere by itself: it only talks to your own database."),
+                U.Row(U.Btn("Open logs", () => { try { System.IO.Directory.CreateDirectory(Log.Folder); System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "\"" + Log.Folder + "\"") { UseShellExecute = true }); } catch (Exception ex) { w.Toast(Friendly.Text(ex), "bad"); } }),
+                      U.Btn("Report a problem", () => { try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/damananders/WoWPrivateServerStudio/issues") { UseShellExecute = true }); } catch { } }, "BtnGhost"))));
             host.Content = U.Scroll(sp);
         }
     }

@@ -63,8 +63,11 @@ namespace AndersCraftStudio.Core
                         var exes = new List<string>();
                         foreach (var h in Directory.GetDirectories(pf, vendor + "*"))
                         {
-                            exes.Add(Path.Combine(h, "bin", "mysqldump.exe"));
-                            foreach (var sub in Directory.GetDirectories(h)) exes.Add(Path.Combine(sub, "bin", "mysqldump.exe"));
+                            foreach (var name in new[] { "mysqldump.exe", "mariadb-dump.exe" })   // newer MariaDB names it mariadb-dump
+                            {
+                                exes.Add(Path.Combine(h, "bin", name));
+                                foreach (var sub in Directory.GetDirectories(h)) exes.Add(Path.Combine(sub, "bin", name));
+                            }
                         }
                         var hit = exes.Where(File.Exists).OrderByDescending(x => x, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
                         if (hit != null) return hit;

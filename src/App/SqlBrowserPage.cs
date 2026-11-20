@@ -187,7 +187,7 @@ namespace AndersCraftStudio
                 sp.Children.Add(code);
                 sp.Children.Add(U.Btn("Copy", () => { try { Clipboard.SetText(code.Text); w.Toast("Copied.", "ok"); } catch { } }, "BtnGhost"));
             }
-            catch (Exception ex) { sp.Children.Add(U.Callout("Couldn't read the structure: " + ex.Message, "bad")); }
+            catch (Exception ex) { sp.Children.Add(U.Callout("Couldn't read the structure: " + Friendly.Text(ex), "bad")); }
             structPane.Content = U.Scroll(sp);
         }
 
@@ -291,7 +291,7 @@ namespace AndersCraftStudio
                 authVisible = dbs.Contains(S.Profile.AuthDb, StringComparer.OrdinalIgnoreCase) && S.Profile.AllowAuthView;
                 if (S.Profile.SandboxExists != sandboxExists) { S.Profile.SandboxExists = sandboxExists; if (!S.DemoConf) S.Profiles.Save(S.Profile); }
             }
-            catch (Exception ex) { w.Toast("Couldn't list databases: " + ex.Message, "bad"); }
+            catch (Exception ex) { w.Toast("Couldn't list databases: " + Friendly.Text(ex), "bad"); }
             BuildDbList();
         }
 
@@ -326,7 +326,7 @@ namespace AndersCraftStudio
                 using var c = S.OpenRead(db);
                 tables = c.Tables();
             }
-            catch (Exception ex) { tables = new List<(string, long, string)>(); w.Toast($"Couldn't read the table list of {db}: {ex.Message}", "bad"); }
+            catch (Exception ex) { tables = new List<(string, long, string)>(); w.Toast($"Couldn't read the table list of {db}: {Friendly.Text(ex)}", "bad"); }
             table = null;
             FillTables();
             var first = tables.FirstOrDefault(t => t.name == "creature_template").name ?? tables.FirstOrDefault().name;
@@ -415,7 +415,7 @@ namespace AndersCraftStudio
             catch (Exception ex)
             {
                 data = null; grid.ItemsSource = null;
-                w.Toast("Couldn't load rows: " + ex.Message, "bad");
+                w.Toast("Couldn't load rows: " + Friendly.Text(ex), "bad");
                 return;
             }
             stagedDeletes.Clear();
@@ -676,7 +676,7 @@ namespace AndersCraftStudio
                 var dlg = new CsvImportWindow(w, db, table, pk, data, d.FileName);
                 if (dlg.ShowDialog() == true) OverlayStaged();
             }
-            catch (Exception ex) { w.Toast("Can't read that CSV: " + ex.Message, "bad"); }
+            catch (Exception ex) { w.Toast("Can't read that CSV: " + Friendly.Text(ex), "bad"); }
         }
 
         void ExportResultCsv()
@@ -721,7 +721,7 @@ namespace AndersCraftStudio
                     using var c = S.OpenRead(db);
                     foreach (var st in writes) { ChangeFactory.StageRawStatement(S.Changes.Pending, st, c); staged++; }
                 }
-                catch (Exception ex) { notes.Add("Couldn't capture undo data: " + ex.Message); foreach (var st in writes.Skip(staged)) ChangeFactory.StageRawStatement(S.Changes.Pending, st, null); }
+                catch (Exception ex) { notes.Add("Couldn't capture undo data: " + Friendly.Text(ex)); foreach (var st in writes.Skip(staged)) ChangeFactory.StageRawStatement(S.Changes.Pending, st, null); }
                 S.SaveChanges();
                 var last = S.Changes.Pending.Changes.Skip(S.Changes.Pending.Changes.Count - writes.Count).ToList();
                 var noUndo = last.Count(x => !x.UndoAvailable);
@@ -754,7 +754,7 @@ namespace AndersCraftStudio
             catch (Exception ex)
             {
                 resultGrid.ItemsSource = null; lastResult = null;
-                queryMsg.Content = U.Callout(ex.Message, "bad", "MySQL said");
+                queryMsg.Content = U.Callout(Friendly.Text(ex), "bad", "MySQL said");
             }
         }
 

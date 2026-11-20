@@ -163,7 +163,7 @@ namespace AndersCraftStudio
                             var info = M2Info.Read(File.ReadAllBytes(source));
                             sp.Children.Add(U.Callout($"Model \"{info.Name}\" · M2 version {info.Version}{(info.Version == 264 ? " (3.3.5a)" : " — the 3.3.5a client expects 264")} · {info.Vertices:N0} vertices · {info.Bones} bones · {info.Sequences} animations · {info.Views} skin view(s)" + (info.Textures.Count > 0 ? "\nTextures: " + string.Join(", ", info.Textures) : ""), info.Version == 264 ? "ok" : "warn", "Model info"));
                         }
-                        catch (Exception ex) { sp.Children.Add(U.Callout(ex.Message, "bad")); }
+                        catch (Exception ex) { sp.Children.Add(U.Callout(Friendly.Text(ex), "bad")); }
                         var dir = Path.GetDirectoryName(source);
                         var skins = Directory.GetFiles(dir, Path.GetFileNameWithoutExtension(source) + "0?.skin").OrderBy(x => x).ToList();
                         var tex = Directory.GetFiles(dir).Where(x => new[] { ".blp", ".png", ".tga" }.Contains(Path.GetExtension(x).ToLowerInvariant())).OrderBy(x => x).ToList();
@@ -186,7 +186,7 @@ namespace AndersCraftStudio
                             var info = M2Info.Read(File.ReadAllBytes(source));
                             sp.Children.Add(U.Callout($"Model \"{info.Name}\" · M2 version {info.Version}{(info.Version == 264 ? " (3.3.5a)" : " — the 3.3.5a client expects 264")} · {info.Vertices:N0} vertices · {info.Views} skin view(s)" + (info.Textures.Count > 0 ? "\nTextures: " + string.Join(", ", info.Textures) : ""), info.Version == 264 ? "ok" : "warn", "Model info"));
                         }
-                        catch (Exception ex) { sp.Children.Add(U.Callout(ex.Message, "bad")); }
+                        catch (Exception ex) { sp.Children.Add(U.Callout(Friendly.Text(ex), "bad")); }
                         var dir = Path.GetDirectoryName(source);
                         var skins = Directory.GetFiles(dir, Path.GetFileNameWithoutExtension(source) + "0?.skin").OrderBy(x => x).ToList();
                         var tex = Directory.GetFiles(dir).Where(x => new[] { ".blp", ".png", ".tga" }.Contains(Path.GetExtension(x).ToLowerInvariant())).OrderBy(x => x).ToList();
@@ -238,7 +238,7 @@ namespace AndersCraftStudio
                         if (ext == ".ogg") sp.Children.Add(U.Callout("Studio imports WAV and MP3, the formats the 3.3.5a client's own sounds use. Convert OGG to MP3 or WAV first (e.g. with Audacity).", "warn"));
                         else
                         {
-                            var play = U.Btn("▶ Play", () => { try { player?.Stop(); player = new MediaPlayer(); player.Open(new Uri(source)); player.Play(); } catch (Exception ex) { w.Toast("Can't play it: " + ex.Message, "warn"); } });
+                            var play = U.Btn("▶ Play", () => { try { player?.Stop(); player = new MediaPlayer(); player.Open(new Uri(source)); player.Play(); } catch (Exception ex) { w.Toast("Can't play it: " + Friendly.Text(ex), "warn"); } });
                             var stop = U.Btn("■ Stop", () => player?.Stop(), "BtnGhost");
                             sp.Children.Add(U.Row(play, stop, U.T($"{new FileInfo(source).Length / 1024.0:N0} KB", 12.5, "Muted", null, false)));
                             sp.Children.Add(new Border { Height = 12 });
@@ -299,7 +299,7 @@ namespace AndersCraftStudio
         public void UseFile(string path)
         {
             source = path; picture = null; lastMessage = null;
-            if (kind == "icon") { try { picture = LoadPicture(path); } catch (Exception ex) { w.Toast("Can't read that picture: " + ex.Message, "bad"); source = null; } }
+            if (kind == "icon") { try { picture = LoadPicture(path); } catch (Exception ex) { w.Toast("Can't read that picture: " + Friendly.Text(ex), "bad"); source = null; } }
             BuildForm();
         }
 
@@ -485,7 +485,7 @@ namespace AndersCraftStudio
                 S.SaveChanges();
                 w.Toast("Imported into " + work + (added.Count > 0 ? $"; {added.Count} DBC row(s) staged." : "."), "ok");
             }
-            catch (Exception ex) { w.Toast("Not imported: " + ex.Message, "bad"); return; }
+            catch (Exception ex) { w.Toast("Not imported: " + Friendly.Text(ex), "bad"); return; }
             BuildForm();
         }
 

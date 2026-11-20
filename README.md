@@ -51,8 +51,10 @@ SQL and hex editors — and it is built so that **nothing reaches your database 
 ## Requirements
 
 * Windows 10 or 11 (64-bit).
-* An AzerothCore **3.3.5a** server you run (its `worldserver.conf` readable from this PC) and its MySQL 8 / MariaDB database.
-* MySQL's `mysqldump.exe` (comes with MySQL Server) for the backup before each Apply. Studio finds it in the usual place.
+* An **AzerothCore 3.3.5a** server (game client build 12340) you run, its `worldserver.conf` readable from this PC.
+* Its database on **MySQL 8.0 / 8.4** (tested) or **MariaDB 10.4+** (supported, not yet tested against a live MariaDB
+  server). TrinityCore 3.3.5 uses a similar database but hasn't been tested; some editors may not match its tables.
+* `mysqldump.exe` (MySQL) or `mariadb-dump.exe` (MariaDB) for the backup before each Apply. Studio finds it in the usual place.
 * For the Admin console: a MySQL administrator login (usually root). It's only needed for admin work and never saved.
 * Optional: your 3.3.5a game client folder (icons, client DBCs, patches).
 * Download **AndersCraftStudio-0.9.zip** (self-contained, nothing else to install). The small framework-dependent build
@@ -100,6 +102,18 @@ built patches in `Documents\AndersCraft Studio` (changeable in Settings).
 
 More detail: [README.txt](README.txt) (technical notes), [PARITY_AUDIT.md](PARITY_AUDIT.md), [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
+## Privacy
+
+Studio has **no telemetry**: it sends nothing anywhere. It only talks to the database server you point it at (and checks
+that the server's port answers during setup). Your passwords are encrypted for your Windows user; the Admin console's login
+is never saved. The log in `%APPDATA%\AndersCraftStudio\logs` stays on your PC, with passwords removed.
+
+## Report a problem
+
+Open an issue at [github.com/damananders/WoWPrivateServerStudio/issues](https://github.com/damananders/WoWPrivateServerStudio/issues).
+Help (F1) › *Open logs* shows the log files; attach today's and describe what you did.
+
 ## Licence
 
-MIT — see [LICENSE](LICENSE). Not affiliated with Blizzard Entertainment. Studio ships no game data.
+MIT — see [LICENSE](LICENSE). Not affiliated with or endorsed by Blizzard Entertainment. Studio ships no game data: you
+supply your own 3.3.5a client and server.

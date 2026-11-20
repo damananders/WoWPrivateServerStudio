@@ -265,7 +265,7 @@ namespace AndersCraftStudio
                               (m.ParticleEmitters + m.RibbonEmitters > 0 ? $" · {m.ParticleEmitters} particle and {m.RibbonEmitters} ribbon effect(s), drawn approximately" : "") + (string.IsNullOrEmpty(r.Note) ? "" : "\n" + r.Note);
                 return true;
             }
-            catch (Exception ex) { ShowMessage("Can't show this model: " + ex.Message); return false; }
+            catch (Exception ex) { ShowMessage("Can't show this model: " + Friendly.Text(ex)); return false; }
         }
 
         /// <summary>A model file from disk (e.g. one being imported): its .skin and textures are looked for next to it first.</summary>
@@ -289,7 +289,7 @@ namespace AndersCraftStudio
                 var skins = Directory.GetFiles(Path.Combine(tmp, "Preview"), "*.blp").Select(Path.GetFileNameWithoutExtension).OrderBy(x => x).ToArray();
                 return Load(new ModelLibrary.Request { Path = Path.Combine("Preview", name), Title = name, CreatureSkins = skins, ItemSkin = skins.FirstOrDefault() });
             }
-            catch (Exception ex) { ShowMessage("Can't show this model: " + ex.Message); return false; }
+            catch (Exception ex) { ShowMessage("Can't show this model: " + Friendly.Text(ex)); return false; }
         }
 
         /// <summary>A WMO building: every group with its textures (doodads — the small M2 props inside — aren't placed).</summary>
@@ -358,7 +358,7 @@ namespace AndersCraftStudio
                               (w.DoodadCount > 0 ? $" · {w.DoodadCount} small props (doodads) inside aren't placed" : "") + (w.GroupCount > 400 ? " · only the first 400 groups are shown" : "");
                 return true;
             }
-            catch (Exception ex) { ShowMessage("Can't show this building: " + ex.Message); return false; }
+            catch (Exception ex) { ShowMessage("Can't show this building: " + Friendly.Text(ex)); return false; }
         }
 
         string previewDir;

@@ -98,7 +98,7 @@ namespace AndersCraftStudio
                     baseline = baseline.Where(r => onPage.Contains(KeyText(r))).ToList();
                 }
             }
-            catch (Exception ex) { error = ex.Message; baseline = new List<RowValues>(); }
+            catch (Exception ex) { error = Friendly.Text(ex); baseline = new List<RowValues>(); }
             BuildData(baseline);
             dirty = false;
             Render();
@@ -218,7 +218,7 @@ namespace AndersCraftStudio
             if (Data == null) return;
             int changes = 0;
             try { changes = CountDifferences(); }
-            catch (Exception ex) { status.Text = ex.Message; status.Foreground = U.R("Bad"); return; }
+            catch (Exception ex) { status.Text = Friendly.Text(ex); status.Foreground = U.R("Bad"); return; }
             status.Foreground = changes > 0 ? U.R("Amber") : U.R("Muted");
             status.Text = changes > 0 ? $"{changes} row(s) changed here and not staged yet. Press Stage." : "No unstaged edits in this list.";
         }
@@ -314,7 +314,7 @@ namespace AndersCraftStudio
                 Changed?.Invoke(this);
                 return true;
             }
-            catch (Exception ex) { w.Toast("Not staged: " + ex.Message, "bad"); return false; }
+            catch (Exception ex) { w.Toast("Not staged: " + Friendly.Text(ex), "bad"); return false; }
         }
 
         public bool Dirty { get { try { return CountDifferences() > 0; } catch { return true; } } }

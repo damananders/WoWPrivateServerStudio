@@ -812,7 +812,7 @@ namespace AndersCraftStudio
                         try { counts.Add((tbl, int.Parse(db.Scalar($"SELECT COUNT(*) FROM {tbl} WHERE {key} = {id}") ?? "0", CultureInfo.InvariantCulture))); } catch { }
                 }
             }
-            catch (Exception ex) { err = ex.Message; }
+            catch (Exception ex) { err = Friendly.Text(ex); }
             bool inDbc = Table("Spell.dbc").baseT?.Find(id) != null;
             var staged = S.Changes.Pending.Changes.FirstOrDefault(c => c.Table == SpellServerRow.Table && c.Kind == ChangeKind.Insert && c.Key.Count > 0 && c.Key[0].Value == id.ToString(CultureInfo.InvariantCulture));
             info.Children.Add(U.CheckRow(inDbc ? U.Check.Ok : U.Check.Warn, $"In the {(source == "client" ? "client's" : "server's")} Spell.dbc", inDbc ? "yes" : "no — new spell", null, 260));
@@ -838,7 +838,7 @@ namespace AndersCraftStudio
             if (sp == null) return;
             refs.SpellTable = Table("Spell.dbc").work;
             SpellTooltip.Tip tip;
-            try { tip = SpellTooltip.Build(sp, refs); } catch (Exception ex) { tooltip.Children.Clear(); tooltip.Children.Add(U.T("Preview failed: " + ex.Message, 12, "Bad")); return; }
+            try { tip = SpellTooltip.Build(sp, refs); } catch (Exception ex) { tooltip.Children.Clear(); tooltip.Children.Add(U.T("Preview failed: " + Friendly.Text(ex), 12, "Bad")); return; }
             if (headerName != null) headerName.Text = sp.Name;
             if (headerIcon != null) headerIcon.Source = Icon(sp.U("SpellIconID"));
             tooltip.Children.Clear();
@@ -954,7 +954,7 @@ namespace AndersCraftStudio
                 BuildEditor(); RefreshPreview(); RunSearch();
                 w.Toast($"Imported \"{res.Name}\" as spell {id}. " + string.Join(" ", res.Notes.Take(3)) + " Stage it to keep it.", "ok");
             }
-            catch (Exception ex) { w.Toast("Not imported: " + ex.Message, "bad"); }
+            catch (Exception ex) { w.Toast("Not imported: " + Friendly.Text(ex), "bad"); }
         }
 
         void StageServerRow()

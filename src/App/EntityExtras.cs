@@ -374,7 +374,7 @@ namespace AndersCraftStudio
             else sp.Children.Add(new Border { Height = 8 });
             sp.Children.Add(v.View);
             lastViewer = v;
-            try { load(v); } catch (Exception ex) { v.ShowMessage(ex.Message); }
+            try { load(v); } catch (Exception ex) { v.ShowMessage(Friendly.Text(ex)); }
             return U.Card(sp, new Thickness(18, 14, 18, 14), new Thickness(0, 0, 0, 12));
         }
 
@@ -490,7 +490,7 @@ namespace AndersCraftStudio
                     pageId = next; text = Convert.ToString(t.Rows[0][0]); next = Convert.ToInt64(t.Rows[0][1], CultureInfo.InvariantCulture);
                 }
             }
-            catch (Exception ex) { sp.Children.Add(U.T("Couldn't read the next pages: " + ex.Message, 12.5, "Faint")); }
+            catch (Exception ex) { sp.Children.Add(U.T("Couldn't read the next pages: " + Friendly.Text(ex), 12.5, "Faint")); }
             return U.Card(sp, new Thickness(18, 14, 18, 14), new Thickness(0, 0, 0, 12));
         }
 
@@ -555,7 +555,7 @@ namespace AndersCraftStudio
                 using var db = S.OpenRead(S.Profile.WorldDb);
                 dt = db.QueryTable(sql, 500, out _);
             }
-            catch (Exception ex) { dt = null; err = ex.Message; }
+            catch (Exception ex) { dt = null; err = Friendly.Text(ex); }
             var sp = new StackPanel();
             sp.Children.Add(U.Row(U.T(title, 15, "Text", FontWeights.SemiBold, false), new Border { Width = 10 }, U.Pill(dt == null ? "n/a" : dt.Rows.Count >= 500 ? "500+" : dt.Rows.Count.ToString(), "Panel2", "Muted"), U.Pill("read-only", "OkBg", "Ok")));
             sp.Children.Add(U.T(help, 12.5, "Muted", null, true, new Thickness(0, 4, 0, 10)));

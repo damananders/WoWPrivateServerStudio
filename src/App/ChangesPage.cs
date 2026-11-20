@@ -386,7 +386,7 @@ namespace AndersCraftStudio
             Func<string, byte[]> read = f => client?.Read(f) ?? (server != null && File.Exists(Path.Combine(server, f)) ? File.ReadAllBytes(Path.Combine(server, f)) : null);
             dbcLastWhat = "Write to patch work folder";
             try { dbcLast = DbcOutputs.ToPatchFolder(ticked, read, work); }
-            catch (Exception ex) { dbcLast = new DbcOutputResult(); dbcLast.Problems.Add(ex.Message); }
+            catch (Exception ex) { dbcLast = new DbcOutputResult(); dbcLast.Problems.Add(Friendly.Text(ex)); }
             Record("DBC → patch folder", work);
             if (dbcLast.Success) w.Toast($"Wrote {dbcLast.Written.Count} DBC file(s) to {work}. Build the patch on Client patches.", "ok");
             BuildApply();
@@ -399,7 +399,7 @@ namespace AndersCraftStudio
             if (ticked.Count == 0 || dir == null || dbcConfirm.Trim() != "UPDATE DBC") return;
             dbcLastWhat = "Update server DBC copy";
             try { dbcLast = DbcOutputs.ToServerCopy(ticked, dir, S.Profiles.Settings.BackupRoot); }
-            catch (Exception ex) { dbcLast = new DbcOutputResult(); dbcLast.Problems.Add(ex.Message + " (a file may be in use)"); }
+            catch (Exception ex) { dbcLast = new DbcOutputResult(); dbcLast.Problems.Add(Friendly.Text(ex) + " (a file may be in use)"); }
             Record("DBC → server copy", dbcLast.BackupDir);
             dbcConfirm = "";
             if (dbcLast.Success) w.Toast($"Updated {dbcLast.Written.Count} server DBC file(s). Backup: {dbcLast.BackupDir}. Restart worldserver to load them.", "ok");
@@ -413,7 +413,7 @@ namespace AndersCraftStudio
             var target = File.Exists(Path.Combine(backup, "restore_to.txt")) ? File.ReadAllText(Path.Combine(backup, "restore_to.txt")).Trim() : ServerDbcDir;
             dbcLastWhat = "Restore";
             try { dbcLast = DbcOutputs.RestoreServerCopy(backup, target); }
-            catch (Exception ex) { dbcLast = new DbcOutputResult(); dbcLast.Problems.Add(ex.Message); }
+            catch (Exception ex) { dbcLast = new DbcOutputResult(); dbcLast.Problems.Add(Friendly.Text(ex)); }
             Record("DBC restore", backup);
             BuildApply();
         }

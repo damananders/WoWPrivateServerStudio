@@ -219,7 +219,7 @@ namespace AndersCraftStudio
             if (src == null) return;
             byte[] bytes;
             try { using (new WaitCursor()) bytes = src.Read(f); }
-            catch (Exception ex) { main.Content = U.Callout($"Couldn't read {f}: {ex.Message}", "bad"); return; }
+            catch (Exception ex) { main.Content = U.Callout($"Couldn't read {f}: {Friendly.Text(ex)}", "bad"); return; }
             if (bytes == null) { main.Content = U.Callout($"{f} isn't in this source.", "warn"); return; }
             if (bytes.Length == 0) { file = f; baseTable = working = null; main.Content = U.Card(U.Stack(U.H2(f), U.T(DbcLayout.Describe(f), 13.5, "Muted"), U.Callout("This file is empty (0 bytes), so there is nothing to show or edit.", "info")), new Thickness(24), new Thickness(0)); return; }
             try
@@ -233,7 +233,7 @@ namespace AndersCraftStudio
                     working ??= baseTable.Clone();
                 }
             }
-            catch (Exception ex) { main.Content = U.Callout($"{f} couldn't be read as a DBC: {ex.Message}", "bad"); return; }
+            catch (Exception ex) { main.Content = U.Callout($"{f} couldn't be read as a DBC: {Friendly.Text(ex)}", "bad"); return; }
             int keep = page;
             file = f; dirty = false; diffKeys = null; onlyDiff.IsChecked = false; linkNames.Clear();
             if (!keepPage) { filterBox.Text = ""; findBox.Text = ""; }
@@ -611,7 +611,7 @@ namespace AndersCraftStudio
                     diffNote = keys.Count == 0 && missing == 0 ? $"Same as the {otherName}." : $"Compared with the {otherName}: {changed} row(s) differ, {added} only here, {missing} only there.";
                 }
             }
-            catch (Exception ex) { diffNote = "Couldn't compare: " + ex.Message; diffKeys = new HashSet<uint>(); }
+            catch (Exception ex) { diffNote = "Couldn't compare: " + Friendly.Text(ex); diffKeys = new HashSet<uint>(); }
         }
 
         // ================================================================ link names

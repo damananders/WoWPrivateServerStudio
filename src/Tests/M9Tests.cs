@@ -137,6 +137,57 @@ namespace AndersCraftStudio.Tests
             A.True(human.Body != null && !human.Baked, "composed human skin");
         }
 
+        // ---------------------------------------------------------------- hardening for strangers
+        [Test] static void Logs_never_contain_passwords()
+        {
+            A.Eq("CREATE USER 'a'@'h' IDENTIFIED BY ********;", Log.Scrub("CREATE USER 'a'@'h' IDENTIFIED BY 's3cr3t';"));
+            A.Eq("Server=x;User=root;Password=********;Database=w", Log.Scrub("Server=x;User=root;Password=hunter2;Database=w"));
+            A.Eq("LoginDatabaseInfo = \"127.0.0.1;3306;acore;********;acore_auth\"", Log.Scrub("LoginDatabaseInfo = \"127.0.0.1;3306;acore;topsecret;acore_auth\""));
+            A.True(!Log.Scrub("SET PASSWORD = PASSWORD('abc')").Contains("abc"), "old syntax");
+            A.Eq("nothing secret here", Log.Scrub("nothing secret here"));
+        }
+
+        [Test] static void Errors_are_explained_in_plain_words()
+        {
+            A.Contains(Friendly.Text(new FileNotFoundException("x", @"C:\a\worldserver.conf")), "worldserver.conf");
+            A.Contains(Friendly.Text(new UnauthorizedAccessException()), "didn't allow access");
+            A.Contains(Friendly.Text(new InvalidDataException("Not a WMO file.")), "build 12340");
+            A.Contains(Friendly.Text(new TimeoutException()), "too long");
+            A.Contains(Friendly.Text(new AggregateException(new System.Net.Sockets.SocketException(10061))), "Couldn't reach the database server");
+            A.Eq("hello Password=********", Friendly.Text(new Exception("hello Password=abc")), "scrubbed");
+        }
+
+        [Test] static void Damaged_changeset_is_recovered_not_lost()
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "studio_cs_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var st = new ChangesetStore(dir);
+                ChangeFactory.StageCellEdit(st.Pending, "t", new[] { new KeyPart("id", "1") }, "a", "1", "1", "2", "2");
+                st.SavePending();
+                ChangeFactory.StageCellEdit(st.Pending, "t", new[] { new KeyPart("id", "2") }, "a", "1", "1", "3", "3");
+                st.SavePending();                                  // pending.json has 2 changes, pending.json.bak has 1
+                A.True(File.Exists(st.PendingPath + ".bak"), "previous copy kept");
+                File.WriteAllText(st.PendingPath, "{ this is not json");   // e.g. power cut mid-write
+                var again = new ChangesetStore(dir);
+                A.Eq(1, again.Pending.Changes.Count, "restored from the previous copy");
+                A.Contains(again.RecoveryNote, "restored the previous copy");
+                A.True(Directory.GetFiles(dir, "pending.damaged-*.json").Length == 1, "damaged file kept");
+                var fresh = new ChangesetStore(Path.Combine(dir, "new"));
+                A.True(fresh.RecoveryNote == null && fresh.Pending.Changes.Count == 0, "a new folder is just empty");
+            }
+            finally { try { Directory.Delete(dir, true); } catch { } }
+        }
+
+        [Test] static void MariaDb_backup_tool_gets_compatible_options()
+        {
+            var my = Backup.BuildArgs("o.cnf", "h", 3306, "w", new[] { "t" }, "out.sql");
+            var ma = Backup.BuildArgs("o.cnf", "h", 3306, "w", new[] { "t" }, "out.sql", true);
+            A.True(my.Contains("--set-gtid-purged=OFF") && !ma.Contains("--set-gtid-purged=OFF"), "gtid option only for MySQL's tool");
+            A.True(ma.Contains("--single-transaction") && ma.Contains("--no-tablespaces") && ma.Last() == "t", "the rest is the same");
+            A.True(Backup.IsMariaDbTool(@"C:\Program Files\MariaDB 11.4\bin\mysqldump.exe") && Backup.IsMariaDbTool(@"C:\x\mariadb-dump.exe") && !Backup.IsMariaDbTool(@"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqldump.exe"), "detection");
+        }
+
         // ---------------------------------------------------------------- tables without a key
         [Test] static void Keyless_rows_are_matched_on_every_column()
         {

@@ -135,7 +135,7 @@ namespace AndersCraftStudio
         {
             CsvTableImport.Result r; var temp = new Changeset();
             try { r = Run(temp); }
-            catch (Exception ex) { result.Content = U.Callout("Couldn't read the table: " + ex.Message, "bad"); return; }
+            catch (Exception ex) { result.Content = U.Callout("Couldn't read the table: " + Friendly.Text(ex), "bad"); return; }
             var sp = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
             if (!r.Ok)
             {
@@ -162,7 +162,7 @@ namespace AndersCraftStudio
         {
             CsvTableImport.Result r;
             try { r = Run(S.Changes.Pending); }
-            catch (Exception ex) { w.Toast("Not staged: " + ex.Message, "bad"); return; }
+            catch (Exception ex) { w.Toast("Not staged: " + Friendly.Text(ex), "bad"); return; }
             if (!r.Ok) { Preview(); return; }
             S.SaveChanges();
             Staged = r.Added + r.Updated;

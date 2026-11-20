@@ -92,6 +92,7 @@ namespace AndersCraftStudio
             Closed += (s, e) => { if (pages.TryGetValue("admin", out var ap) && ap is AdminPage adm) adm.Disconnect(); };   // the admin login never outlives the window
             Loaded += async (a, b) =>
             {
+                if (S.Changes.RecoveryNote != null) { Log.Write("warn", S.Changes.RecoveryNote); Toast(S.Changes.RecoveryNote, "warn"); }
                 RefreshChrome();
                 if (S.Profile == null || !S.Profile.SetupComplete) ShowWizard(1); else Navigate("home");
                 if (screensDir != null) await ScreensMode();
@@ -495,10 +496,13 @@ namespace AndersCraftStudio
             toastTimer.Tick += (s, e) => { toast.Visibility = Visibility.Collapsed; toastTimer.Stop(); };
         }
 
+        static void LogToast(string text, string kind) { if (kind == "bad" || kind == "warn") Log.Write(kind == "bad" ? "error" : "warn", text); }
+
         public void HideToast() { toast.Visibility = Visibility.Collapsed; toastTimer.Stop(); }
 
         public void Toast(string text, string kind = "info")
         {
+            LogToast(text, kind);
             toastText.Text = text;
             toast.Background = U.R(kind == "bad" ? "BadBg" : kind == "ok" ? "OkBg" : kind == "warn" ? "AmberDim" : "Panel2");
             toast.BorderBrush = U.R(kind == "bad" ? "Bad" : kind == "ok" ? "Ok" : kind == "warn" ? "Amber" : "LineHi");

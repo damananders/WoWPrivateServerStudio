@@ -322,7 +322,7 @@ namespace AndersCraftStudio
                 confirm = ""; installed = null;
                 w.Toast($"Installed {rec.Name}." + (rec.BackupOfPrevious != null ? " The previous file is backed up at " + rec.BackupOfPrevious : "") + " Delete the client's Cache folder, then start the game.", "ok");
             }
-            catch (Exception ex) { w.Toast("Not installed: " + ex.Message, "bad"); }
+            catch (Exception ex) { w.Toast("Not installed: " + Friendly.Text(ex), "bad"); }
             Build();
         }
 
@@ -346,7 +346,7 @@ namespace AndersCraftStudio
                     var un = U.Btn("Uninstall", () =>
                     {
                         if (ChoiceWindow.Ask(w, "Uninstall " + p.FileName, $"Remove {p.FileName} from Data\\" + (rec.BackupOfPrevious != null ? " and put back the version that was there before" : "") + "? A copy of the removed file is kept in the backup folder.", "Uninstall", "Cancel", "Cancel") != 0) return;
-                        try { w.Toast(Installer.Uninstall(ClientDir, p.FileName), "ok"); } catch (Exception ex) { w.Toast("Not uninstalled: " + ex.Message, "bad"); }
+                        try { w.Toast(Installer.Uninstall(ClientDir, p.FileName), "ok"); } catch (Exception ex) { w.Toast("Not uninstalled: " + Friendly.Text(ex), "bad"); }
                         installed = null; Build();
                     }, null, "Remove this patch (only patches Studio installed).");
                     un.Padding = new Thickness(12, 5, 12, 5);
@@ -439,7 +439,7 @@ namespace AndersCraftStudio
                     var exRow = U.Row(ex, exAll); exRow.Margin = new Thickness(0, 12, 0, 0);
                     c.Children.Add(exRow);
                 }
-                catch (Exception ex) { c.Children.Add(U.Callout(ex.Message, "bad", "Couldn't open it")); }
+                catch (Exception ex) { c.Children.Add(U.Callout(Friendly.Text(ex), "bad", "Couldn't open it")); }
             }
             sp.Children.Add(U.Card(c, new Thickness(20, 16, 20, 16), new Thickness(0)));
             return sp;

@@ -203,17 +203,21 @@ namespace AndersCraftStudio.Core
         public static List<string> AffectedTables(IEnumerable<Change> changes) =>
             changes.Select(c => c.Table).Where(t => !string.IsNullOrEmpty(t)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(t => t).ToList();
 
-        public static List<string> BuildArgs(string optionFile, string host, int port, string database, IList<string> tables, string outFile)
+        /// <summary>MariaDB ships its own dump tool (mariadb-dump / mysqldump in a MariaDB folder) without MySQL-only options.</summary>
+        public static bool IsMariaDbTool(string exe) => !string.IsNullOrEmpty(exe) && exe.IndexOf("mariadb", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        public static List<string> BuildArgs(string optionFile, string host, int port, string database, IList<string> tables, string outFile, bool mariaDb = false)
         {
             var a = new List<string>
             {
                 "--defaults-extra-file=" + optionFile,
                 "--host=" + host, "--port=" + port,
-                "--single-transaction", "--no-tablespaces", "--skip-triggers", "--set-gtid-purged=OFF",
+                "--single-transaction", "--no-tablespaces", "--skip-triggers",
                 "--default-character-set=utf8mb4", "--complete-insert", "--hex-blob",
                 "--result-file=" + outFile,
                 database,
             };
+            if (!mariaDb) a.Insert(6, "--set-gtid-purged=OFF");
             a.AddRange(tables);
             return a;
         }
@@ -234,7 +238,7 @@ namespace AndersCraftStudio.Core
             try
             {
                 var psi = new ProcessStartInfo(mysqldumpExe) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true };
-                foreach (var a in BuildArgs(opt, host, port, database, tables, outFile)) psi.ArgumentList.Add(a);
+                foreach (var a in BuildArgs(opt, host, port, database, tables, outFile, IsMariaDbTool(mysqldumpExe))) psi.ArgumentList.Add(a);
                 using var p = Process.Start(psi);
                 var err = p.StandardError.ReadToEndAsync();
                 p.StandardOutput.ReadToEnd();
