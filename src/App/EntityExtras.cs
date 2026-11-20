@@ -393,12 +393,26 @@ namespace AndersCraftStudio
             var pick = new ComboBox { Width = 180 };
             foreach (var d in displays) pick.Items.Add(new ComboBoxItem { Content = $"Display {d}", Tag = d });
             ModelViewer viewer = null;
-            pick.SelectionChanged += (s, e) => { if (viewer != null && pick.SelectedItem is ComboBoxItem ci) viewer.Load(S.Models.Creature((long)ci.Tag)); };
+            var held = new List<(uint, int)>();
+            try
+            {
+                using var db = S.OpenRead(S.Profile.WorldDb);
+                var eq = db.Query($"SELECT ItemID1, ItemID2, ItemID3 FROM creature_equip_template WHERE CreatureID = {Id} ORDER BY ID LIMIT 1", 1);
+                if (eq.Rows.Count > 0)
+                    foreach (var o in eq.Rows[0])
+                    {
+                        var item = Convert.ToInt64(o, CultureInfo.InvariantCulture); if (item <= 0) continue;
+                        var it = db.Query($"SELECT displayid, InventoryType FROM item_template WHERE entry = {item}", 1);
+                        if (it.Rows.Count > 0) held.Add((Convert.ToUInt32(it.Rows[0][0], CultureInfo.InvariantCulture), Convert.ToInt32(it.Rows[0][1], CultureInfo.InvariantCulture)));
+                    }
+            }
+            catch { }
+            pick.SelectionChanged += (s, e) => { if (viewer != null && pick.SelectedItem is ComboBoxItem ci) viewer.Load(S.Models.Creature((long)ci.Tag, held)); };
             var card = Preview3D("3D preview", v =>
             {
                 viewer = v;
                 if (displays.Count == 0) { v.ShowMessage("This creature has no model yet (add one to the Models list above)."); return; }
-                v.Load(S.Models.Creature(displays[0]));
+                v.Load(S.Models.Creature(displays[0], held));
             }, displays.Count > 1 ? "This creature has several models; each spawn picks one. Choose which to look at." : null, displays.Count > 1 ? pick : null);
             if (displays.Count > 1) pick.SelectedIndex = 0;
             return card;

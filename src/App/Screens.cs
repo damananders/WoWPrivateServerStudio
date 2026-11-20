@@ -138,6 +138,13 @@ namespace AndersCraftStudio
             await Milestone9(w);
         }
 
+        static IEnumerable<string> WmoDisplays(Studio S)
+        {
+            var f = S.Models.Raw("GameObjectDisplayInfo.dbc");
+            if (f == null) yield break;
+            for (int i = 0; i < f.Records; i++) { var s = f.Str(i, 1); if (s != null && s.EndsWith(".wmo", StringComparison.OrdinalIgnoreCase) && S.Models.Read(s) != null) yield return f.UInt(i, 0).ToString(); }
+        }
+
         public static async Task RunM9(MainWindow w, string dir)
         {
             Directory.CreateDirectory(dir);
@@ -181,6 +188,37 @@ namespace AndersCraftStudio
             }
             var boss = await Open("creatures", 448, "Basics");                 // Hogger
             await Shot(boss, "114_viewer_creature_hogger.png", 16, 300);
+            // dressed characters and a building
+            var guard = await Open("creatures", 68, "Basics");                 // Stormwind City Guard
+            await Shot(guard, "118_viewer_character_guard.png", 0, 300);
+            var marshal = await Open("creatures", 197, "Basics");              // Marshal McBride
+            await Shot(marshal, "119_viewer_character_marshal.png", 0, 300);
+            if (long.TryParse(Q("SELECT g.entry FROM gameobject_template g WHERE g.displayId IN (" + string.Join(",", WmoDisplays(S).Take(40)) + ") ORDER BY g.entry LIMIT 1"), out var wmoGo))
+            {
+                var bg = await Open("gameobjects", wmoGo, "Basics");
+                await Shot(bg, "120_viewer_wmo_building.png");
+            }
+            // spell effects: particles and ribbons (Fireball, Frostbolt)
+            foreach (var (spellId, file) in new[] { (133u, "121_viewer_spell_fireball.png"), (116u, "122_viewer_spell_frostbolt.png") })
+            {
+                SpellEditorPage se = null;
+                w.Navigate("spells", p => se = (SpellEditorPage)p);
+                se.Open(spellId, true); await Wait(800);
+                se.ScreensTab("Visuals"); await Wait(1500);
+                var ev = se.lastEffects;
+                if (ev != null) { ev.WarmUpEffects(1.5); ((FrameworkElement)ev.View).BringIntoView(); await Wait(800); await w.Snap(file); }
+            }
+            // body armour textures previewed on a character
+            {
+                var png = Path.Combine(Path.GetTempPath(), "studio_screens_armor.png");
+                MakeDemoPng(png);
+                AssetsPage ap2 = null;
+                w.Navigate("assets", p => ap2 = (AssetsPage)p);
+                ap2.ScreensKind("armortex"); await Wait(300);
+                ap2.ScreensArmor(3, png); ap2.ScreensArmor(4, png); ap2.ScreensArmor(0, png); await Wait(1500);
+                ap2.LastArmorPreview?.BringIntoView(); await Wait(800);
+                await w.Snap("123_assets_armor_textures.png");
+            }
             // asset import: preview a model from disk (the wolf, copied out of the client into a temp folder)
             var tmp = Path.Combine(Path.GetTempPath(), "studio_screens_model");
             Directory.CreateDirectory(tmp);

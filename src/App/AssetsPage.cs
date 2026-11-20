@@ -55,6 +55,7 @@ namespace AndersCraftStudio
                 ("icon", "Icon", "PNG, JPG, BMP, TGA or BLP → a 64×64 BLP in Interface\\Icons, plus a SpellIcon.dbc row (and optionally an item display)."),
                 ("model", "Creature model", ".m2 with its .skin files and textures → Creature\\<Name>\\, plus CreatureModelData and CreatureDisplayInfo rows."),
                 ("itemmodel", "Item model", ".m2 with its .skin files and textures → Item\\ObjectComponents\\<Slot>\\, plus an ItemDisplayInfo row the Items editor can pick."),
+                ("armortex", "Body armour textures", "Pictures for chest, legs, arms, hands, feet → Item\\TextureComponents\\, plus an ItemDisplayInfo row, previewed on a character."),
                 ("sound", "Sound", "WAV or MP3 → Sound\\Custom\\, plus a SoundEntries row other tables can point to."),
                 ("file", "Any file", "Anything else, at the archive path you choose."),
             })
@@ -86,6 +87,7 @@ namespace AndersCraftStudio
                 "icon" => "Icons are 64×64 BLP textures in Interface\\Icons. Studio resizes your picture, converts it (DXT5 keeps soft transparency, DXT1 is smaller, Palette is closest to Blizzard's style) and adds a SpellIcon.dbc row so the Spell editor's icon picker shows it. For items, it can also copy an ItemDisplayInfo row with the new icon; use that display ID on item_template.displayid.",
                 "model" => "A creature model is an .m2 file, its .skin files (Name00.skin … Name03.skin) and its textures. Studio copies them to Creature\\<Name>\\, renames the skins to match, converts PNG/TGA textures to BLP, and stages a CreatureModelData row (copied from a base model, for collision and size) and a CreatureDisplayInfo row. Put the new display ID in creature_template_model.CreatureDisplayID (or modelid on older databases).",
                 "itemmodel" => "An item model (weapon, shield, helm, shoulders…) is an .m2 file, its .skin files and its textures, placed in Item\\ObjectComponents\\<Slot>\\. Studio copies them there, converts PNG/TGA textures to BLP, and stages an ItemDisplayInfo row copied from a base display (for sounds, geosets and the icon) that points at the new model and texture. The new display shows up in the Items editor's Display tab picker as \"icon · model name\"; Studio can also stage it on an item for you. Body armour (chest, legs…) has no model of its own: it uses textures on the character, which this import doesn't cover.",
+                "armortex" => "Body armour (chest, legs, gloves, boots, bracers, belt, robes) has no model: the game paints it onto the character from up to eight pictures, one per body region (upper arm, lower arm, hand, upper torso, lower torso, upper leg, lower leg, foot). Studio converts your pictures to BLP at Item\\TextureComponents\\<Region>Texture\\Name_U.blp and stages an ItemDisplayInfo row (copied from a base display for sounds and geosets) that uses them. The preview paints them on a human; regions you leave empty keep the base display's textures unless you tick the box.",
                 "sound" => "Sounds are WAV or MP3 files (the formats Blizzard's own 3.3.5a sounds use; Studio doesn't import OGG). Studio copies the file to Sound\\Custom\\ and stages a SoundEntries row (volume and distances copied from a base sound). Use its ID wherever a SoundID is asked for: SmartAI's Play sound, creature_text.Sound, DBC columns.",
                 _ => "Any file can go into a patch at any path. Check the table below for where the client looks for each kind of file. The file is copied into the work folder; nothing is registered in a DBC.",
             };
@@ -121,9 +123,12 @@ namespace AndersCraftStudio
             f.Clear();
             var sp = new StackPanel();
             var pick = U.Btn(source == null ? "Choose a file…" : "Choose another file…", ChooseFile, "BtnPrimary");
-            sp.Children.Add(U.Row(pick, U.T(source == null ? "No file chosen." : source, 12.5, source == null ? "Muted" : "Text", null, true, new Thickness(10, 0, 0, 0))));
-            ((FrameworkElement)((StackPanel)sp.Children[0]).Children[1]).VerticalAlignment = VerticalAlignment.Center;
-            sp.Children.Add(new Border { Height = 14 });
+            if (kind != "armortex")
+            {
+                sp.Children.Add(U.Row(pick, U.T(source == null ? "No file chosen." : source, 12.5, source == null ? "Muted" : "Text", null, true, new Thickness(10, 0, 0, 0))));
+                ((FrameworkElement)((StackPanel)sp.Children[0]).Children[1]).VerticalAlignment = VerticalAlignment.Center;
+                sp.Children.Add(new Border { Height = 14 });
+            }
             string stem = source == null ? "" : AssetImport.SafeName(Path.GetFileNameWithoutExtension(source));
             switch (kind)
             {
@@ -197,6 +202,34 @@ namespace AndersCraftStudio
                         Fld("Use it on item (optional)", "An item_template entry: Studio stages its displayid change too. Empty = just add the display.", Box("useon", ""), 200)));
                     break;
                 }
+                case "armortex":
+                {
+                    var names = new[] { "Upper arm", "Lower arm", "Hand", "Upper torso", "Lower torso", "Upper leg", "Lower leg", "Foot" };
+                    var grid = new WrapPanel();
+                    for (int i = 0; i < 8; i++)
+                    {
+                        int slot = i;
+                        var (tw, th) = AssetImport.ArmorTextureSize(slot);
+                        var label = U.T(armorFiles.TryGetValue(slot, out var cur) ? Path.GetFileName(cur) : "none", 12, armorFiles.ContainsKey(slot) ? "Text" : "Faint", null, false);
+                        var pickB = U.Btn("Choose…", () =>
+                        {
+                            var d = new Microsoft.Win32.OpenFileDialog { Filter = "Pictures (*.png;*.jpg;*.jpeg;*.bmp;*.tga;*.blp)|*.png;*.jpg;*.jpeg;*.bmp;*.tga;*.blp" };
+                            if (d.ShowDialog(w) == true) { armorFiles[slot] = d.FileName; BuildForm(); }
+                        }, null, $"Picture for the {names[slot].ToLowerInvariant()} ({tw}×{th} on a 256×256 skin; any size is resized).");
+                        pickB.Padding = new Thickness(8, 4, 8, 4);
+                        var clear = U.Btn("×", () => { armorFiles.Remove(slot); BuildForm(); }, "BtnGhost"); clear.Padding = new Thickness(6, 4, 6, 4);
+                        grid.Children.Add(Fld(names[slot], $"{tw}×{th}", U.Stack(U.Row(pickB, clear), label), 200));
+                    }
+                    sp.Children.Add(grid);
+                    var only = new CheckBox { Content = U.T("Remove the base display's textures in the regions I leave empty", 13, "Text", null, false), IsChecked = false, Margin = new Thickness(0, 0, 0, 10) }; f["clearothers"] = only;
+                    sp.Children.Add(only);
+                    sp.Children.Add(U.Wrap(
+                        Fld("Name", "File names: Name_U.blp in each region's folder.", Box("name", "CustomArmor")),
+                        Fld("Base ItemDisplayInfo ID", "Copied for sounds and geosets (pick a chest or legs display of the same kind).", Box("basedisplay", "9671"), 220),
+                        Fld("Use it on item (optional)", "An item_template entry: Studio stages its displayid change too.", Box("useon", ""), 200)));
+                    if (armorFiles.Count > 0) sp.Children.Add(ArmorPreview());
+                    break;
+                }
                 case "sound":
                 {
                     if (source != null)
@@ -223,7 +256,7 @@ namespace AndersCraftStudio
                 }
             }
             var go = U.Btn(kind == "file" ? "Copy into the work folder" : "Import", Import, "BtnPrimary", "Converts and copies into the work folder, and stages the DBC rows. The game client isn't touched.");
-            go.IsEnabled = source != null && !(kind == "sound" && Path.GetExtension(source).ToLowerInvariant() == ".ogg");
+            go.IsEnabled = kind == "armortex" ? armorFiles.Count > 0 : source != null && !(kind == "sound" && Path.GetExtension(source).ToLowerInvariant() == ".ogg");
             go.HorizontalAlignment = HorizontalAlignment.Left;
             sp.Children.Add(go);
             if (lastMessage != null) { var c = U.Callout(lastMessage, "ok", "Imported"); c.Margin = new Thickness(0, 14, 0, 0); sp.Children.Add(c); }
@@ -293,7 +326,7 @@ namespace AndersCraftStudio
 
         public void Import()
         {
-            if (source == null) return;
+            if (source == null && !(kind == "armortex" && armorFiles.Count > 0)) return;
             var work = WorkFolder;
             var added = new List<string>();
             try
@@ -399,6 +432,34 @@ namespace AndersCraftStudio
                         lastMessage = $"{folder}{name}.m2 with {skins.Count} skin(s) and {texNames.Count} texture(s); staged {string.Join(", ", added)}. Pick display {displayId} on an item's Display tab (it's listed as \"icon · {name}\").{itemNote}";
                         break;
                     }
+                    case "armortex":
+                    {
+                        var name = AssetImport.SafeName(Val("name"));
+                        if (!uint.TryParse(Val("basedisplay"), out var bd)) throw new FormatException("Base ItemDisplayInfo ID: enter a number.");
+                        var tex = new Dictionary<int, string>();
+                        foreach (var (slot, file) in armorFiles)
+                        {
+                            var (tw, th) = AssetImport.ArmorTextureSize(slot);
+                            var pic = BlpEncoder.Resize(LoadPicture(file), tw, th);
+                            var ap = AssetImport.ArmorTexturePath(slot, name);
+                            AssetImport.Place(work, ap, BlpEncoder.Encode(pic, BlpFormat.Dxt5));
+                            tex[slot] = name;
+                            AssetImport.AddToManifest(work, new AssetRecord { Kind = "armortex", Source = file, ArchivePath = ap });
+                        }
+                        uint displayId = 0;
+                        StageRows("ItemDisplayInfo.dbc", t => { var r = AssetImport.ArmorDisplayRow(t, bd, tex, Ticked("clearothers"), CustomStart); displayId = r.V[0]; return r; }, added);
+                        if (long.TryParse(Val("useon"), out var useOn) && useOn > 0 && S.HasReadAccount)
+                        {
+                            using var db = S.OpenRead(S.Profile.WorldDb);
+                            var cur = db.Query($"SELECT displayid FROM item_template WHERE entry = {useOn.ToString(CultureInfo.InvariantCulture)}", 1);
+                            if (cur.Rows.Count == 0) throw new InvalidOperationException($"There's no item {useOn}; the display row was staged, but not used on an item.");
+                            ChangeFactory.StageCellEdit(S.Changes.Pending, "item_template", new List<KeyPart> { new KeyPart("entry", useOn.ToString(CultureInfo.InvariantCulture), "#" + useOn) }, "displayid",
+                                SqlGen.Literal(cur.Rows[0][0]), SqlGen.Display(cur.Rows[0][0]), displayId.ToString(CultureInfo.InvariantCulture), displayId.ToString(CultureInfo.InvariantCulture));
+                            added.Add($"item_template {useOn}.displayid");
+                        }
+                        lastMessage = $"{tex.Count} armour texture(s) written under Item\\TextureComponents; staged {string.Join(", ", added)}. Display {displayId} wears them.";
+                        break;
+                    }
                     case "sound":
                     {
                         var name = AssetImport.SafeName(Val("name"));
@@ -428,6 +489,22 @@ namespace AndersCraftStudio
             BuildForm();
         }
 
+        readonly Dictionary<int, string> armorFiles = new Dictionary<int, string>();
+
+        /// <summary>The chosen armour pictures painted on a human, in the 3D viewer (nothing staged).</summary>
+        UIElement ArmorPreview()
+        {
+            var v = new ModelViewer(S.Models, 340);
+            var look = new CharacterLook { Race = 1, Sex = 0, Skin = 0, Face = 0, HairStyle = 0, HairColor = 0, FacialHair = 0 };
+            foreach (var (slot, file) in armorFiles) { try { look.Paint.Add((CharacterBuilder.ItemTextureSlots[slot].region, LoadPicture(file))); } catch { } }
+            v.Load(S.Models.Character(look, "Preview"));
+            LastArmorPreview = new Border { Margin = new Thickness(0, 6, 0, 12), Child = v.View };
+            return LastArmorPreview;
+        }
+
+        public Border LastArmorPreview;
+        public void ScreensArmor(int slot, string file) { armorFiles[slot] = file; BuildForm(); }
+
         /// <summary>The chosen .m2 in the 3D viewer, with its .skin and textures from the same folder.</summary>
         UIElement PreviewOf(string m2)
         {
@@ -440,7 +517,7 @@ namespace AndersCraftStudio
         static int NextPow2(int n) { int p = 1; while (p < n && p < 2048) p <<= 1; return p; }
 
         // screenshots
-        public void ScreensKind(string k) => kinds.SelectedIndex = new[] { "icon", "model", "itemmodel", "sound", "file" }.ToList().IndexOf(k);
+        public void ScreensKind(string k) => kinds.SelectedIndex = new[] { "icon", "model", "itemmodel", "armortex", "sound", "file" }.ToList().IndexOf(k);
         public void ScreensWorkName(string n) => workName.Text = n;
     }
 }

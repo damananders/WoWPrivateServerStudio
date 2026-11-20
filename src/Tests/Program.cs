@@ -29,6 +29,7 @@ namespace AndersCraftStudio.Tests
             if (args.Length >= 1 && args[0] == "--recover-names")
                 return ClientScan.Recover(DevPaths.ClientData, DevPaths.ServerDbc, args.Length > 1 ? args[1] : null);
             if (args.Length >= 1 && args[0] == "--scan-client") return ClientScan.Run(args.Length > 1 ? args[1] : DevPaths.ClientData, args.Contains("--extract"), args.Contains("--all"));
+            if (args.Length >= 1 && args[0] == "--probe-fx") return FxProbe.Run(args[1]);
             if (args.Length >= 1 && args[0] == "--dbc-roundtrip") return DbcRoundTrip.Run(args.Length > 1 ? args[1] : DbcRoundTrip.DefaultDir);
             if (args.Length >= 1 && args[0] == "--icons") return IconProbe.Run(args.Length > 1 ? args[1] : DevPaths.ClientData);
             if (args.Length >= 1 && args[0] == "--spell-tip") return SpellProbe.Run(args.Skip(1).ToArray());

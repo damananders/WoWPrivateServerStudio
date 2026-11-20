@@ -348,6 +348,30 @@ namespace AndersCraftStudio.Core
             return r;
         }
 
+        /// <summary>Where a body-armour texture for a region goes: Item\TextureComponents\&lt;Region&gt;Texture\Name_U.blp (U = both genders).</summary>
+        public static string ArmorTexturePath(int slot, string name) => $@"Item\TextureComponents\{CharacterBuilder.ItemTextureSlots[slot].folder}\{SafeName(name)}_U.blp";
+
+        /// <summary>Pixel size of an armour piece's texture (the region on a 256×256 character skin).</summary>
+        public static (int w, int h) ArmorTextureSize(int slot) { var r = CharacterBuilder.Rects[CharacterBuilder.ItemTextureSlots[slot].region]; return (r.w, r.h); }
+
+        /// <summary>
+        /// A new ItemDisplayInfo.dbc row copied from <paramref name="baseId"/> with body-armour textures set: slot (0-7 =
+        /// Texture_1…8) → texture name. With <paramref name="clearOthers"/>, the base's other armour textures are removed.
+        /// </summary>
+        public static DbcRow ArmorDisplayRow(DbcTable idi, uint baseId, IDictionary<int, string> textures, bool clearOthers, uint start)
+        {
+            var src = idi.Find(baseId) ?? throw new ArgumentException($"ItemDisplayInfo {baseId} doesn't exist.");
+            var r = src.Clone();
+            r.V[0] = idi.NextFreeId(start);
+            for (int i = 0; i < 8; i++)
+            {
+                int f = idi.Layout.FieldByName("Texture_" + (i + 1));
+                if (textures.TryGetValue(i, out var name)) idi.TrySetField(r, f, SafeName(name), out _);
+                else if (clearOthers) idi.TrySetField(r, f, "", out _);
+            }
+            return r;
+        }
+
         /// <summary>CreatureModelData + CreatureDisplayInfo rows for a model at Creature\Name\Name.m2 with up to 3 skin textures.</summary>
         public static (DbcRow model, DbcRow display) CreatureRows(DbcTable cmd, DbcTable cdi, uint baseModelId, uint baseDisplayId, string name, IList<string> textures, uint start, float scale = 1f)
         {

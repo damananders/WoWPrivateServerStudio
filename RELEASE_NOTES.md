@@ -12,10 +12,16 @@
 * **Script tables without a key** (event_scripts, spell_scripts) are now editable: rows are matched on every column.
 * **DBC tables open in tabs**: switch between several tables without losing unstaged edits.
 
-**Not yet (Level 3)**: spell particle effects, characters wearing armour, body-armour texture import.
+* **Dressed characters**: humanoid NPCs show with their hair, beard, face, clothes and armour (the NPC's baked texture or the
+  look composed from skin, face and armour pieces), and their helmet, shoulders, weapons and shield.
+* **Spell effects**: particles and ribbons (sparks, smoke, glows, trails), approximated; Spell editor › Visuals shows the
+  spell's cast, missile and impact effect models.
+* **WMO buildings**: big game objects (houses, towers…) with all their groups and textures.
+* **Body armour textures** in Asset import: one picture per body region → Item\TextureComponents + an ItemDisplayInfo row,
+  previewed on a character.
 
-**Tests**: 151 automated tests (new: M2 / .skin reading on real client models, mesh building, animation, script-row
-matching, DBC tabs).
+**Tests**: 154 automated tests (new: M2 / .skin reading on real client models, mesh building, animation, particles and
+ribbons on the client's spell effects, dressed NPC looks, WMO groups, script-row matching, DBC tabs).
 
 ## 0.8.0 — no other tools needed
 

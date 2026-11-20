@@ -47,9 +47,28 @@ namespace AndersCraftStudio.Core
         public Vector3 BoundsMin, BoundsMax;
         public float BoundsRadius;
         public int ParticleEmitters, RibbonEmitters;
+        public sealed class Attachment { public int Id; public ushort Bone; public Vector3 Position; }
+        /// <summary>Points where other models are worn or held (11 head, 5/6 shoulders, 1/2 hands, 0 shield…).</summary>
+        public List<Attachment> Attachments = new List<Attachment>();
 
         readonly byte[] b;
         M2Model(byte[] bytes) { b = bytes; }
+        /// <summary>The file's bytes (emitters and other blocks are read from them on demand).</summary>
+        public byte[] Bytes => b;
+
+        public Track<float> FloatTrack(int o) => ReadTrack(o, 4, (d, p) => BitConverter.ToSingle(d, p));
+        public Track<Vector3> Vector3Track(int o) => ReadTrack(o, 12, (d, p) => new Vector3(BitConverter.ToSingle(d, p), BitConverter.ToSingle(d, p + 4), BitConverter.ToSingle(d, p + 8)));
+        public Track<short> ShortTrack(int o) => ReadTrack(o, 2, (d, p) => BitConverter.ToInt16(d, p));
+
+        /// <summary>A float track's value at a time; falls back to the first sequence that has keys, then to <paramref name="def"/>.</summary>
+        public float Sample(Track<float> t, int seq, uint ms, float def)
+        {
+            if (t == null) return def;
+            var v = Value(t, seq < 0 ? 0 : seq, ms, ms, float.NaN, (x, y, f) => x + (y - x) * f);
+            if (!float.IsNaN(v)) return v;
+            for (int i = 0; i < t.Times.Count; i++) if (t.Times[i] != null && t.Times[i].Length > 0) return t.Values[i][0];
+            return def;
+        }
 
         // ---- little helpers over the file bytes
         int I(int o) => BitConverter.ToInt32(b, o);
@@ -112,6 +131,8 @@ namespace AndersCraftStudio.Core
             if (Fits(co, cn, 2)) { TexCoordLookup = new short[cn]; for (int i = 0; i < cn; i++) TexCoordLookup[i] = S16(co + i * 2); }
             BoundsMin = V3(0xA0); BoundsMax = V3(0xAC); BoundsRadius = F(0xB8);
             RibbonEmitters = I(0x120); ParticleEmitters = I(0x128);
+            var (an, ao) = Arr(0xF0);
+            if (Fits(ao, an, 40)) for (int i = 0; i < an; i++) { int o = ao + i * 40; Attachments.Add(new Attachment { Id = I(o), Bone = U16(o + 4), Position = V3(o + 8) }); }
             var (bn, bo) = Arr(0x2C);
             if (Fits(bo, bn, 88))
                 for (int i = 0; i < bn; i++)
@@ -242,6 +263,15 @@ namespace AndersCraftStudio.Core
             }
             for (int i = 0; i < Bones.Count; i++) Calc(i);
             return m;
+        }
+
+        /// <summary>Where an attachment point is in the posed model (null when the model has no such point).</summary>
+        public Matrix4x4? AttachmentMatrix(int id, Matrix4x4[] pose)
+        {
+            var a = Attachments.FirstOrDefault(x => x.Id == id);
+            if (a == null) return null;
+            var bone = pose != null && a.Bone < pose.Length ? pose[a.Bone] : Matrix4x4.Identity;
+            return Matrix4x4.CreateTranslation(a.Position) * bone;
         }
 
         /// <summary>A vertex moved by its bones.</summary>

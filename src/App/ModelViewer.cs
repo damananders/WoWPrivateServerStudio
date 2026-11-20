@@ -73,6 +73,24 @@ namespace AndersCraftStudio
             return t;
         }
 
+        readonly Dictionary<string, DbcFile> raw = new Dictionary<string, DbcFile>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>A server DBC as raw records (for tables Studio has no column names for).</summary>
+        public DbcFile Raw(string file)
+        {
+            if (raw.TryGetValue(file, out var f)) return f;
+            f = null;
+            try { var p = Path.Combine(ConfParser.ParseFile(S.Profile.ConfPath).DataDir, "dbc", file); if (File.Exists(p)) f = DbcFile.Load(p); } catch { }
+            raw[file] = f; return f;
+        }
+
+        /// <summary>A dressed character (player-style NPC or a look you describe).</summary>
+        public Request Character(CharacterLook look, string title)
+        {
+            var b = CharacterBuilder.Build(look, Raw, Read);
+            if (b.ModelPath == null) return new Request { Note = string.Join(" ", b.Notes) };
+            return new Request { Path = b.ModelPath, Title = title, Geoset = id => b.Geosets.Contains(id), Character = b, Note = string.Join(" ", b.Notes) };
+        }
+
         string Field(DbcTable t, DbcRow r, string name) { int f = t.Layout.FieldByName(name); return f < 0 ? "" : t.FieldText(r, f); }
 
         public sealed class Request
@@ -82,9 +100,10 @@ namespace AndersCraftStudio
             public string ItemSkin, ItemFolder;
             public float Scale = 1;
             public Func<ushort, bool> Geoset;
+            public CharacterBuild Character;
         }
 
-        public Request Creature(long displayId)
+        public Request Creature(long displayId, IList<(uint display, int inventoryType)> held = null)
         {
             var cdi = Dbc("CreatureDisplayInfo.dbc"); var cmd = Dbc("CreatureModelData.dbc");
             var r = cdi?.Find((uint)displayId);
@@ -99,10 +118,17 @@ namespace AndersCraftStudio
                 CreatureSkins = new[] { Field(cdi, r, "TextureVariation_1"), Field(cdi, r, "TextureVariation_2"), Field(cdi, r, "TextureVariation_3") },
                 Scale = sc > 0 ? sc : 1,
             };
-            if (Field(cdi, r, "ExtendedDisplayInfoID") is string ext && ext != "0" && ext != "")
+            if (Field(cdi, r, "ExtendedDisplayInfoID") is string ext && ext != "0" && ext != "" && uint.TryParse(ext, out var extId))
             {
+                var look = CharacterBuilder.FromExtra(Raw("CreatureDisplayInfoExtra.dbc"), extId);
+                if (look != null)
+                {
+                    if (held != null) look.Held.AddRange(held);
+                    var cr = Character(look, $"Display {displayId}");
+                    if (cr.Path != null) { cr.Scale = req.Scale; return cr; }
+                }
                 req.Geoset = M2Mesh.DefaultGeoset;
-                req.Note = "A character-style NPC (player body with clothes): shown as the bare body, without its face, hair and clothing textures.";
+                req.Note = "A character-style NPC whose look (CreatureDisplayInfoExtra) couldn't be read: shown as the bare body.";
             }
             return req;
         }
@@ -113,7 +139,7 @@ namespace AndersCraftStudio
             var r = t?.Find((uint)displayId);
             if (r == null) return new Request { Note = $"Display {displayId} isn't in GameObjectDisplayInfo.dbc." };
             var path = Field(t, r, "ModelName");
-            if (path.EndsWith(".wmo", StringComparison.OrdinalIgnoreCase)) return new Request { Note = $"{path} is a WMO (a building), not an M2 model. The viewer shows M2 models only." };
+            if (path.EndsWith(".wmo", StringComparison.OrdinalIgnoreCase)) return new Request { Path = path.Replace('/', '\\'), Title = $"Display {displayId}" };
             return new Request { Path = M2Model.M2Path(path), Title = $"Display {displayId}" };
         }
 
@@ -217,7 +243,9 @@ namespace AndersCraftStudio
         /// <summary>Loads and shows a model. Returns false (and shows why) when it can't.</summary>
         public bool Load(ModelLibrary.Request r)
         {
+            attached.Clear();
             if (r == null || string.IsNullOrEmpty(r.Path)) { ShowMessage(r?.Note ?? "No model."); return false; }
+            if (r.Path.EndsWith(".wmo", StringComparison.OrdinalIgnoreCase)) return LoadWmo(r);
             if (!lib.HasClient && lib.Read(r.Path) == null) { ShowMessage("Set your game client folder (setup step 4) to see models."); return false; }
             try
             {
@@ -234,7 +262,7 @@ namespace AndersCraftStudio
                 int tris = parts.Sum(p => p.Triangles.Length) / 3;
                 status.Text = $"{r.Path} · {m.Vertices.Length:N0} vertices · {tris:N0} triangles · {m.Bones.Count} bones · {m.Sequences.Count} animations" +
                               (missingTextures > 0 ? $" · {missingTextures} texture(s) not found (grey)" : "") +
-                              (m.ParticleEmitters > 0 ? $" · {m.ParticleEmitters} particle effect(s) not shown" : "") + (string.IsNullOrEmpty(r.Note) ? "" : "\n" + r.Note);
+                              (m.ParticleEmitters + m.RibbonEmitters > 0 ? $" · {m.ParticleEmitters} particle and {m.RibbonEmitters} ribbon effect(s), drawn approximately" : "") + (string.IsNullOrEmpty(r.Note) ? "" : "\n" + r.Note);
                 return true;
             }
             catch (Exception ex) { ShowMessage("Can't show this model: " + ex.Message); return false; }
@@ -264,13 +292,98 @@ namespace AndersCraftStudio
             catch (Exception ex) { ShowMessage("Can't show this model: " + ex.Message); return false; }
         }
 
+        /// <summary>A WMO building: every group with its textures (doodads — the small M2 props inside — aren't placed).</summary>
+        bool LoadWmo(ModelLibrary.Request r)
+        {
+            if (!lib.HasClient && lib.Read(r.Path) == null) { ShowMessage("Set your game client folder (setup step 4) to see models."); return false; }
+            try
+            {
+                Stop(); model = null; parts = null; currentPose = null; anims.Items.Clear();
+                var w = Wmo.Load(r.Path, lib.Read, 400);
+                var group = new Model3DGroup();
+                var mats = new Dictionary<int, Material>();
+                Material Mat(int i)
+                {
+                    if (mats.TryGetValue(i, out var m)) return m;
+                    BitmapSource bmp = null;
+                    var tex = i < w.Materials.Count ? w.Materials[i].Texture : null;
+                    var bytes = tex == null ? null : lib.Read(tex);
+                    if (bytes != null) try { var img = Blp.Decode(bytes); var px = img.Pixels; if (i < w.Materials.Count && w.Materials[i].Blend == 0) { px = (byte[])px.Clone(); for (int k = 3; k < px.Length; k += 4) px[k] = 255; } bmp = BitmapSource.Create(img.Width, img.Height, 96, 96, PixelFormats.Bgra32, null, px, img.Width * 4); bmp.Freeze(); } catch { }
+                    if (bmp == null) { missingTextures++; m = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(0x9a, 0x92, 0x88))); }
+                    else { var br = new ImageBrush(bmp) { ViewportUnits = BrushMappingMode.Absolute, Viewport = new Rect(0, 0, 1, 1), TileMode = TileMode.Tile }; br.Freeze(); m = new DiffuseMaterial(br); }
+                    mats[i] = m; return m;
+                }
+                missingTextures = 0;
+                var min = new N.Vector3(float.MaxValue); var max = new N.Vector3(float.MinValue);
+                int tris = 0;
+                foreach (var g in w.Groups)
+                {
+                    foreach (var p in g.Positions) { min = N.Vector3.Min(min, p); max = N.Vector3.Max(max, p); }
+                    foreach (var bt in g.Batches)
+                    {
+                        if (bt.Count == 0 || bt.StartIndex + bt.Count > g.Indices.Length) continue;
+                        var mesh = new MeshGeometry3D();
+                        var map = new Dictionary<int, int>();
+                        var pos = new Point3DCollection(); var nrm = new Vector3DCollection(); var uv = new PointCollection(); var idx = new Int32Collection(bt.Count);
+                        for (int k = bt.StartIndex; k < bt.StartIndex + bt.Count; k++)
+                        {
+                            int vi = g.Indices[k];
+                            if (vi >= g.Positions.Length) continue;
+                            if (!map.TryGetValue(vi, out var li))
+                            {
+                                li = pos.Count; map[vi] = li;
+                                var p = g.Positions[vi]; pos.Add(new Point3D(p.X, p.Y, p.Z));
+                                if (vi < g.Normals.Length) { var n = g.Normals[vi]; nrm.Add(new Vector3D(n.X, n.Y, n.Z)); }
+                                if (vi < g.Uvs.Length) uv.Add(new Point(g.Uvs[vi].X, g.Uvs[vi].Y)); else uv.Add(new Point());
+                            }
+                            idx.Add(li);
+                        }
+                        mesh.Positions = pos; if (nrm.Count == pos.Count) mesh.Normals = nrm; mesh.TextureCoordinates = uv; mesh.TriangleIndices = idx;
+                        var mat = Mat(bt.Material);
+                        group.Children.Add(new GeometryModel3D { Geometry = mesh, Material = mat, BackMaterial = mat });
+                        tris += bt.Count / 3;
+                    }
+                }
+                if (group.Children.Count == 0) { ShowMessage($"{r.Path}: no group files could be read."); return false; }
+                group.Transform = new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(1, 0, 0), -90));
+                modelVisual.Content = group;
+                var c = (min + max) / 2;
+                center = new Point3D(c.X, c.Z, -c.Y);
+                radius = Math.Max(0.5, (max - min).Length() / 2);
+                ResetView();
+                overlay.Text = "";
+                anims.Items.Add(new ComboBoxItem { Content = "Building (no animations)", Tag = -1 }); anims.SelectedIndex = 0;
+                status.Text = $"{r.Path} · WMO building · {w.Groups.Count} of {w.GroupCount} group(s) · {tris:N0} triangles · {w.Materials.Count} materials" +
+                              (missingTextures > 0 ? $" · {missingTextures} texture(s) not found (grey)" : "") +
+                              (w.DoodadCount > 0 ? $" · {w.DoodadCount} small props (doodads) inside aren't placed" : "") + (w.GroupCount > 400 ? " · only the first 400 groups are shown" : "");
+                return true;
+            }
+            catch (Exception ex) { ShowMessage("Can't show this building: " + ex.Message); return false; }
+        }
+
         string previewDir;
         int missingTextures;
 
-        Material MaterialFor(MeshPart p, ModelLibrary.Request r)
+        static BitmapSource Bmp(BgraImage img, bool opaque)
+        {
+            var px = img.Pixels;
+            if (opaque) { px = (byte[])px.Clone(); for (int i = 3; i < px.Length; i += 4) px[i] = 255; }
+            var b = BitmapSource.Create(img.Width, img.Height, 96, 96, PixelFormats.Bgra32, null, px, img.Width * 4); b.Freeze(); return b;
+        }
+
+        Material MaterialFor(MeshPart p, ModelLibrary.Request r) => MaterialFor(model, p, r);
+
+        Material MaterialFor(M2Model model, MeshPart p, ModelLibrary.Request r)
         {
             BitmapSource bmp = null;
-            if (p.TextureIndex >= 0 && p.TextureIndex < model.Textures.Count)
+            var ch = r.Character;
+            if (ch != null && p.TextureIndex >= 0 && p.TextureIndex < model.Textures.Count)
+            {
+                var ty = model.Textures[p.TextureIndex].Type;
+                var img = ty == M2Textures.Body ? ch.Body : ty == M2Textures.CharHair ? ch.Hair : ty == M2Textures.Fur ? ch.Extra : null;
+                if (img != null) bmp = Bmp(img, p.Blend == 0);
+            }
+            if (bmp == null && p.TextureIndex >= 0 && p.TextureIndex < model.Textures.Count)
             {
                 var tex = model.Textures[p.TextureIndex];
                 var file = M2Textures.Resolve(tex, r.Path, r.CreatureSkins, r.ItemSkin, r.ItemFolder);
@@ -315,12 +428,157 @@ namespace AndersCraftStudio
                 g.Material = mat; if (p.TwoSided || p.Transparent) g.BackMaterial = mat;
                 geos.Add(g); group.Children.Add(g);
             }
+            attached.Clear();
+            if (r.Character != null)
+                foreach (var (att, path2, tex) in r.Character.Attached)
+                {
+                    try
+                    {
+                        var mb = lib.Read(path2); var sb = lib.Read(M2Model.SkinPath(path2));
+                        if (mb == null || sb == null) { r.Note = ((r.Note ?? "") + $" {Path.GetFileName(path2)} wasn't found.").Trim(); continue; }
+                        var am = M2Model.Read(mb); var ap = M2Mesh.Build(am, M2Skin.Read(sb));
+                        var ar = new ModelLibrary.Request { Path = path2, ItemSkin = tex == null ? null : Path.GetFileNameWithoutExtension(tex), ItemFolder = tex == null ? null : Path.GetDirectoryName(tex) };
+                        var ag = new List<GeometryModel3D>();
+                        foreach (var p in ap) { var mat = MaterialFor(am, p, ar); var gm = new GeometryModel3D { Material = mat, BackMaterial = mat }; ag.Add(gm); group.Children.Add(gm); }
+                        attached.Add((am, ap, ag, att));
+                    }
+                    catch { }
+                }
+            BuildEffects(group, r);
             wireGeo = new GeometryModel3D { Material = new EmissiveMaterial(new SolidColorBrush(Color.FromRgb(0xf0, 0xb0, 0x50))) };
             group.Children.Add(wireGeo);
             // M2 is Z-up; WPF is Y-up
             group.Transform = new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(1, 0, 0), -90));
             modelVisual.Content = group;
             Redraw();
+        }
+
+        // ---- particles and ribbons (an approximation of the game's effects)
+        M2Effects fx; ParticleSim sim; readonly List<GeometryModel3D> fxGeos = new List<GeometryModel3D>(); readonly List<GeometryModel3D> ribbonGeos = new List<GeometryModel3D>();
+        readonly List<List<(N.Vector3 top, N.Vector3 bottom, float age)>> ribbonEdges = new List<List<(N.Vector3, N.Vector3, float)>>();
+        readonly List<float> ribbonCarry = new List<float>();
+
+        void BuildEffects(Model3DGroup group, ModelLibrary.Request r)
+        {
+            fx = null; sim = null; fxGeos.Clear(); ribbonGeos.Clear(); ribbonEdges.Clear(); ribbonCarry.Clear();
+            if (model.ParticleEmitters == 0 && model.RibbonEmitters == 0) return;
+            fx = M2Effects.Read(model); sim = new ParticleSim();
+            foreach (var e in fx.Emitters)
+            {
+                var g = new GeometryModel3D { Material = EffectMaterial(e.Texture, e.Blend, M2Effects.OverLife(e.Colors, 0.4f, N.Vector3.One, N.Vector3.Lerp), M2Effects.OverLife(e.Alphas, 0.3f, 1f, (a, b, t) => a + (b - a) * t), r) };
+                g.BackMaterial = g.Material; fxGeos.Add(g); group.Children.Add(g);
+            }
+            foreach (var rb in fx.Ribbons)
+            {
+                var tex = rb.Texture >= 0 && rb.Texture < model.TextureLookup.Length ? model.TextureLookup[rb.Texture] : rb.Texture;
+                var g = new GeometryModel3D { Material = EffectMaterial(tex, 4, rb.Color, rb.Alpha, r) };
+                g.BackMaterial = g.Material; ribbonGeos.Add(g); group.Children.Add(g); ribbonEdges.Add(new List<(N.Vector3, N.Vector3, float)>()); ribbonCarry.Add(0);
+            }
+        }
+
+        Material EffectMaterial(int texIndex, int blend, N.Vector3 color, float alpha, ModelLibrary.Request r)
+        {
+            BgraImage img = null;
+            if (texIndex >= 0 && texIndex < model.Textures.Count)
+            {
+                var file = M2Textures.Resolve(model.Textures[texIndex], r.Path, r.CreatureSkins, r.ItemSkin, r.ItemFolder);
+                var bytes = file == null ? null : lib.Read(file);
+                if (bytes == null && file != null && previewDir != null) { var local = Path.Combine(previewDir, Path.GetFileName(file)); if (File.Exists(local)) bytes = File.ReadAllBytes(local); }
+                if (bytes != null) try { img = Blp.Decode(bytes); } catch { }
+            }
+            if (img == null) img = new BgraImage { Width = 2, Height = 2, Pixels = Enumerable.Repeat((byte)255, 16).ToArray() };
+            var px = (byte[])img.Pixels.Clone();
+            float a = Math.Clamp(alpha, 0.15f, 1f);
+            for (int i = 0; i < px.Length; i += 4)
+            {
+                float lum = Math.Max(px[i], Math.Max(px[i + 1], px[i + 2])) / 255f;
+                px[i] = (byte)(px[i] * Math.Clamp(color.Z, 0, 1)); px[i + 1] = (byte)(px[i + 1] * Math.Clamp(color.Y, 0, 1)); px[i + 2] = (byte)(px[i + 2] * Math.Clamp(color.X, 0, 1));
+                float cover = blend >= 3 ? lum : px[i + 3] / 255f;      // additive: brightness becomes coverage
+                px[i + 3] = (byte)(255 * Math.Clamp(cover * a, 0, 1));
+            }
+            var bmp = BitmapSource.Create(img.Width, img.Height, 96, 96, PixelFormats.Bgra32, null, px, img.Width * 4); bmp.Freeze();
+            var brush = new ImageBrush(bmp) { ViewportUnits = BrushMappingMode.Absolute, Viewport = new Rect(0, 0, 1, 1), TileMode = TileMode.Tile }; brush.Freeze();
+            return new EmissiveMaterial(brush);
+        }
+
+        /// <summary>Moves the effects on by <paramref name="dt"/> seconds and redraws them.</summary>
+        void StepEffects(float dt)
+        {
+            if (fx == null || model == null) return;
+            var pose = currentPose ?? model.Pose(-1, 0);
+            sim.Step(model, fx, pose, Math.Max(0, seq), (uint)t, dt);
+            // camera-facing quads: the camera's right/up turned back into the model's Z-up space
+            var right = Vector3D.CrossProduct(cam.LookDirection, cam.UpDirection); right.Normalize(); var up = Vector3D.CrossProduct(right, cam.LookDirection); up.Normalize();
+            var R = new N.Vector3((float)right.X, (float)-right.Z, (float)right.Y); var U2 = new N.Vector3((float)up.X, (float)-up.Z, (float)up.Y);
+            for (int ei = 0; ei < fx.Emitters.Count; ei++)
+            {
+                var e = fx.Emitters[ei];
+                var pos = new Point3DCollection(); var uv = new PointCollection(); var idx = new Int32Collection();
+                foreach (var p in sim.Live)
+                {
+                    if (p.Emitter != ei) continue;
+                    float f = p.Age / p.Life;
+                    var sc = M2Effects.OverLife(e.Scales, f, N.Vector2.One, N.Vector2.Lerp);
+                    float half = Math.Max(0.005f, sc.X) * 0.5f;
+                    int cells = e.Rows * e.Cols, cell = e.Cells.Length > 0 ? (int)Math.Round(M2Effects.OverLife(e.Cells.Select(x => (float)x).ToArray(), f, 0f, (a, b, k) => a + (b - a) * k)) % cells : 0;
+                    double u0 = (cell % e.Cols) / (double)e.Cols, v0 = (cell / e.Cols) / (double)e.Rows, du = 1.0 / e.Cols, dv = 1.0 / e.Rows;
+                    var c = p.Pos; var rr = R * half; var uu = U2 * half;
+                    int s = pos.Count;
+                    pos.Add(P3(c - rr - uu)); pos.Add(P3(c + rr - uu)); pos.Add(P3(c + rr + uu)); pos.Add(P3(c - rr + uu));
+                    uv.Add(new Point(u0, v0 + dv)); uv.Add(new Point(u0 + du, v0 + dv)); uv.Add(new Point(u0 + du, v0)); uv.Add(new Point(u0, v0));
+                    idx.Add(s); idx.Add(s + 1); idx.Add(s + 2); idx.Add(s); idx.Add(s + 2); idx.Add(s + 3);
+                }
+                fxGeos[ei].Geometry = pos.Count == 0 ? null : new MeshGeometry3D { Positions = pos, TextureCoordinates = uv, TriangleIndices = idx };
+            }
+            for (int ri = 0; ri < fx.Ribbons.Count; ri++)
+            {
+                var rb = fx.Ribbons[ri]; var edges = ribbonEdges[ri];
+                for (int k = edges.Count - 1; k >= 0; k--) { var x = edges[k]; x.age += dt; x.top.Z -= rb.Gravity * dt * x.age; x.bottom.Z -= rb.Gravity * dt * x.age; if (x.age > Math.Max(0.05f, rb.EdgeLifetime)) edges.RemoveAt(k); else edges[k] = x; }
+                var bone = rb.Bone < pose.Length ? pose[rb.Bone] : N.Matrix4x4.Identity;
+                var at = N.Matrix4x4.CreateTranslation(rb.Position) * bone;
+                ribbonCarry[ri] += dt * Math.Max(1, rb.EdgesPerSecond);
+                if (ribbonCarry[ri] >= 1 || edges.Count == 0)
+                {
+                    ribbonCarry[ri] = 0;
+                    float above = model.Sample(rb.Above, Math.Max(0, seq), (uint)t, 0.1f), below = model.Sample(rb.Below, Math.Max(0, seq), (uint)t, 0.1f);
+                    var o = N.Vector3.Transform(N.Vector3.Zero, at); var upv = N.Vector3.Normalize(N.Vector3.TransformNormal(N.Vector3.UnitZ, at) + new N.Vector3(0, 0, 1e-6f));
+                    edges.Insert(0, (o + upv * above, o - upv * below, 0f));
+                }
+                if (edges.Count < 2) { ribbonGeos[ri].Geometry = null; continue; }
+                var pos = new Point3DCollection(); var uv = new PointCollection(); var idx = new Int32Collection();
+                for (int k = 0; k < edges.Count; k++)
+                {
+                    double u = k / (double)(edges.Count - 1);
+                    pos.Add(P3(edges[k].top)); pos.Add(P3(edges[k].bottom)); uv.Add(new Point(u, 0)); uv.Add(new Point(u, 1));
+                    if (k > 0) { int s = k * 2; idx.Add(s - 2); idx.Add(s - 1); idx.Add(s); idx.Add(s - 1); idx.Add(s + 1); idx.Add(s); }
+                }
+                ribbonGeos[ri].Geometry = new MeshGeometry3D { Positions = pos, TextureCoordinates = uv, TriangleIndices = idx };
+            }
+        }
+
+        static Point3D P3(N.Vector3 v) => new Point3D(v.X, v.Y, v.Z);
+
+        /// <summary>Runs the effects for a while so a still picture shows them (screenshots).</summary>
+        public void WarmUpEffects(double seconds) { for (double s = 0; s < seconds; s += 0.033) StepEffects(0.033f); }
+
+        public int EffectCount => (fx?.Emitters.Count ?? 0) + (fx?.Ribbons.Count ?? 0);
+
+        readonly List<(M2Model m, List<MeshPart> parts, List<GeometryModel3D> geos, int attachment)> attached = new List<(M2Model, List<MeshPart>, List<GeometryModel3D>, int)>();
+
+        /// <summary>A worn item's piece, placed at its attachment point on the posed body.</summary>
+        MeshGeometry3D AttachedMesh(M2Model m, MeshPart p, N.Matrix4x4 at)
+        {
+            var mesh = new MeshGeometry3D();
+            var pos = new Point3DCollection(p.Vertices.Length); var nrm = new Vector3DCollection(p.Vertices.Length); var uv = new PointCollection(p.Vertices.Length);
+            foreach (var vi in p.Vertices)
+            {
+                var v = m.Vertices[vi];
+                var pp = N.Vector3.Transform(v.Pos, at); var nn = N.Vector3.TransformNormal(v.Normal, at);
+                pos.Add(new Point3D(pp.X, pp.Y, pp.Z)); nrm.Add(new Vector3D(nn.X, nn.Y, nn.Z));
+                if (p.EnvMap) { var su = M2Mesh.SphereUv(nn); uv.Add(new Point(su.X, su.Y)); } else uv.Add(new Point(v.Uv.X, v.Uv.Y));
+            }
+            mesh.Positions = pos; mesh.Normals = nrm; mesh.TextureCoordinates = uv; mesh.TriangleIndices = new Int32Collection(p.Triangles);
+            return mesh;
         }
 
         MeshGeometry3D MeshFor(MeshPart p, N.Matrix4x4[] pose)
@@ -345,6 +603,12 @@ namespace AndersCraftStudio
         {
             if (model == null) return;
             for (int i = 0; i < parts.Count; i++) geos[i].Geometry = MeshFor(parts[i], currentPose);
+            foreach (var (am, ap, ag, att) in attached)
+            {
+                var mtx = model.AttachmentMatrix(att, currentPose ?? model.Pose(-1, 0));
+                if (mtx == null) { foreach (var g in ag) g.Geometry = null; continue; }
+                for (int i = 0; i < ap.Count; i++) ag[i].Geometry = AttachedMesh(am, ap[i], mtx.Value);
+            }
             wireGeo.Geometry = wire.IsChecked == true ? WireMesh() : null;
         }
 
@@ -436,6 +700,7 @@ namespace AndersCraftStudio
             if (t >= d) t %= d;
             currentPose = model.Pose(seq, (uint)t, (uint)globalT);
             Redraw();
+            StepEffects((float)(dt * sp / 1000.0));
         }
 
         void FitCamera(float scale)

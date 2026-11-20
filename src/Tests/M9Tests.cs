@@ -36,6 +36,107 @@ namespace AndersCraftStudio.Tests
             A.Eq(@"Item\ObjectComponents\Weapon\Sword_Blue.blp", M2Textures.Resolve(new M2Model.Texture { Type = M2Textures.ObjectSkin }, @"Item\ObjectComponents\Weapon\Sword.m2", null, "Sword_Blue"));
         }
 
+        // ---------------------------------------------------------------- WMO buildings
+        public static string FirstWmo()
+        {
+            var p = Path.Combine(DbcRoundTrip.DefaultDir, "GameObjectDisplayInfo.dbc");
+            if (!File.Exists(p)) return null;
+            var f = DbcFile.Load(p);
+            for (int i = 0; i < f.Records; i++) { var s = f.Str(i, 1); if (s != null && s.EndsWith(".wmo", StringComparison.OrdinalIgnoreCase) && Read(s) != null) return s; }
+            return null;
+        }
+
+        [Test] static void Real_wmo_building()
+        {
+            if (Client == null) return;
+            var path = FirstWmo();
+            A.True(path != null, "a game object uses a WMO");
+            var w = Wmo.Load(path, Read, 64);
+            A.True(w.GroupCount > 0 && w.Groups.Count > 0, $"{path}: groups {w.Groups.Count}/{w.GroupCount}");
+            A.True(w.Triangles > 10, "triangles " + w.Triangles);
+            A.True(w.Materials.Count > 0 && w.Materials.Any(m => m.Texture != null && Read(m.Texture) != null), "a material texture is in the client");
+            foreach (var g in w.Groups) foreach (var b in g.Batches) A.True(b.StartIndex + b.Count <= g.Indices.Length, "batch in range");
+            A.True(w.Groups.All(g => g.Indices.All(i => i < g.Positions.Length)), "indices point at vertices");
+            A.Eq(@"World\wmo\X\Barn_002.wmo", Wmo.GroupPath(@"World\wmo\X\Barn.wmo", 2));
+            A.Throws(() => Wmo.ReadRoot(new byte[4]), "not a WMO");
+        }
+
+        // ---------------------------------------------------------------- particles and ribbons
+        public static IEnumerable<string> EffectModels()
+        {
+            var p = Path.Combine(DbcRoundTrip.DefaultDir, "SpellVisualEffectName.dbc");
+            if (!File.Exists(p)) yield break;
+            var f = DbcFile.Load(p);
+            for (int i = 0; i < f.Records; i++) { var s = f.Str(i, 2); if (!string.IsNullOrEmpty(s)) yield return M2Model.M2Path(s); }
+        }
+
+        [Test] static void Real_spell_effects_particles_and_ribbons()
+        {
+            if (Client == null) return;
+            int withParticles = 0, withRibbons = 0, emitted = 0, read = 0;
+            foreach (var path in EffectModels().Take(400))
+            {
+                var bytes = Read(path); if (bytes == null) continue;
+                M2Model m; try { m = M2Model.Read(bytes); } catch { continue; }
+                if (m.ParticleEmitters == 0 && m.RibbonEmitters == 0) continue;
+                read++;
+                var fx = M2Effects.Read(m);
+                A.True(fx.Problem == null, path + ": " + fx.Problem);
+                A.Eq(m.ParticleEmitters, fx.Emitters.Count, path + " emitters");
+                A.Eq(m.RibbonEmitters, fx.Ribbons.Count, path + " ribbons");
+                foreach (var e in fx.Emitters) A.True(e.Texture < m.Textures.Count && e.Bone < Math.Max(1, m.Bones.Count), path + " emitter refs");
+                if (fx.Emitters.Count > 0)
+                {
+                    withParticles++;
+                    var sim = new ParticleSim();
+                    var pose = m.Pose(m.Sequences.Count > 0 ? 0 : -1, 0);
+                    for (int k = 0; k < 30; k++) sim.Step(m, fx, pose, 0, (uint)(k * 33), 0.033f);
+                    emitted += sim.Live.Count;
+                    A.True(sim.Live.All(q => !float.IsNaN(q.Pos.X) && !float.IsInfinity(q.Pos.X)), path + " finite particles");
+                }
+                if (fx.Ribbons.Count > 0) withRibbons++;
+                if (read >= 60) break;
+            }
+            A.True(withParticles > 5, $"effect models with particles read: {withParticles}");
+            A.True(withRibbons > 0, $"effect models with ribbons read: {withRibbons}");
+            A.True(emitted > 0, "particles were emitted");
+            A.Eq(0.5f, M2Effects.OverLife(new[] { 0f, 1f }, 0.5f, 0f, (a, b, t) => a + (b - a) * t));
+        }
+
+        // ---------------------------------------------------------------- dressed characters
+        [Test] static void Real_dressed_character_and_armor_paths()
+        {
+            A.Eq(@"Item\TextureComponents\TorsoUpperTexture\Plate_A_01_TU_M.blp", CharacterBuilder.ComponentPaths("TorsoUpperTexture", "Plate_A_01_TU", 0).First());
+            A.Eq(@"Item\ObjectComponents\Head\Helm_Plate_A_01_HuM.m2", CharacterBuilder.HelmPath("Helm_Plate_A_01.mdx", CharacterBuilder.RaceSexSuffix("Hu", 0)));
+            A.Eq(@"Item\TextureComponents\LegLowerTexture\MyPants_U.blp", AssetImport.ArmorTexturePath(6, "My Pants!"));
+            var g = CharacterBuilder.Geosets(5, new[] { 2, 1, 3 }, s => s == CharacterLook.Boots ? new[] { 2, 0, 0 } : s == -CharacterLook.Cape ? new int[3] : s < 0 ? null : new int[3]);
+            A.True(g.Contains(0) && g.Contains(5) && g.Contains(503) && g.Contains(1501) && g.Contains(103) && !g.Contains(1301), string.Join(",", g));
+            var dst = new BgraImage { Width = 256, Height = 256, Pixels = new byte[256 * 256 * 4] };
+            var red = new BgraImage { Width = 2, Height = 2, Pixels = Enumerable.Repeat(new byte[] { 0, 0, 255, 255 }, 4).SelectMany(x => x).ToArray() };
+            CharacterBuilder.Paste(dst, red, CharacterBuilder.Region.TorsoUpper);
+            A.Eq((byte)255, dst.Pixels[(10 * 256 + 140) * 4 + 2], "torso region painted"); A.Eq((byte)0, dst.Pixels[(10 * 256 + 10) * 4 + 2], "arm region untouched");
+            if (Client == null || !Directory.Exists(DbcRoundTrip.DefaultDir)) return;
+            DbcFile Dbc(string f) { var p = Path.Combine(DbcRoundTrip.DefaultDir, f); return File.Exists(p) ? DbcFile.Load(p) : null; }
+            // the first few NPC looks that have a baked texture build with a body, hair and some geosets
+            var extra = Dbc("CreatureDisplayInfoExtra.dbc");
+            int built = 0;
+            for (int i = 0; i < extra.Records && built < 5; i++)
+            {
+                var look = CharacterBuilder.FromExtra(extra, extra.UInt(i, 0));
+                if (string.IsNullOrEmpty(look.BakeName)) continue;
+                var b = CharacterBuilder.Build(look, Dbc, Read);
+                A.True(b.ModelPath != null && Read(b.ModelPath) != null, "body model " + b.ModelPath);
+                A.True(b.Body != null && b.Baked, "baked body " + look.BakeName);
+                A.True(b.Geosets.Count >= 5 && b.Geosets.Contains(0), "geosets");
+                foreach (var (_, model, _) in b.Attached) A.True(Read(model) != null, "attached model is in the client: " + model);
+                built++;
+            }
+            A.True(built == 5, "built five NPC looks");
+            // a player look without a bake is composed from skin and face
+            var human = CharacterBuilder.Build(new CharacterLook { Race = 1, Sex = 0 }, Dbc, Read);
+            A.True(human.Body != null && !human.Baked, "composed human skin");
+        }
+
         // ---------------------------------------------------------------- tables without a key
         [Test] static void Keyless_rows_are_matched_on_every_column()
         {

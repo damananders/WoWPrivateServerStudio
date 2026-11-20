@@ -15,7 +15,7 @@ SQL and hex editors — and it is built so that **nothing reaches your database 
 | ![Conditions](docs/screens/conditions.png) | ![Asset import](docs/screens/asset-import.png) | ![Changes](docs/screens/changes.png) |
 | **Game objects** | **NPC text** | **CSV import** |
 | ![Game objects](docs/screens/game-objects.png) | ![NPC text](docs/screens/npc-text.png) | ![CSV import](docs/screens/csv-import.png) |
-| **3D model viewer** | Creatures, game objects, items and models you import, textured, with every animation (walk, attack, cast…), turn / move / zoom and wireframe. Read straight from your client's archives. |
+| **3D model viewer** | Creatures (dressed humanoid NPCs included), game objects and WMO buildings, items, spell effects with their particles, and models you import, textured, with every animation, turn / move / zoom and wireframe. Read straight from your client's archives. |
 | **Admin console** | **Look & movement** | **3D viewer** |
 | ![Admin console](docs/screens/admin-console.png) | ![Look & movement](docs/screens/creature-look-movement.png) | ![3D viewer](docs/screens/model-viewer.png) |
 
@@ -83,8 +83,8 @@ built patches in `Documents\AndersCraft Studio` (changeable in Settings).
   editors, which stage and back up every change. Account, permission and connection changes can't be undone with a click.
 * event_scripts and spell_scripts have no primary key: Studio finds each row by all of its values, and Apply refuses if a
   match isn't exactly one row (two identical rows).
-* The 3D viewer needs your client folder (setup step 4). It doesn't draw spell particle effects, player-style NPCs' faces,
-  hair and clothes, or WMO buildings.
+* The 3D viewer needs your client folder (setup step 4). Particle effects are approximate (one colour per emitter); buildings
+  are drawn without the small props inside them; helmets and shoulders don't animate on their own.
 * **Windows SmartScreen** may say *Windows protected your PC* the first time, because the exe isn't code-signed.
   Click **More info** › **Run anyway**. The source is in this repository if you'd rather build it yourself.
 * Apply, Roll back, patch Install/Uninstall and the DBC outputs are covered by automated tests against fakes and temporary
@@ -93,8 +93,8 @@ built patches in `Documents\AndersCraft Studio` (changeable in Settings).
 * The client load-order view (which MPQ wins) follows the usual 3.3.5a convention; it hasn't been verified inside Wow.exe.
 * Spell tooltip preview: player-dependent values (attack power, talents) show "…"; about 60 effects and 80 auras have
   Studio's own summary wording, the rest show the effect/aura name.
-* Asset import registers icons, creature models, item models (weapons, shields, helms, shoulders…) and sounds; body armour
-  textures, spell visual kits and maps must be wired up by hand (the files can be imported with *Any file*). Helmets need one model per race and gender (`Name_HuM.m2`…), named by you. There is no 3D preview. Imported models must already be 3.3.5a `.m2` (version 264); Studio doesn't convert models.
+* Asset import registers icons, creature models, item models (weapons, shields, helms, shoulders…), body-armour textures
+  and sounds; spell visual kits and maps must be wired up by hand (the files can be imported with *Any file*). Helmets need one model per race and gender (`Name_HuM.m2`…), named by you. There is no 3D preview. Imported models must already be 3.3.5a `.m2` (version 264); Studio doesn't convert models.
 * MPQ v3/v4 (Cataclysm+) and DB2 files aren't supported — the 3.3.5a client doesn't use them.
 * Studio never runs structure changes (CREATE/ALTER/DROP); they can be staged and exported but not applied.
 

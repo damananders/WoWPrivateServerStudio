@@ -134,15 +134,17 @@ with ItemDisplayInfo wiring.
 | Creatures (Basics tab), game objects (Basics), items (Display), Asset import previews | 🟢 Textured, lit, turn / move / zoom, wireframe, reset view; several models per creature selectable. |
 | Animations | 🟢 Every sequence of the model by name (AnimationData.dbc), play / pause / speed; keyframes from the .m2 and its .anim files; rest pose as fallback. |
 | Reflective metal, glows | 🟢 Sphere-mapped reflection layers and additive glows approximated. |
-| Character-style NPCs (player bodies) | 🟡 Shown as the bare body with default geosets; face, hair and clothing textures are Level 3. |
-| WMO buildings (big game objects) | ❌ Not M2 models; the viewer says so. |
+| Character-style NPCs (player bodies) | 🟢 Dressed: race body, hair and beard geosets, the NPC's baked texture (or skin + face + underwear + armour composed), sleeves/boots/robe/cloak/tabard geosets from the worn items, and helmet, shoulders, weapons and shield on their attachment points. Geoset choices for some item types are approximate. |
+| WMO buildings (big game objects) | 🟢 Every group with its textures (up to 400 groups). The small props placed inside (doodads) and vertex lighting aren't drawn. |
+| Particles and ribbons (spell effects, fires, glows, trails) | 🟢 Approximate: emitters, speed/spread/gravity/drag, life-time size and texture cells, additive glow; colour fades are simplified (one tint per emitter). Spell editor › Visuals shows the visual's effect models. |
 
 **Closed in 0.9:** 3D viewer with animations; script tables without a key; several DBCs open side by side.
 
-**Level 3 — the only things left (not started):**
-* Spell visual effects: particle and ribbon emitters (the effect models' meshes would show, but not their particles).
-* Characters wearing armour: player body + hair/face + geosets + blended armour textures (CharSections, ItemDisplayInfo textures).
-* Body-armour texture import (Item\TextureComponents) — goes with the item above.
-* DB2 files: not used by 3.3.5a, so not needed.
+**Also closed in 0.9 (Level 3):** spell particle and ribbon effects, dressed characters, WMO buildings, and body-armour
+texture import (Asset import › Body armour textures, previewed on a character).
+
+**Remaining limits (approximations, not gaps):** particle colours are one tint per emitter and spline/"follow" emitter modes
+aren't simulated; WMO doodads and vertex lighting aren't drawn; helmets and shoulders don't play their own animations;
+some item geoset choices are approximate. DB2 files aren't supported because 3.3.5a doesn't use them.
 * Admin console actions run directly. Account, permission and connection changes can't be undone with a click; deleted
   tables and rows come back only from a backup (Studio offers one first).

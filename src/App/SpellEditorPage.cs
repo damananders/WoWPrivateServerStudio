@@ -742,7 +742,50 @@ namespace AndersCraftStudio
                 Link("SpellVisualID_1", "SpellVisual.dbc", "Visual", "What the spell looks and sounds like: precast, cast, missile and impact kits (SpellVisual.dbc).", 520),
                 Link("SpellVisualID_2", "SpellVisual.dbc", "Second visual", "A second visual some spells play at the same time.", 520),
                 Num("SpellPriority", "Priority", "Client-side ordering hint.", 140))));
+            p.Children.Add(EffectsPreview(sp.Row.V[sp.Field("SpellVisualID_1")]));
         }
+
+        /// <summary>The visual's effect models (cast, missile, impact…) in the 3D viewer, particles and ribbons included.</summary>
+        UIElement EffectsPreview(uint visualId)
+        {
+            var models = new List<(string what, string path)>();
+            try
+            {
+                var vis = S.Models.Raw("SpellVisual.dbc"); var kits = S.Models.Raw("SpellVisualKit.dbc"); var names = S.Models.Raw("SpellVisualEffectName.dbc");
+                string Effect(uint id) { if (names == null || id == 0) return null; for (int i = 0; i < names.Records; i++) if (names.UInt(i, 0) == id) return names.Str(i, 2); return null; }
+                int VisRow() { if (vis == null) return -1; for (int i = 0; i < vis.Records; i++) if (vis.UInt(i, 0) == visualId) return i; return -1; }
+                int r = VisRow();
+                if (r >= 0)
+                {
+                    var kitNames = new[] { "Precast", "Cast", "Impact", "State", "State done", "Channel" };
+                    string[] parts = { "head", "chest", "base", "left hand", "right hand", "breath", "left weapon", "right weapon", "special 1", "special 2", "special 3", "world" };
+                    for (int k = 0; k < 6; k++)
+                    {
+                        uint kit = vis.UInt(r, 1 + k); if (kit == 0 || kits == null) continue;
+                        for (int i = 0; i < kits.Records; i++)
+                        {
+                            if (kits.UInt(i, 0) != kit) continue;
+                            for (int e = 0; e < 12; e++) { var f = Effect(kits.UInt(i, 3 + e)); if (f != null) models.Add(($"{kitNames[k]} · {parts[e]}", M2Model.M2Path(f))); }
+                            break;
+                        }
+                    }
+                    var missile = Effect(vis.UInt(r, 8)); if (missile != null) models.Add(("Missile", M2Model.M2Path(missile)));
+                }
+            }
+            catch { }
+            models = models.GroupBy(m => m.path, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).ToList();
+            var viewer = new ModelViewer(S.Models, 340);
+            var pick = new ComboBox { Width = 380 };
+            foreach (var (what, path) in models) pick.Items.Add(new ComboBoxItem { Content = $"{what} — {Path.GetFileNameWithoutExtension(path)}", Tag = path });
+            pick.SelectionChanged += (s, e) => { if (pick.SelectedItem is ComboBoxItem ci) viewer.Load(new ModelLibrary.Request { Path = (string)ci.Tag, Title = Convert.ToString(ci.Content) }); };
+            if (models.Count == 0) viewer.ShowMessage(visualId == 0 ? "This spell has no visual." : "No effect models found for this visual (or the client folder isn't set).");
+            else pick.SelectedIndex = 0;
+            lastEffects = viewer;
+            return Section("3D effect preview", U.Stack(models.Count > 1 ? pick : null, models.Count > 1 ? new Border { Height = 8 } : null, viewer.View),
+                "The visual's effect models with their particles and ribbons. The effects are an approximation of what the game draws (colours and fades are simplified).");
+        }
+
+        public ModelViewer lastEffects;
 
         void AttributesTab(StackPanel p)
         {
