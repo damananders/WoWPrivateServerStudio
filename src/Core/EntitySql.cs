@@ -91,6 +91,73 @@ namespace AndersCraftStudio.Core
             edits.Clear();
             return touched;
         }
+
+        /// <summary>What <see cref="StageAsNewRow"/> would stage for this row (preview only, nothing changes), or null.</summary>
+        public string PreviewNewRow(string table, IList<KeyPart> key, IList<string> columns, IList<string> defaults)
+        {
+            var id = RowId(table, key);
+            var mine = edits.Where(e => RowId(e.Table, e.Key) == id).ToList();
+            if (mine.Count == 0) return null;
+            var lits = defaults.ToList();
+            for (int i = 0; i < columns.Count; i++)
+            {
+                var kp = key.FirstOrDefault(k => string.Equals(k.Column, columns[i], StringComparison.OrdinalIgnoreCase));
+                if (kp != null) lits[i] = kp.Value;
+                var e = mine.FirstOrDefault(x => string.Equals(x.Column, columns[i], StringComparison.OrdinalIgnoreCase));
+                if (e != null) lits[i] = e.After;
+            }
+            return SqlGen.InsertRow(table, columns, lits);
+        }
+
+        /// <summary>
+        /// For a side-table row that doesn't exist yet (e.g. creature_template_addon): turns this row's edits into one staged
+        /// INSERT of every column (<paramref name="defaults"/> = SQL literals for the columns nobody edited), or merges them
+        /// into the INSERT already staged for the row. Other edits stay in the session. Returns null when there were none.
+        /// </summary>
+        public Change StageAsNewRow(Changeset cs, string table, IList<KeyPart> key, IList<string> columns, IList<string> defaults, IList<string> defaultDisplays = null)
+        {
+            var id = RowId(table, key);
+            var mine = edits.Where(e => RowId(e.Table, e.Key) == id).ToList();
+            if (mine.Count == 0) return null;
+            var lits = defaults.ToList();
+            var disp = (defaultDisplays ?? defaults).ToList();
+            var touchedCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < columns.Count; i++)
+            {
+                var kp = key.FirstOrDefault(k => string.Equals(k.Column, columns[i], StringComparison.OrdinalIgnoreCase));
+                if (kp != null) { lits[i] = kp.Value; disp[i] = kp.Display ?? kp.Value; touchedCols.Add(columns[i]); }
+                var e = mine.FirstOrDefault(x => string.Equals(x.Column, columns[i], StringComparison.OrdinalIgnoreCase));
+                if (e != null) { lits[i] = e.After; disp[i] = e.AfterDisplay; touchedCols.Add(columns[i]); }
+            }
+            var c = ChangeFactory.StageInsertOrMerge(cs, table, key, columns, lits, disp, touchedCols);
+            edits.RemoveAll(e => RowId(e.Table, e.Key) == id);
+            return c;
+        }
+    }
+
+    /// <summary>Column defaults for rows Studio creates (from INFORMATION_SCHEMA.COLUMNS.COLUMN_DEFAULT).</summary>
+    public static class ColumnDefaults
+    {
+        public static string Query(string table) =>
+            "SELECT COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = " + SqlGen.Literal(table) + " ORDER BY ORDINAL_POSITION";
+
+        /// <summary>The literal a new row gets for this column when nobody sets it.</summary>
+        public static string Literal(object columnDefault, Type type, bool nullable)
+        {
+            var d = columnDefault is null || columnDefault is DBNull ? null : Convert.ToString(columnDefault, CultureInfo.InvariantCulture);
+            if (d != null && d.Equals("NULL", StringComparison.OrdinalIgnoreCase)) d = null;      // MariaDB spells it out
+            if (d == null) return nullable ? "NULL" : type == typeof(string) ? "''" : type == typeof(byte[]) ? "''" : "0";
+            if (d.Length >= 2 && d[0] == '\'' && d[^1] == '\'') d = d.Substring(1, d.Length - 2).Replace("''", "'");   // MariaDB quotes strings
+            return SqlGen.TryTypedLiteral(d, type, nullable, out var lit, out _) ? lit : (type == typeof(string) ? SqlGen.Literal(d) : "0");
+        }
+
+        /// <summary>Typed value for a literal produced by <see cref="Literal"/> (for showing it in a form).</summary>
+        public static object Value(string literal, Type type)
+        {
+            if (literal == "NULL") return DBNull.Value;
+            if (type == typeof(string)) return literal.Length >= 2 && literal[0] == '\'' ? literal.Substring(1, literal.Length - 2).Replace("\\'", "'").Replace("''", "'").Replace("\\\\", "\\") : literal;
+            try { return Convert.ChangeType(literal, type, CultureInfo.InvariantCulture); } catch { return DBNull.Value; }
+        }
     }
 
     /// <summary>"Duplicate as new": copy a row under a fresh ID in the custom range, as a staged INSERT with DELETE undo.</summary>

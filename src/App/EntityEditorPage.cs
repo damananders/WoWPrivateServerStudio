@@ -45,6 +45,8 @@ namespace AndersCraftStudio
         // state
         long? id;
         readonly Dictionary<string, DataRow> rows = new Dictionary<string, DataRow>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Side tables with no row for this entity yet: a stand-in row of defaults; edits become one staged INSERT.</summary>
+        readonly Dictionary<string, (List<string> cols, List<string> lits, List<string> disps)> newRows = new Dictionary<string, (List<string>, List<string>, List<string>)>(StringComparer.OrdinalIgnoreCase);
         readonly EditSession session = new EditSession();
         string tab;
         readonly List<FieldUi> fieldUis = new List<FieldUi>();
@@ -200,14 +202,16 @@ namespace AndersCraftStudio
             if (session.Count > 0 && !ConfirmLeave()) return;
             session.Clear();
             id = newId;
-            rows.Clear();
+            rows.Clear(); newRows.Clear();
             try
             {
                 using var db = S.OpenRead(S.Profile.WorldDb);
                 foreach (var (table, keyCol) in AllTables())
                 {
                     var dt = db.QueryTable($"SELECT * FROM {SqlGen.Ident(table)} WHERE {SqlGen.Ident(keyCol)} = {newId.ToString(CultureInfo.InvariantCulture)} LIMIT 1", 1, out _);
-                    rows[table] = dt.Rows.Count > 0 ? dt.Rows[0] : null;
+                    if (dt.Rows.Count > 0) rows[table] = dt.Rows[0];
+                    else if (string.Equals(table, D.Table, StringComparison.OrdinalIgnoreCase)) rows[table] = null;
+                    else rows[table] = StandInRow(db, dt, table, keyCol, newId);
                 }
             }
             catch (Exception ex) { w.Toast($"Couldn't load {D.Singular} #{newId}: {ex.Message}", "bad"); id = null; return; }
@@ -217,6 +221,26 @@ namespace AndersCraftStudio
             guide.Content = GuideIntro();
             BuildCentre();
             UpdatePreview();
+        }
+
+        /// <summary>A row of column defaults for a side table that has no row yet (shown in the form; staged as an INSERT once edited).</summary>
+        DataRow StandInRow(ReadOnlyDb db, DataTable dt, string table, string keyCol, long newId)
+        {
+            var defs = db.QueryTable(ColumnDefaults.Query(table), 500, out _);
+            var cols = new List<string>(); var lits = new List<string>(); var disps = new List<string>();
+            var row = dt.NewRow();
+            foreach (DataColumn c in dt.Columns)
+            {
+                DataRow d = defs.Rows.Cast<DataRow>().FirstOrDefault(r => string.Equals(Convert.ToString(r[0]), c.ColumnName, StringComparison.OrdinalIgnoreCase));
+                bool nullable = d == null || string.Equals(Convert.ToString(d[2]), "YES", StringComparison.OrdinalIgnoreCase);
+                var lit = string.Equals(c.ColumnName, keyCol, StringComparison.OrdinalIgnoreCase) ? newId.ToString(CultureInfo.InvariantCulture) : ColumnDefaults.Literal(d?[1], c.DataType, nullable);
+                var val = ColumnDefaults.Value(lit, c.DataType);
+                try { row[c] = val; } catch { row[c] = DBNull.Value; }
+                cols.Add(c.ColumnName); lits.Add(lit); disps.Add(SqlGen.Display(val));
+            }
+            dt.Rows.Add(row);
+            newRows[table] = (cols, lits, disps);
+            return row;
         }
 
         IEnumerable<(string table, string key)> AllTables()
@@ -249,7 +273,7 @@ namespace AndersCraftStudio
         FieldChange Staged(FieldDef f)
         {
             var key = KeyFor(TableOf(f));
-            var c = S.Changes.Pending.Changes.FirstOrDefault(x => x.Kind == ChangeKind.Update && x.SameRow(TableOf(f), key));
+            var c = S.Changes.Pending.Changes.FirstOrDefault(x => (x.Kind == ChangeKind.Update || x.Kind == ChangeKind.Insert) && x.SameRow(TableOf(f), key));
             return c?.Fields.FirstOrDefault(x => string.Equals(x.Name, f.Column, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -355,8 +379,10 @@ namespace AndersCraftStudio
                 ((FrameworkElement)head.Children[0]).Margin = new Thickness(0, 0, 10, 0);
                 head.Margin = new Thickness(0, 0, 0, 12);
                 var body = U.Stack(head);
-                if (side != null && (!rows.TryGetValue(side, out var sr) || sr == null))
-                    body.Children.Add(U.Callout($"This {D.Singular} has no {side} row, so these fields use the server's defaults. Studio can't edit them here yet; add the row with SQL in the SQL browser if you need them.", "info"));
+                if (side != null && newRows.ContainsKey(side))
+                    body.Children.Add(S.Changes.Pending.Changes.Any(c => c.Kind == ChangeKind.Insert && c.SameRow(side, KeyFor(side)))
+                        ? U.Callout($"A new {side} row for this {D.Singular} is staged. Further edits here go into that same new row.", "ok")
+                        : U.Callout($"This {D.Singular} has no {side} row yet, so these are the server's defaults. Change any field and Stage edits adds the row (one INSERT, undone by removing it).", "info"));
                 body.Children.Add(wrap);
                 sp.Children.Add(U.Card(body, new Thickness(18, 14, 8, 6), new Thickness(0, 0, 0, 12)));
             }
@@ -627,7 +653,11 @@ namespace AndersCraftStudio
             }
             else
             {
-                sqlBox.Text = "-- will be staged (Ctrl+S)\n" + string.Join("\n", p) + "\n\n-- undo, saved with it\n" + string.Join("\n", session.PreviewUndo());
+                var fresh = newRows.Keys.Where(t => session.Edits.Any(e => string.Equals(e.Table, t, StringComparison.OrdinalIgnoreCase))
+                                                    && !S.Changes.Pending.Changes.Any(c => c.Kind == ChangeKind.Insert && c.SameRow(t, KeyFor(t)))).ToList();
+                var inserts = fresh.Select(t => $"-- {t} has no row yet: added as a new row\n" + session.PreviewNewRow(t, KeyFor(t), newRows[t].cols, newRows[t].lits)).ToList();
+                p = p.Where(x => !fresh.Any(t => x.StartsWith("UPDATE " + SqlGen.Ident(t) + " ", StringComparison.Ordinal))).ToList();
+                sqlBox.Text = "-- will be staged (Ctrl+S)\n" + string.Join("\n", inserts.Concat(p)) + "\n\n-- undo, saved with it\n" + string.Join("\n", fresh.Select(t => SqlGen.DeleteRow(t, KeyFor(t))).Concat(session.PreviewUndo().Where(x => !fresh.Any(t => x.StartsWith("UPDATE " + SqlGen.Ident(t) + " ", StringComparison.Ordinal)))));
                 sqlNote.Text = $"{session.Count} field edit(s) waiting. Stage them to add them to your changeset.";
             }
             UpdateStageButton();
@@ -646,7 +676,14 @@ namespace AndersCraftStudio
         {
             if (session.Count == 0) { w.Toast("Nothing to stage: change a field first.", "info"); return; }
             int n = session.Count;
+            var created = new List<Change>();
+            foreach (var kv in newRows)
+            {
+                var c = session.StageAsNewRow(S.Changes.Pending, kv.Key, KeyFor(kv.Key), kv.Value.cols, kv.Value.lits, kv.Value.disps);
+                if (c != null) created.Add(c);
+            }
             var touched = session.Stage(S.Changes.Pending);
+            touched.AddRange(created.Where(c => !touched.Contains(c)));
             S.SaveChanges();
             RefreshAllFields();
             w.Toast($"Staged {n} field edit(s) on {D.Singular} #{id} ({touched.Count} row change(s) in your changeset). Nothing written yet; review it on Changes.", "ok");
@@ -666,7 +703,7 @@ namespace AndersCraftStudio
                 var c1 = Duplicator.Stage(S.Changes.Pending, D.Table, D.KeyCol, newId, cols, cols.Select(c => main[c]).ToList(), D.NameCol);
                 int extra = 0;
                 foreach (var kv in D.SideTables)
-                    if (rows.TryGetValue(kv.Key, out var sr) && sr != null)
+                    if (rows.TryGetValue(kv.Key, out var sr) && sr != null && !newRows.ContainsKey(kv.Key))
                     {
                         var sc = sr.Table.Columns.Cast<DataColumn>().Select(c => c.ColumnName).ToList();
                         Duplicator.Stage(S.Changes.Pending, kv.Key, kv.Value, newId, sc, sc.Select(c => sr[c]).ToList());

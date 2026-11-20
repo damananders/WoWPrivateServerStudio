@@ -24,7 +24,7 @@ namespace AndersCraftStudio
     public sealed class MainWindow : Window
     {
         public static MainWindow Instance;
-        public static bool OnlyM7;
+        public static bool OnlyM7, OnlyM8;
         public static bool Fresh;
         public readonly Studio S;
         readonly string screensDir;
@@ -89,6 +89,7 @@ namespace AndersCraftStudio
             S.ChangesChanged += RefreshChrome;
             S.ProfileChanged += RefreshChrome;
             RegisterKeys();
+            Closed += (s, e) => { if (pages.TryGetValue("admin", out var ap) && ap is AdminPage adm) adm.Disconnect(); };   // the admin login never outlives the window
             Loaded += async (a, b) =>
             {
                 RefreshChrome();
@@ -233,6 +234,8 @@ namespace AndersCraftStudio
             Item("gameobjects", "\uE7B8", "Game objects", "Chests, doors, herbs, signs, portals: type-aware settings, spawns and loot.");
             Item("npctext", "\uE8BD", "NPC text", "What NPCs say when their gossip window opens: up to 8 variants with chances and emotes.");
             Item("pagetext", "\uE736", "Page text", "Books, letters, plaques and signs: pages and how they chain.");
+            Item("broadcast", "\uE789", "Broadcast text", "Shared text lines (with sound and emotes) that creature_text, gossip and quests point at.");
+            Item("tele", "\uE707", "Teleport locations", "game_tele: the places .tele takes GMs and players."); 
             Item("loot", "", "Loot", "Who drops what, how often, in which groups and shared lists, with a drop simulator.");
             Item("world", "\uE909", "World tables", "Conditions, waypoints, gossip menus, game events and area triggers.");
             Item("templates", "\uE8A5", "Templates", "Ready-made actions: clone a boss, make a vendor, new quest, scale a creature, add a combat spell.");
@@ -244,6 +247,7 @@ namespace AndersCraftStudio
             Item("patches", "", "Client patches", "Build MPQ patches for the game client from DBCs and other files, see which patch wins for each file, install with a backup, uninstall, and export a zip for players.");
             Item("assets", "\uE8B9", "Asset import", "Bring in your own icons, models, sounds and other files: converted, placed in a patch work folder and registered in the DBCs.");
             Group("Database");
+            Item("admin", "\uE7EF", "Admin console", "Run any SQL directly, manage databases, tables, users and connections, import/export, and set up AzerothCore's databases. Needs an admin login each time.");
             Item("sql", "", "SQL browser", "Browse every table, filter, export, and run read-only queries. Edits are staged, never written directly.");
             Group("Safety");
             changesNavBadge = new Border { Background = U.R("Amber"), CornerRadius = new CornerRadius(10), Padding = new Thickness(7, 1, 7, 1), Visibility = Visibility.Collapsed,
@@ -284,10 +288,10 @@ namespace AndersCraftStudio
             wizardHost.Visibility = Visibility.Collapsed; shell.Visibility = Visibility.Visible;
             if (!pages.TryGetValue(key, out var page))
             {
-                bool needsDb = key is "creatures" or "items" or "quests" or "gameobjects" or "npctext" or "pagetext" or "loot" or "smartai" or "templates" or "world";
+                bool needsDb = key is "creatures" or "items" or "quests" or "gameobjects" or "npctext" or "pagetext" or "broadcast" or "tele" or "loot" or "smartai" or "templates" or "world";
                 if (needsDb && !S.HasReadAccount)
                 {
-                    var titles = new Dictionary<string, string> { ["creatures"] = "Creatures", ["items"] = "Items", ["quests"] = "Quests", ["gameobjects"] = "Game objects", ["npctext"] = "NPC text", ["pagetext"] = "Page text", ["loot"] = "Loot", ["smartai"] = "SmartAI", ["templates"] = "Templates", ["world"] = "World tables" };
+                    var titles = new Dictionary<string, string> { ["creatures"] = "Creatures", ["items"] = "Items", ["quests"] = "Quests", ["gameobjects"] = "Game objects", ["npctext"] = "NPC text", ["pagetext"] = "Page text", ["broadcast"] = "Broadcast text", ["tele"] = "Teleport locations", ["loot"] = "Loot", ["smartai"] = "SmartAI", ["templates"] = "Templates", ["world"] = "World tables" };
                     var np = new NotSetUpPage(this, titles[key], $"{titles[key]} reads your world database, so it needs the read-only account from setup step 3.");
                     CurrentPage = key;
                     if (nav.TryGetValue(key, out var nrb) && nrb.IsChecked != true) nrb.IsChecked = true;
@@ -302,12 +306,15 @@ namespace AndersCraftStudio
                     "help" => new HelpPage(this),
                     "assets" => new AssetsPage(this),
                     "sql" => new SqlBrowserPage(this),
+                    "admin" => new AdminPage(this),
                     "creatures" => new EntityEditorPage(this, EntityDefs.Creature),
                     "items" => new EntityEditorPage(this, EntityDefs.Item),
                     "quests" => new EntityEditorPage(this, EntityDefs.Quest),
                     "gameobjects" => new EntityEditorPage(this, EntityDefs.GameObject),
                     "npctext" => new EntityEditorPage(this, EntityDefs.NpcText),
                     "pagetext" => new EntityEditorPage(this, EntityDefs.PageText),
+                    "broadcast" => new EntityEditorPage(this, EntityDefs.BroadcastText),
+                    "tele" => new EntityEditorPage(this, EntityDefs.GameTele),
                     "patches" => new ClientPatchesPage(this),
                     "loot" => new LootPage(this),
                     "smartai" => new SmartAIPage(this),
@@ -373,8 +380,8 @@ namespace AndersCraftStudio
             q = q.Trim();
             var screens = new (string key, string name, string what)[]
             {
-                ("sql", "SQL browser", "Browse tables and run read-only queries"), ("changes", "Changes", "Review, apply and roll back"), ("settings", "Settings", "Profile, folders, Live switch"),
-                ("creatures", "Creatures", "Creature editor"), ("items", "Items", "Item editor"), ("quests", "Quests", "Quest editor"), ("gameobjects", "Game objects", "Chests, doors, herbs, signs"), ("npctext", "NPC text", "Gossip greetings"), ("pagetext", "Page text", "Books and letters"), ("loot", "Loot", "Loot editor and drop simulator"),
+                ("sql", "SQL browser", "Browse tables and run read-only queries"), ("admin", "Admin console", "Direct SQL, databases, users, import/export, server setup"), ("changes", "Changes", "Review, apply and roll back"), ("settings", "Settings", "Profile, folders, Live switch"),
+                ("creatures", "Creatures", "Creature editor"), ("items", "Items", "Item editor"), ("quests", "Quests", "Quest editor"), ("gameobjects", "Game objects", "Chests, doors, herbs, signs"), ("npctext", "NPC text", "Gossip greetings"), ("pagetext", "Page text", "Books and letters"), ("broadcast", "Broadcast text", "Shared text lines"), ("tele", "Teleport locations", ".tele places"), ("loot", "Loot", "Loot editor and drop simulator"),
                 ("smartai", "SmartAI", "SmartAI builder"), ("spells", "Spells", "Spell editor with live tooltip"), ("dbc", "DBC tables", "All 246 client tables"), ("home", "Home", "Dashboard"), ("templates", "Templates", "Ready-made actions"), ("world", "World tables", "Conditions, waypoints, gossip, events, area triggers"), ("assets", "Asset import", "Icons, models, sounds"), ("help", "Help", "Getting started and glossary"), ("patches", "Client patches", "Build, install and inspect MPQ patches"),
             };
             foreach (var sc in screens)
@@ -421,7 +428,7 @@ namespace AndersCraftStudio
                         foreach (var r in t.Rows)
                         {
                             var eid = Convert.ToInt64(r[0]); var ws = def.Key;
-                            var kindName = def.Key switch { "gameobjects" => "Object", "npctext" => "NPC text", "pagetext" => "Page", _ => def.Singular.Substring(0, 1).ToUpperInvariant() + def.Singular.Substring(1) };
+                            var kindName = def.Key switch { "gameobjects" => "Object", "npctext" => "NPC text", "pagetext" => "Page", "broadcast" => "Text", "tele" => "Tele", _ => def.Singular.Substring(0, 1).ToUpperInvariant() + def.Singular.Substring(1) };
                             found.Add(new Hit { Kind = kindName, Title = $"{Refs.OneLine(Convert.ToString(r[1]), 60)}  #{eid}", Detail = Convert.ToString(r[2]), Go = () => Navigate(ws, pg => ((EntityEditorPage)pg).Open(eid)) });
                         }
                     }
@@ -595,7 +602,7 @@ namespace AndersCraftStudio
 
         async Task ScreensMode()
         {
-            try { if (Fresh) await Screens.RunFresh(this, screensDir); else if (OnlyM7) await Screens.RunM7(this, screensDir); else await Screens.Run(this, screensDir); }
+            try { if (Fresh) await Screens.RunFresh(this, screensDir); else if (OnlyM7) await Screens.RunM7(this, screensDir); else if (OnlyM8) await Screens.RunM8(this, screensDir); else await Screens.Run(this, screensDir); }
             catch (Exception ex) { File.WriteAllText(Path.Combine(screensDir, "screens_error.txt"), ex.ToString()); }
             Close();
         }

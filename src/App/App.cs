@@ -88,7 +88,8 @@ namespace AndersCraftStudio
                 try { MainWindow.Instance?.Toast("Something went wrong (details saved to errors.log): " + e.Exception.Message, "bad"); } catch { }
             };
             MainWindow.Fresh = fresh;
-            MainWindow.OnlyM7 = args.Contains("--m7");      // screenshots only: just the 0.7 screens
+            MainWindow.OnlyM7 = args.Contains("--m7");
+            MainWindow.OnlyM8 = args.Contains("--m8");      // screenshots only: just the 0.7 screens
             var w = new MainWindow(state, screens);
             var code = Current.Run(w);
             if (screens != null)

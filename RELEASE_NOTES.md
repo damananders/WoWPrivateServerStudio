@@ -1,5 +1,36 @@
 # Release notes
 
+## 0.8.0 — no other tools needed
+
+Studio now covers everything Keira3 and HeidiSQL do: a new user can set up a server's databases and edit all of its
+content without any other program.
+
+**New: Admin console** (sidebar › Database). Needs a MySQL admin login typed each time; Studio never saves it.
+* SQL console: run any SQL directly, several statements and result sets, errors per statement, transactions with Commit /
+  Roll back, session history (passwords masked).
+* Databases & tables: create/drop databases; create tables from a column list; add/change/drop columns; add/drop indexes;
+  rename, truncate, drop; views. A copy of the table is offered before risky changes.
+* Import & export: run .sql files or whole folders (name order, DELIMITER-aware, progress, log, stop on error); export
+  whole databases or chosen tables to .sql (restorable into an empty server) or CSV.
+* Users & permissions (passwords masked), Connections (end a connection), Server (status and variables).
+* **Set up AzerothCore**: creates the three databases and the server's account, loads the base tables, and shows the conf lines.
+* Risky statements show the exact SQL and ask you to type the object's name; permanent ones (accounts, permissions,
+  connections) are marked as such.
+* The setup wizard can now run its account and sandbox scripts for you (*Run it now as admin…*).
+
+**New: the rest of Keira3**
+* Creatures: *Look & movement* (template addon + movement), resistances, controlled-spell list, kill reputation, editable
+  models, per-spawn addon, formations, spell click, creature_text and quest items lists.
+* Quests: *Texts* (request-items and reward texts with emotes); quest givers/enders are editable lists.
+* Items: *Contains & enchants* (random enchants; item, disenchant, prospecting and milling loot).
+* Game objects: quest items and per-spawn addon. New **Broadcast text** and **Teleport locations** editors.
+* World tables: pools, spell areas (phasing), dungeon entry requirements, event/spell/waypoint scripts.
+* Side tables a row doesn't have yet (e.g. creature_template_addon) are created on your first edit, as one INSERT with undo.
+
+**Fixed**: some symbols (· › —) showed as garbled characters in the 0.7 README.
+
+**Tests**: 145 automated tests.
+
 ## 0.7.0 — the last parity gaps
 
 **New**

@@ -65,6 +65,32 @@ namespace AndersCraftStudio.Core
             return c;
         }
 
+        /// <summary>
+        /// A new row, or — when an INSERT of the same row is already staged — that INSERT with the <paramref name="merge"/>
+        /// columns replaced (the others keep their staged values). Undo is always "remove the row".
+        /// </summary>
+        public static Change StageInsertOrMerge(Changeset cs, string table, IList<KeyPart> key, IList<string> columns, IList<string> literals, IList<string> displays, ICollection<string> merge)
+        {
+            var existing = cs.Changes.FirstOrDefault(c => c.Kind == ChangeKind.Insert && c.SameRow(table, key));
+            if (existing == null)
+            {
+                var c = StageRowInsert(cs, table, key, columns, literals);
+                for (int i = 0; i < c.Fields.Count; i++) c.Fields[i].AfterDisplay = displays[i];
+                c.Summary = $"Add row to {table} ({c.KeyText})";
+                return c;
+            }
+            for (int i = 0; i < columns.Count; i++)
+            {
+                if (!merge.Contains(columns[i])) continue;
+                var f = existing.Fields.FirstOrDefault(x => string.Equals(x.Name, columns[i], StringComparison.OrdinalIgnoreCase));
+                if (f == null) { f = new FieldChange { Name = columns[i], Before = null, BeforeDisplay = "(no row)" }; existing.Fields.Add(f); }
+                f.After = literals[i]; f.AfterDisplay = displays[i];
+            }
+            existing.ForwardSql = SqlGen.InsertRow(table, existing.Fields.Select(f => f.Name).ToList(), existing.Fields.Select(f => f.After).ToList());
+            existing.UndoSql = SqlGen.DeleteRow(table, existing.Key);
+            return existing;
+        }
+
         /// <summary>A statement typed in the query editor. Never executed here; undo data is captured with a read query.</summary>
         public static Change StageRawStatement(Changeset cs, StatementInfo st, ISqlReader reader)
         {

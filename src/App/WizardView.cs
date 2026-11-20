@@ -300,7 +300,7 @@ namespace AndersCraftStudio
             var sp = new StackPanel { MaxWidth = 980, HorizontalAlignment = HorizontalAlignment.Left };
             sp.Children.Add(U.Eyebrow("Step 3 of 5"));
             sp.Children.Add(U.H1("Safe database accounts"));
-            sp.Children.Add(U.Sub("Studio uses two MySQL accounts of its own, so it never needs your admin password. Copy the script below and run it once yourself, logged in as a MySQL administrator (root), in HeidiSQL, MySQL Workbench or the mysql command line."));
+            sp.Children.Add(U.Sub("Studio uses two MySQL accounts of its own, so it never needs your admin password. Studio can run the script below for you with your MySQL administrator login (root), which it uses once and forgets. Or copy it and run it in any MySQL tool."));
 
             var two = new Grid();
             two.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -369,11 +369,16 @@ namespace AndersCraftStudio
                 if (d.ShowDialog(w) == true) { File.WriteAllText(d.FileName, RealScript()); w.Toast("Saved " + d.FileName, "ok"); }
             }, null, "Save the script to a file. It contains the passwords, so delete it once you've run it.");
             var test = U.Btn("I ran it · Test the accounts", TestAccounts, "BtnAmber", "Log in with both accounts and read their permissions (SHOW GRANTS). Nothing is changed.");
+            var runNow = U.Btn("Run it now as admin…", () =>
+            {
+                var dlg = new AdminRunWindow(w, "Create Studio's two accounts", RealScript(), p.Host, p.Port);
+                if (dlg.ShowDialog() == true || dlg.Succeeded) TestAccounts();
+            }, "BtnPrimary", "Type your MySQL admin password once and Studio runs the script (nothing is saved), then tests the accounts.");
             sp.Children.Add(U.Card(U.Stack(
-                U.Row(U.H2("Script to run as administrator"), new Border { Width = 12 }, U.Pill("Studio never runs this", "Panel2", "Muted")),
+                U.Row(U.H2("Script to run as administrator"), new Border { Width = 12 }, U.Pill("runs only when you say so", "Panel2", "Muted")),
                 U.T("Running it again is safe: it only resets the two passwords. Nothing else on your server changes.", 12.5, "Muted", null, true, new Thickness(0, 0, 0, 10)),
                 script,
-                U.Row(copy, save, test)), new Thickness(20, 16, 20, 18)));
+                U.Row(runNow, copy, save, test)), new Thickness(20, 16, 20, 18)));
             ((StackPanel)((Border)sp.Children[sp.Children.Count - 1]).Child).Children[3].SetValue(MarginProperty, new Thickness(0, 14, 0, 0));
 
             if (accountChecks != null) sp.Children.Add(U.Card(U.Stack(new UIElement[] { U.H2("Account check") }.Concat(accountChecks).ToArray()), new Thickness(20, 16, 20, 12)));
@@ -482,10 +487,11 @@ namespace AndersCraftStudio
             {
                 var code = U.Code(sandboxScript, 260);
                 sp.Children.Add(U.Card(U.Stack(
-                    U.Row(U.H2("Sandbox plan"), new Border { Width = 12 }, U.Pill("you run this, not Studio", "Panel2", "Muted")),
+                    U.Row(U.H2("Sandbox plan"), new Border { Width = 12 }, U.Pill("runs only when you say so", "Panel2", "Muted")),
                     U.T("Run it as a MySQL administrator. It only reads " + p.WorldDb + " and writes the new " + p.SandboxDb + ".", 12.5, "Muted", null, true, new Thickness(0, 0, 0, 10)),
                     code,
-                    U.Row(U.Btn("Copy plan", () => { try { Clipboard.SetText(sandboxScript); w.Toast("Sandbox plan copied.", "ok"); } catch { } }, "BtnPrimary", "Copy the plan to the clipboard."),
+                    U.Row(U.Btn("Run it now as admin…", () => { var dlg = new AdminRunWindow(w, "Create the sandbox", sandboxScript, p.Host, p.Port); if (dlg.ShowDialog() == true || dlg.Succeeded) CheckSandbox(); }, "BtnPrimary", "Type your MySQL admin password once and Studio runs the plan (nothing is saved)."),
+                      U.Btn("Copy plan", () => { try { Clipboard.SetText(sandboxScript); w.Toast("Sandbox plan copied.", "ok"); } catch { } }, null, "Copy the plan to the clipboard."),
                           U.Btn("Save as .sql…", () =>
                           {
                               var d = new SaveFileDialog { FileName = "studio_sandbox.sql", Filter = "SQL script|*.sql" };

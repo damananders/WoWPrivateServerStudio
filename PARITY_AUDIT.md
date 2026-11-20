@@ -4,7 +4,10 @@ What the tools AndersCraft Studio replaces can do, and where Studio stands. Stud
 **read-only by default, stage → review → apply with a backup, never overwrite originals**. Features that would need a
 live-write shortcut are listed as *out of scope by design*.
 
-Legend: ✅ has it · ➕ added in 0.6 · 🆕 added in 0.7 · 🟡 partly / different way · ❌ missing · ⛔ out of scope by design
+Legend: ✅ has it · ➕ added in 0.6 · 🆕 added in 0.7 · 🔷 added in 0.8 · 🟡 partly / different way · ❌ missing · ⛔ out of scope by design
+
+**Status in 0.8: HeidiSQL and Keira3 are fully covered.** A new user can install Studio on a fresh MySQL server and set up
+AzerothCore's databases, Studio's own accounts and the sandbox without any other tool.
 
 ## HeidiSQL (database admin)
 
@@ -17,25 +20,40 @@ Legend: ✅ has it · ➕ added in 0.6 · 🆕 added in 0.7 · 🟡 partly / dif
 | Query history | ➕ | Last 100 queries per Windows user, searchable. |
 | Multiple result sets | ➕ | Each SELECT in the editor gets its own result tab (up to 10). |
 | Export grid / table to CSV (Excel) | ✅ | Whole filtered table or the result grid. |
-| SQL dump export | ➕ | *Export SQL…*: CREATE TABLE + INSERTs for the filtered table, read with the read-only account. 🟡 One table at a time (no whole-database dump; Apply's mysqldump backups cover that). |
+| SQL dump export | ➕ 🔷 | Per table in the SQL browser; whole databases or chosen tables (structure + data, optional CREATE DATABASE) in Admin console › Import & export, also as CSV. |
 | Run a .sql file | ➕ | *Open .sql…* (into the editor) and *Stage .sql script…* (the whole file becomes staged changes; SET/LOCK/transaction lines skipped; GRANT/CALL etc. refuse the file). |
 | Import data | 🆕 | *Import CSV…* on any world/sandbox table: map CSV columns to table columns, pick add / update / both, preview every change, then stage INSERTs and changed cells with undo (matched by the primary key, read with the read-only account). SQL via *Stage .sql script*. |
 | Table structure (columns, indexes, foreign keys) | ➕ | *Structure* tab with CREATE TABLE. Read-only. |
 | Find text across a table | ➕ | *Find text…* builds a filter over every column. |
 | User / session info | ➕ | Home shows the account Studio browses as and the MySQL version. |
-| Create / alter / drop tables, edit users, kill processes | ⛔ | Structure statements can be staged and exported, never applied; account management stays with your MySQL tools. |
+| Run any SQL directly (batches, several result sets, errors, transactions) | 🔷 | Admin console › SQL console, with Commit / Roll back and a session history (passwords masked, nothing saved). |
+| Create / drop databases | 🔷 | Admin console › Databases & tables. Dropping asks you to type the database name. |
+| Create / alter / rename / truncate / drop tables, columns, indexes, views | 🔷 | Admin console › Databases & tables: column and index actions, CREATE TABLE from a column list, views; a copy of the table is offered before risky changes. |
+| Import / restore .sql files and whole folders | 🔷 | Admin console › Import & export: runs files in name order (AzerothCore's own order), DELIMITER-aware, with progress, a log, stop-on-error and Stop. |
+| Users, passwords, GRANT / REVOKE | 🔷 | Admin console › Users & permissions; passwords masked everywhere; marked as permanent before you confirm. |
+| Show / kill connections | 🔷 | Admin console › Connections (SHOW FULL PROCESSLIST, KILL with confirmation). |
+| Server status and variables | 🔷 | Admin console › Server (version, uptime, status counters, variables with a filter). |
+| Set up a server from scratch | 🔷 | Admin console › Set up AzerothCore (databases, the server's account, base tables) and *Run it now as admin…* in the setup wizard for Studio's accounts and the sandbox. |
 
 ## Keira3 (AzerothCore content editor)
 
 | Feature | Studio | Notes |
 |---|---|---|
-| Creatures (template, spawns, equipment, addon) | ✅ | Form editor; spawns/equipment editable lists. |
+| Creatures (template, spawns, equipment) | ✅ | Form editor; spawns/equipment editable lists. |
+| creature_template_addon, creature_template_movement | 🔷 | *Look & movement* tab: mount, stand state, weapon pose, looping animation, visibility, auras, path; ground/swim/fly/rooted/chase/random. The row is created on the first edit. |
+| creature_template_resistance, creature_template_spell | 🔷 | Editable lists on *Look & movement*. |
+| creature_onkill_reputation | 🔷 | *Loot* tab form (two factions, caps, team-dependent). |
+| creature_template_model | 🔷 | Editable list on *Basics* (was read-only). |
+| creature_addon, creature_formations | 🔷 | Editable lists on *Spawns*. |
+| npc_spellclick_spells, creature_text, creature_questitem | 🔷 | *Extras* and *Loot* tabs, editable lists. |
 | Items | ✅ | |
-| Quests (incl. starters/enders, chains) | ✅ | |
+| Quests (incl. chains) | ✅ | |
+| Quest givers / enders (creature + game object) | 🔷 | Editable lists on *Starters/enders* (were read-only). |
+| quest_request_items, quest_offer_reward | 🔷 | *Texts* tab: return and reward texts with emotes; rows created on the first edit. |
 | Vendors, trainers | ✅ | On the creature editor. |
 | Loot (all *_loot_template) | ✅ | Plus a drop simulator. |
 | SmartAI | ✅ | Sentences, checks, all event/action/target types. |
-| creature_text | ✅ | From the SmartAI *Say a line* rows. |
+| creature_text | ✅ 🔷 | From the SmartAI *Say a line* rows, and as an editable list on the creature (*Extras*). |
 | Gossip menus | ➕ | World tables › Gossip menus (gossip_menu + gossip_menu_option, npc_text preview, who uses it). |
 | Conditions | ➕ | World tables › Conditions, every row read as a sentence, all source and condition types described. |
 | Waypoints / paths | ➕ | World tables › Waypoints (waypoint_data by path, who walks it). |
@@ -44,6 +62,11 @@ Legend: ✅ has it · ➕ added in 0.6 · 🆕 added in 0.7 · 🟡 partly / dif
 | spell_dbc | ✅ | From the Spell editor's Server side tab. |
 | SQL preview / export of changes | ✅ | Changes › SQL / Undo SQL tabs and *Export SQL…*. |
 | Game objects (gameobject_template + addon) | 🆕 | Form editor where Data0-Data23 are labelled for the object's type (all 36 types), with spawns (editable list), loot (chests and fishing pools, opens the Loot editor), quests it starts/accepts, faction/flags/money and a SmartAI link. |
+| broadcast_text | 🔷 | Form editor (text, female text, language, sound, emotes). |
+| game_tele | 🔷 | Form editor (*Teleport locations*). |
+| item_enchantment_template; item / disenchant / prospecting / milling loot | 🔷 | Item › *Contains & enchants*: random enchant list, and the loot lists with links to the Loot editor. |
+| gameobject_questitem, gameobject_addon | 🔷 | Editable lists on the game object *Loot* and *Spawns* tabs. |
+| Pools, spell_area, dungeon access, event/spell/waypoint scripts | 🔷 | World tables (pools and dungeon requirements editable; event_scripts and spell_scripts have no primary key, so they are shown and changed through SQL). |
 | npc_text | 🆕 | Form editor: 8 variants with male/female text, chance, language, broadcast text and 3 emotes each, a *How it reads* preview, and who uses it (gossip menus, creatures, objects). Gossip menus link to it. |
 | page_text | 🆕 | Form editor with next-page chaining, the whole book read in order (loops and missing pages flagged), and who uses it (items, readable objects, earlier pages). Items link to their page. |
 
@@ -101,6 +124,12 @@ Legend: ✅ has it · ➕ added in 0.6 · 🆕 added in 0.7 · 🟡 partly / dif
 **Closed in 0.7:** game object, npc_text and page_text form editors; CSV import into database tables; item model import
 with ItemDisplayInfo wiring.
 
-**Known limits (by choice):** no 3D model or spell visual preview (Studio shows the IDs and file names); body armour
-textures (chest, legs…) aren't covered by item model import; one DBC grid at a time; no DB2 formats (not used by 3.3.5a).
-Account management and table structure changes stay with your MySQL tools (⛔ above).
+**Closed in 0.8:** every remaining Keira3 table (above, 🔷) and every HeidiSQL feature, through the Admin console.
+
+**Still not covered, on purpose or because it can't be done safely:**
+* No 3D model or spell visual preview (Studio shows the IDs and file names); body armour textures aren't covered by item
+  model import; one DBC grid at a time; no DB2 formats (not used by 3.3.5a).
+* event_scripts and spell_scripts have no primary key, so their rows can't be edited one by one in a list; change them
+  with SQL (SQL browser › *Stage .sql script*, or the Admin console).
+* Admin console actions run directly. Account, permission and connection changes can't be undone with a click; deleted
+  tables and rows come back only from a backup (Studio offers one first).

@@ -1,8 +1,17 @@
-AndersCraft Studio 0.7 (parity follow-ups)
-===========================================
+AndersCraft Studio 0.8 (full Keira3 + HeidiSQL coverage)
+=========================================================
 End-user README: README.md. Licence: LICENSE (MIT). Changes: RELEASE_NOTES.md. Build: CONTRIBUTING.md.
 Feature parity with HeidiSQL / Keira3 / WDBX / MPQ tools / spell editors: PARITY_AUDIT.md.
-Distributable: dist\AndersCraftStudio-0.7.zip (self-contained) and dist\AndersCraftStudio-0.7-framework-dependent.zip.
+Distributable: dist\AndersCraftStudio-0.8.zip (self-contained) and dist\AndersCraftStudio-0.8-framework-dependent.zip.
+
+VERSION 0.8
+  - Admin console (AdminPage.cs, Core\Admin.cs): admin login per session, never saved; direct SQL, databases/tables/indexes/views,
+    import .sql files/folders (SqlBatch splitter, DELIMITER-aware), export DB/tables (.sql/CSV), users/grants (masked), processlist/kill,
+    status/variables, Set up AzerothCore (ServerSetup). Wizard: Run it now as admin (AdminRunWindow).
+  - Keira3: side-table rows created on first edit (EditSession.StageAsNewRow, ColumnDefaults); creature addon/movement/resist/spells/
+    kill rep/models/spawn addon/formations/spellclick/text/quest items; quest texts and givers; item enchants and loot; GO quest items
+    and addon; broadcast_text and game_tele editors; World tables pools, spell_area, dungeon access, script tables.
+  - Screens: --screens <dir> [--public] --m8 renders just the 0.8 screens.
 
 VERSION 0.7
   - Game objects editor (type-aware Data0-23 for all 36 types, spawns, loot, quests, addon), NPC text (8 variants), Page text (chains).

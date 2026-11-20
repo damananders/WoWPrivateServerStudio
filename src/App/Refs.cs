@@ -27,10 +27,11 @@ namespace AndersCraftStudio
             ["gameobject"] = ("gameobject_template", "entry", "name", "CONCAT('type ', type)"),
             ["npctext"] = ("npc_text", "ID", "text0_0", "IF(COALESCE(text1_0, '') <> '', 'several variants', '')"),
             ["pagetext"] = ("page_text", "ID", "Text", "IF(NextPageID <> 0, CONCAT('next page ', NextPageID), 'last page')"),
+            ["broadcast"] = ("broadcast_text", "ID", "MaleText", "CONCAT('language ', LanguageID)"),
         };
 
         public static bool IsDb(string kind) => DbKinds.ContainsKey(kind);
-        public static string Workspace(string kind) => kind switch { "creature" => "creatures", "item" => "items", "quest" => "quests", "gameobject" => "gameobjects", "npctext" => "npctext", "pagetext" => "pagetext", _ => null };
+        public static string Workspace(string kind) => kind switch { "creature" => "creatures", "item" => "items", "quest" => "quests", "gameobject" => "gameobjects", "npctext" => "npctext", "pagetext" => "pagetext", "broadcast" => "broadcast", _ => null };
 
         /// <summary>Long texts (NPC text, pages) shortened to one line for name labels and lists.</summary>
         public static string OneLine(string s, int max = 70)

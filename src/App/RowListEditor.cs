@@ -129,8 +129,8 @@ namespace AndersCraftStudio
                 foreach (DataRow dr in Data.Rows)
                 {
                     long.TryParse(Convert.ToString(dr[nc.IdColumn]), NumberStyles.Integer, CultureInfo.InvariantCulture, out var id);
-                    var kind = nc.Kind switch { "spell" => SP.Spell, "creature" => SP.Creature, "item" => SP.Item, "quest" => SP.Quest, "map" => SP.Map, "area" => SP.Int, _ => SP.Int };
-                    dr[nc.Header] = id == 0 && nc.Kind != "map" ? "" : (nc.Kind == "area" ? S.Dbc.Name("area", id) : nc.Kind == "map" ? S.Dbc.Name("map", id) : resolve(kind, id)) ?? "?";
+                    var kind = nc.Kind switch { "spell" => SP.Spell, "creature" => SP.Creature, "item" => SP.Item, "quest" => SP.Quest, "map" => SP.Map, "gameobject" => SP.GameObject, _ => SP.Int };
+                    dr[nc.Header] = id == 0 && nc.Kind != "map" ? "" : (kind == SP.Int || kind == SP.Map ? S.Dbc.Name(nc.Kind, id) : resolve(kind, id)) ?? "?";
                 }
         }
 

@@ -341,6 +341,14 @@ SOFTWARE.";
                 Explain = "game_event defines when an event runs (start/end time, how often, how long). game_event_creature and game_event_gameobject list spawns (by guid) that only exist while the event runs; a negative eventEntry means the spawn is REMOVED during the event. Use .event start <id> on a test realm to try it." },
             new Kind { Key = "areatriggers", Title = "Area triggers", What = "Invisible spots that teleport, script, or count for quests.",
                 Explain = "Area triggers come from the client's AreaTrigger.dbc (position and size). The server attaches behaviour by ID: areatrigger_teleport (instance portals), areatrigger_scripts (C++ or SmartAI scripts, source_type 2 in smart_scripts), areatrigger_involvedrelation (exploration quest objectives) and areatrigger_tavern (rest areas)." },
+            new Kind { Key = "pools", Title = "Pools", What = "Spawn groups where only some members are up at a time.",
+                Explain = "pool_template defines a pool: max_limit = how many members can be spawned at once. Members are creature spawns (pool_creature), object spawns (pool_gameobject: herbs, ore, chests) or other pools (pool_pool), each by guid with a chance in percent (0 = equal share). Classic use: 5 ore veins in a cave with max_limit 2." },
+            new Kind { Key = "spellarea", Title = "Spell areas", What = "Auras and spells given in a zone (phasing, buffs).",
+                Explain = "spell_area casts (autocast 1) or allows a spell while a player is in an area, optionally only between two quest states, with an aura, race mask or gender. It's how 3.3.5a does phasing: a phase aura given in a zone after a quest. quest_start_status / quest_end_status are bit masks: 1 none, 2 complete, 8 incomplete, 32 rewarded, 64 failed." },
+            new Kind { Key = "dungeon", Title = "Dungeon requirements", What = "Level, item level and keys/quests needed to enter.",
+                Explain = "dungeon_access_template sets per map and difficulty the minimum/maximum level and average item level. dungeon_access_requirements adds items, quests or achievements (requirement_type 0 achievement, 1 quest, 2 item) a player (or only the leader) needs, with the message shown when it's missing." },
+            new Kind { Key = "scripts", Title = "Script tables", What = "event_scripts, spell_scripts and waypoint_scripts.",
+                Explain = "Old-style command scripts: each row is a command (command = what, delay = seconds after the start, datalong/dataint/x y z o = its values). event_scripts runs on game events (from objects, spells and transports), spell_scripts on spell effects, waypoint_scripts at waypoints. event_scripts and spell_scripts have no primary key, so rows can be read here and changed with Stage .sql script in the SQL browser." },
         };
 
         // inputs
@@ -356,7 +364,7 @@ SOFTWARE.";
             view.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 16) };
             var strip = U.StepStrip(1); DockPanel.SetDock(strip, Dock.Right); strip.VerticalAlignment = VerticalAlignment.Center; head.Children.Add(strip);
-            head.Children.Add(U.Stack(U.H1("World tables"), U.T("Conditions, waypoints, gossip menus, game events and area triggers, as explained, editable lists. Edits are staged with undo.", 13.5, "Muted")));
+            head.Children.Add(U.Stack(U.H1("World tables"), U.T("Conditions, waypoints, gossip menus, game events, area triggers, pools, spell areas, dungeon requirements and script tables, as explained, editable lists. Edits are staged with undo.", 13.5, "Muted")));
             view.Children.Add(head);
             var g = new Grid();
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(250) });
@@ -401,6 +409,10 @@ SOFTWARE.";
                 case "gossip": form.Children.Add(F("Menu ID", "gossip_menu.MenuID (creature_template.gossip_menu_id).", k1)); break;
                 case "events": form.Children.Add(F("Event ID", "game_event.eventEntry (e.g. 2 = Winter Veil, 12 = Hallow's End).", k1)); break;
                 case "areatriggers": form.Children.Add(F("Area trigger ID", "The ID from AreaTrigger.dbc.", k1)); break;
+                case "pools": form.Children.Add(F("Pool ID", "pool_template.entry.", k1)); break;
+                case "spellarea": form.Children.Add(F("Area ID", "AreaTable ID (zone or sub-area). Empty if you search by spell.", k1)); form.Children.Add(F("or Spell ID", "Show every area that gives this spell.", k2)); break;
+                case "dungeon": form.Children.Add(F("Map ID", "Map of the dungeon or raid (e.g. 36 Deadmines, 533 Naxxramas).", k1)); break;
+                case "scripts": form.Children.Add(F("Script ID", "The id in event_scripts / spell_scripts / waypoint_scripts.", k1)); break;
             }
             var load = U.Btn("Load", Load, "BtnPrimary"); load.VerticalAlignment = VerticalAlignment.Center; load.Margin = new Thickness(0, 8, 0, 0);
             form.Children.Add(load);
@@ -498,6 +510,71 @@ SOFTWARE.";
                         stack.Children.Add(U.Card(cr.View, new Thickness(18, 14, 18, 12), new Thickness(0, 0, 0, 12)));
                         var go = List("Object spawns during the event", "Game object spawn guids that only exist while it runs.", "game_event_gameobject", $"eventEntry = {L(ev)}", new Dictionary<string, string> { ["eventEntry"] = L(ev) }, "guid");
                         stack.Children.Add(U.Card(go.View, new Thickness(18, 14, 18, 12), new Thickness(0, 0, 0, 12)));
+                        break;
+                    }
+                    case "pools":
+                    {
+                        if (!Num(k1, out var pool)) throw new FormatException("Pool ID: enter a number.");
+                        foreach (var (table, title, help, where, fix, order) in new[]
+                        {
+                            ("pool_template", $"Pool {pool}", "max_limit: how many members may be spawned at the same time. description is just for you.", $"`entry` = {L(pool)}", "entry", "entry"),
+                            ("pool_creature", "Creature spawns in it", "guid = a creature spawn's guid; chance in percent (0 = equal share of what's left).", $"`pool_entry` = {L(pool)}", "pool_entry", "guid"),
+                            ("pool_gameobject", "Object spawns in it", "guid = a game object spawn's guid (herbs, ore, chests).", $"`pool_entry` = {L(pool)}", "pool_entry", "guid"),
+                            ("pool_pool", "Pools inside it", "pool_id = a child pool; mother_pool = this pool.", $"`mother_pool` = {L(pool)}", "mother_pool", "pool_id"),
+                        })
+                        {
+                            var ed = List(title, help, table, where, new Dictionary<string, string> { [fix] = L(pool) }, order);
+                            stack.Children.Add(U.Card(ed.View, new Thickness(18, 14, 18, 12), new Thickness(0, 0, 0, 12)));
+                        }
+                        try
+                        {
+                            using var db = S.OpenRead(S.Profile.WorldDb);
+                            var parent = db.Scalar($"SELECT mother_pool FROM pool_pool WHERE pool_id = {L(pool)} LIMIT 1");
+                            if (!string.IsNullOrEmpty(parent)) stack.Children.Add(U.Callout($"This pool is itself a member of pool {parent}.", "info", "Parent pool"));
+                        }
+                        catch { }
+                        break;
+                    }
+                    case "spellarea":
+                    {
+                        bool byArea = Num(k1, out var area), bySpell = Num(k2, out var spell);
+                        if (!byArea && !bySpell) throw new FormatException("Enter an area ID or a spell ID.");
+                        var where = byArea ? $"`area` = {L(area)}" : $"`spell` = {L(spell)}";
+                        var fix = byArea ? new Dictionary<string, string> { ["area"] = L(area) } : new Dictionary<string, string> { ["spell"] = L(spell) };
+                        var ed = List(byArea ? $"Spells in area {area} ({S.Dbc.Name("area", area) ?? "?"})" : $"Areas that give spell {spell}", "autocast 1 = cast automatically on entering; racemask 0 = all races; gender 2 = both.",
+                            "spell_area", where, fix, "spell, area", new RowListEditor.NameColumn { IdColumn = "spell", Kind = "spell", Header = "spell name" }, new RowListEditor.NameColumn { IdColumn = "area", Kind = "area", Header = "area name" });
+                        stack.Children.Add(U.Card(ed.View, new Thickness(18, 14, 18, 12), new Thickness(0, 0, 0, 12)));
+                        break;
+                    }
+                    case "dungeon":
+                    {
+                        if (!Num(k1, out var map)) throw new FormatException("Map ID: enter a number.");
+                        var t = List($"Entry rules for map {map} ({S.Dbc.Name("map", map) ?? "?"})", "One row per difficulty (0 normal / 10-player, 1 heroic / 25-player, 2-3 raid heroic): min_level, max_level (0 = none), min_avg_item_level.",
+                            "dungeon_access_template", $"`map_id` = {L(map)}", new Dictionary<string, string> { ["map_id"] = L(map) }, "difficulty");
+                        stack.Children.Add(U.Card(t.View, new Thickness(18, 14, 18, 12), new Thickness(0, 0, 0, 12)));
+                        var ids = t.Data == null ? new List<string>() : t.Data.Rows.Cast<System.Data.DataRow>().Select(r => Convert.ToString(r["id"])).Where(x => x.Length > 0).ToList();
+                        if (ids.Count == 0) stack.Children.Add(U.Callout("No entry rules for this map yet. Add a row above (with a new id), stage it, then come back to add requirements.", "info"));
+                        else
+                        {
+                            var req = List("Requirements", "requirement_type 0 achievement, 1 quest, 2 item; requirement_id = its ID; requirement_note = the message when it's missing; faction 0 Alliance, 1 Horde, 2 both; leader_only 1 = only the group leader needs it.",
+                                "dungeon_access_requirements", $"`dungeon_access_id` IN ({string.Join(", ", ids)})", ids.Count == 1 ? new Dictionary<string, string> { ["dungeon_access_id"] = ids[0] } : null, "dungeon_access_id, requirement_type");
+                            stack.Children.Add(U.Card(req.View, new Thickness(18, 14, 18, 12), new Thickness(0, 0, 0, 12)));
+                        }
+                        break;
+                    }
+                    case "scripts":
+                    {
+                        if (!Num(k1, out var sid)) throw new FormatException("Script ID: enter a number.");
+                        foreach (var (table, help) in new[]
+                        {
+                            ("event_scripts", "Commands run for event " + sid + " (no primary key: read here, change with Stage .sql script)."),
+                            ("spell_scripts", "Commands run for spell " + sid + " (no primary key: read here, change with Stage .sql script)."),
+                            ("waypoint_scripts", "Commands run at waypoints with action " + sid + " (guid is the key)."),
+                        })
+                        {
+                            var ed = List(table, help, table, $"`id` = {L(sid)}", new Dictionary<string, string> { ["id"] = L(sid) }, "delay");
+                            stack.Children.Add(U.Card(ed.View, new Thickness(18, 14, 18, 12), new Thickness(0, 0, 0, 12)));
+                        }
                         break;
                     }
                     case "areatriggers":

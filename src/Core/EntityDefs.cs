@@ -37,14 +37,16 @@ namespace AndersCraftStudio.Core
     public static class EntityDefs
     {
         // built lazily, after all the option tables below are initialised
-        static EntityDef creature, item, quest, gameObject, npcText, pageText;
+        static EntityDef creature, item, quest, gameObject, npcText, pageText, broadcastText, gameTele;
         public static EntityDef Creature => creature ??= BuildCreature();
         public static EntityDef Item => item ??= BuildItem();
         public static EntityDef Quest => quest ??= BuildQuest();
         public static EntityDef GameObject => gameObject ??= BuildGameObject();
         public static EntityDef NpcText => npcText ??= BuildNpcText();
         public static EntityDef PageText => pageText ??= BuildPageText();
-        public static IEnumerable<EntityDef> All => new[] { Creature, Item, Quest, GameObject, NpcText, PageText };
+        public static EntityDef BroadcastText => broadcastText ??= BuildBroadcastText();
+        public static EntityDef GameTele => gameTele ??= BuildGameTele();
+        public static IEnumerable<EntityDef> All => new[] { Creature, Item, Quest, GameObject, NpcText, PageText, BroadcastText, GameTele };
         public static EntityDef ByKey(string k) => All.FirstOrDefault(e => e.Key == k);
 
         // ------------------------------------------------------------------ shared lists
@@ -170,6 +172,14 @@ namespace AndersCraftStudio.Core
             [25] = "Point", [66] = "Salute", [94] = "Dance (once)", [273] = "Nod yes", [274] = "Shake no", [275] = "Train",
         };
 
+        public static readonly Dictionary<long, string> Visibility = new Dictionary<long, string>
+        { [0] = "Normal", [1] = "Tiny (seen only up close)", [2] = "Small", [3] = "Large", [4] = "Gigantic (seen from far away)", [5] = "Infinite (whole map)" };
+
+        public static readonly Dictionary<long, string> GroundMove = new Dictionary<long, string> { [0] = "Can't walk", [1] = "Walks and runs (normal)", [2] = "Hovers above the ground" };
+        public static readonly Dictionary<long, string> FlightMove = new Dictionary<long, string> { [0] = "Can't fly", [1] = "Floats (no gravity)", [2] = "Flies" };
+        public static readonly Dictionary<long, string> ChaseMove = new Dictionary<long, string> { [0] = "Runs after targets (normal)", [1] = "Walks or runs as needed", [2] = "Always walks" };
+        public static readonly Dictionary<long, string> RandomMove = new Dictionary<long, string> { [0] = "Walks (normal)", [1] = "Sometimes runs", [2] = "Always runs" };
+
         public static readonly Dictionary<ulong, string> GameObjectFlags = new Dictionary<ulong, string>
         {
             [0x1] = "In use (looks activated)", [0x2] = "Locked", [0x4] = "Needs a quest or condition to use", [0x8] = "Transport", [0x10] = "Can't be selected",
@@ -199,8 +209,11 @@ namespace AndersCraftStudio.Core
             {
                 Key = "creatures", Title = "Creatures", Singular = "creature", Table = "creature_template", KeyCol = "entry", NameCol = "name", Glyph = "",
                 ListExtra = "CONCAT('Level ', minlevel, IF(maxlevel <> minlevel, CONCAT('-', maxlevel), ''), IF(subname <> '', CONCAT(' · ', subname), ''))",
-                Tabs = new[] { "Basics", "Stats & combat", "Spawns", "Equipment", "Vendor/trainer", "Loot", "SmartAI" },
+                Tabs = new[] { "Basics", "Stats & combat", "Look & movement", "Spawns", "Equipment", "Vendor/trainer", "Loot", "SmartAI", "Extras" },
             };
+            e.SideTables["creature_template_addon"] = "entry";
+            e.SideTables["creature_template_movement"] = "CreatureId";
+            e.SideTables["creature_onkill_reputation"] = "creature_id";
             var b = new B(e);
             b.Tab("Basics").Group("Identity");
             b.F("name", "Name", FieldKind.Text, "The name players see above the creature and in its tooltip.", "Keep it short; long names get cut off on nameplates.");
@@ -256,6 +269,34 @@ namespace AndersCraftStudio.Core
             b.F("mingold", "Least money dropped", FieldKind.Money, "Smallest amount of copper it drops. 100 copper = 1 silver.", "Leave both at 0 for creatures that shouldn't carry coins.");
             b.F("maxgold", "Most money dropped", FieldKind.Money, "Largest amount of copper it drops.", "Keep it in line with other creatures of the same level.");
 
+            b.Tab("Look & movement").Group("Look and pose (every spawn)", "creature_template_addon");
+            b.F("mount", "Riding on", FieldKind.Ref, "A mount model the creature sits on (CreatureDisplayInfo ID). 0 = on foot.", "Pick a horse, wolf or drake display to put a rider on it.", refKind: "creaturedisplay");
+            b.F("bytes1", "Stand state", FieldKind.Int, "How it stands. The lowest byte: 0 standing, 1 sitting, 3 sleeping, 7 dead, 8 kneeling. Higher bytes hold rarely used visual states.", "1 sits it on the ground; 8 makes it kneel, which suits worshippers and prisoners.");
+            b.F("bytes2", "Weapon pose", FieldKind.Int, "The lowest byte is how weapons are held: 0 put away, 1 melee in hand, 2 ranged in hand. Higher bytes hold PvP flags.", "1 makes guards hold their swords out.");
+            b.F("emote", "Looping animation", FieldKind.Int, "An animation it keeps playing (an emote state ID), e.g. 10 dance, 28 work (weapon away), 69 use something standing, 173 work, 233 mine, 234 chop wood.", "0 = no looping animation.");
+            b.F("visibilityDistanceType", "Seen from", FieldKind.Enum, "How far away players can see it.", "Large or Gigantic suits big bosses and landmarks.", Visibility);
+            b.F("auras", "Auras always on", FieldKind.Text, "Spell IDs it always has active, separated by spaces (e.g. a glow, a ghost look or stealth).", "Use the Spells workspace to look up IDs.");
+            b.F("path_id", "Waypoint path", FieldKind.Int, "A waypoint_data path every spawn of it walks (World tables › Waypoints). 0 = none; spawns can also have their own.", "The spawns also need movement type Follow waypoints.");
+            b.Group("Movement abilities", "creature_template_movement");
+            b.F("Ground", "On the ground", FieldKind.Enum, "Whether it can move on the ground.", "Hover suits ghosts and elementals.", GroundMove);
+            b.F("Swim", "Can swim", FieldKind.Bool, "Whether it can follow targets into water.", "Untick to keep land creatures out of lakes.");
+            b.F("Flight", "In the air", FieldKind.Enum, "Whether it can fly.", "Flies lets it chase players who are flying.", FlightMove);
+            b.F("Rooted", "Rooted in place", FieldKind.Bool, "When ticked, it never moves (turrets, totems, trees).", "It can still turn and attack in range.");
+            b.F("Chase", "When chasing", FieldKind.Enum, "How it follows a target in combat.", "Always walks makes slow, menacing bosses.", ChaseMove);
+            b.F("Random", "When wandering", FieldKind.Enum, "How it moves when wandering randomly.", "Normal is right for nearly everything.", RandomMove);
+            b.F("InteractionPauseTimer", "Pause when talked to (ms)", FieldKind.Int, "How long it stops walking when a player talks to it. -1 = the server's default.", "Longer pauses suit quest givers who walk around.");
+
+            b.Tab("Loot").Group("Reputation for killing it", "creature_onkill_reputation");
+            b.F("RewOnKillRepFaction1", "Faction 1", FieldKind.Ref, "A faction whose reputation changes when it's killed.", "Use a negative value below to lose reputation instead.", refKind: "faction");
+            b.F("RewOnKillRepValue1", "Faction 1 amount", FieldKind.Float, "Reputation points per kill (negative = lost).", "5 is typical for ordinary mobs, 100+ for bosses.");
+            b.F("MaxStanding1", "Faction 1 stops at", FieldKind.Enum, "Kills stop giving reputation once you reach this standing.", "Honored or Revered caps are common for repeatable kills.", RepRank);
+            b.F("IsTeamAward1", "Faction 1 for the whole team", FieldKind.Bool, "Gives it to the faction's parent team as well.", "Rarely used.");
+            b.F("RewOnKillRepFaction2", "Faction 2", FieldKind.Ref, "A second faction affected by the kill.", "Often the rival faction losing reputation.", refKind: "faction");
+            b.F("RewOnKillRepValue2", "Faction 2 amount", FieldKind.Float, "Reputation points for faction 2 (negative = lost).", "Leave 0 if only one faction is involved.");
+            b.F("MaxStanding2", "Faction 2 stops at", FieldKind.Enum, "Cap for faction 2.", "Exalted means no cap.", RepRank);
+            b.F("IsTeamAward2", "Faction 2 for the whole team", FieldKind.Bool, "Gives it to faction 2's parent team as well.", "Rarely used.");
+            b.F("TeamDependent", "Depends on the killer's side", FieldKind.Bool, "When ticked, Alliance killers get faction 1 and Horde killers get faction 2.", "Used for creatures both sides fight, like in Wintergrasp.");
+
             b.Tab("Loot").Group("Loot tables");
             b.F("lootid", "Loot table ID", FieldKind.Int, "Which creature_loot_template entry it drops. Usually the same number as the creature's own ID.", "0 means no item loot at all.");
             b.F("pickpocketloot", "Pickpocket table ID", FieldKind.Int, "What rogues can steal from it (pickpocketing_loot_template).", "Only humanoids can usually be pickpocketed.");
@@ -269,7 +310,7 @@ namespace AndersCraftStudio.Core
             {
                 Key = "items", Title = "Items", Singular = "item", Table = "item_template", KeyCol = "entry", NameCol = "name", Glyph = "",
                 ListExtra = "CONCAT('Item level ', ItemLevel, IF(RequiredLevel > 0, CONCAT(' · requires ', RequiredLevel), ''))",
-                Tabs = new[] { "Basics", "Stats", "Weapon/armor", "Requirements", "Spells", "Prices", "Display" },
+                Tabs = new[] { "Basics", "Stats", "Weapon/armor", "Requirements", "Spells", "Prices", "Display", "Contains & enchants" },
             };
             var b = new B(e);
             b.Tab("Basics").Group("Identity");
@@ -372,9 +413,11 @@ namespace AndersCraftStudio.Core
             {
                 Key = "quests", Title = "Quests", Singular = "quest", Table = "quest_template", KeyCol = "ID", NameCol = "LogTitle", Glyph = "",
                 ListExtra = "CONCAT('Level ', QuestLevel, ' · min ', MinLevel)",
-                Tabs = new[] { "Basics", "Objectives", "Rewards", "Starters/enders", "Chain" },
+                Tabs = new[] { "Basics", "Objectives", "Rewards", "Texts", "Starters/enders", "Chain" },
             };
             e.SideTables["quest_template_addon"] = "ID";
+            e.SideTables["quest_request_items"] = "ID";
+            e.SideTables["quest_offer_reward"] = "ID";
             const string A = "quest_template_addon";
             var b = new B(e);
             b.Tab("Basics").Group("Identity");
@@ -457,6 +500,18 @@ namespace AndersCraftStudio.Core
             b.F("RewardMailTemplateID", "Follow-up mail", FieldKind.Int, "A mail_template sent to the player after completion.", "Great for 'thank you' letters with an item attached.");
             b.F("RewardMailDelay", "Mail delay (seconds)", FieldKind.Int, "How long after completion the mail arrives.", "86400 = one day.");
 
+            b.Tab("Texts").Group("While the quest is unfinished", "quest_request_items");
+            b.F("CompletionText", "What the NPC says when you return", FieldKind.LongText, "Shown when the player talks to the quest ender before handing in (the 'Do you have the items?' page). $N = name, $C = class, $R = race, $B = new line.", "Keep it short; the player is about to hand in.");
+            b.F("EmoteOnComplete", "Emote if everything's done", FieldKind.Enum, "Animation the NPC plays on that page when the objectives are complete.", "Cheer or Bow fit a job well done.", Emote);
+            b.F("EmoteOnIncomplete", "Emote if it isn't done", FieldKind.Enum, "Animation played when objectives are still missing.", "Question or Shake no fit here.", Emote);
+            b.Group("When the quest is handed in", "quest_offer_reward");
+            b.F("RewardText", "Thank-you text", FieldKind.LongText, "What the quest ender says on the reward page. $N = name, $C = class, $R = race, $B = new line.", "This is the payoff of the story: make it count.");
+            for (int i = 1; i <= 4; i++)
+            {
+                b.F("Emote" + i, $"Emote {i}", FieldKind.Enum, "An animation the NPC plays on the reward page.", "Several emotes play one after another.", Emote);
+                b.F("EmoteDelay" + i, $"Emote {i} delay (ms)", FieldKind.Int, "Milliseconds before that emote starts.", "Space them about a second apart.");
+            }
+
             b.Tab("Chain").Group("Quest chain");
             b.F("RewardNextQuest", "Offer next right away", FieldKind.Ref, "When this quest is handed in, the same NPC immediately offers this follow-up.", "Use for story chains that continue at the same NPC.", refKind: "quest");
             b.Group("Quest chain", A);
@@ -530,6 +585,49 @@ namespace AndersCraftStudio.Core
                     b.F($"em{v}_{k * 2}", $"Emote {k + 1} delay (ms)", FieldKind.Int, "Milliseconds to wait before playing that emote.", "Stagger several emotes by a second or two.");
                 }
             }
+            return e;
+        }
+
+        static EntityDef BuildBroadcastText()
+        {
+            var e = new EntityDef
+            {
+                Key = "broadcast", Title = "Broadcast text", Singular = "broadcast text", Table = "broadcast_text", KeyCol = "ID", NameCol = "MaleText",
+                ListExtra = "CONCAT('language ', LanguageID, IF(SoundEntriesId <> 0, CONCAT(' · sound ', SoundEntriesId), ''))",
+                Tabs = new[] { "Text", "Used by" },
+            };
+            var b = new B(e);
+            b.Tab("Text").Group("Text");
+            b.F("MaleText", "Text", FieldKind.LongText, "The line itself (used by creature_text, gossip and quests that point at this broadcast text). $N = player name, $B = new line.", "Your own new lines usually go straight into creature_text or npc_text instead; use this when something asks for a BroadcastTextID.");
+            b.F("FemaleText", "Female version", FieldKind.LongText, "Shown instead to female characters. Empty = same text for everyone.", "Only fill it in when the wording differs.");
+            b.F("LanguageID", "Language", FieldKind.Enum, "Language it's spoken in.", "Universal is understood by everyone.", Language);
+            b.Group("Sound and emotes");
+            b.F("SoundEntriesId", "Sound", FieldKind.Int, "SoundEntries ID played with the line (e.g. a voice-over). 0 = silent.", "Asset import › Sound gives you an ID for your own recordings.");
+            for (int i = 1; i <= 3; i++)
+            {
+                b.F("EmoteID" + i, $"Emote {i}", FieldKind.Enum, "An animation played with the line.", "Talk suits most lines.", Emote);
+                b.F("EmoteDelay" + i, $"Emote {i} delay (ms)", FieldKind.Int, "Milliseconds before that emote.", "Space emotes about a second apart.");
+            }
+            b.F("Flags", "Flags", FieldKind.Int, "Client display flags. 0 for normal lines.", "Leave at 0.");
+            return e;
+        }
+
+        static EntityDef BuildGameTele()
+        {
+            var e = new EntityDef
+            {
+                Key = "tele", Title = "Teleport locations", Singular = "teleport location", Table = "game_tele", KeyCol = "id", NameCol = "name",
+                ListExtra = "CONCAT('map ', map, ' · ', ROUND(position_x), ', ', ROUND(position_y), ', ', ROUND(position_z))",
+                Tabs = new[] { "Location" },
+            };
+            var b = new B(e);
+            b.Tab("Location").Group("Where .tele takes you");
+            b.F("name", "Name", FieldKind.Text, "What GMs type after .tele (e.g. .tele Stormwind). No spaces.", "Short, memorable names work best.");
+            b.F("map", "Map", FieldKind.Ref, "The map (continent or instance).", "0 Eastern Kingdoms, 1 Kalimdor, 530 Outland, 571 Northrend.", refKind: "map");
+            b.F("position_x", "X", FieldKind.Float, "Position on the map. Stand on the spot in game and type .gps to read it.", "Copy all four values from .gps.");
+            b.F("position_y", "Y", FieldKind.Float, "Position on the map (.gps).", "Copy all four values from .gps.");
+            b.F("position_z", "Z (height)", FieldKind.Float, "Height. Too low and players fall through the ground.", "Add 1 to the .gps value to be safe.");
+            b.F("orientation", "Facing", FieldKind.Float, "Which way the player faces, in radians (0 = north, 3.14 = south).", "Copy it from .gps.");
             return e;
         }
 

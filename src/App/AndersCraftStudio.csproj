@@ -17,7 +17,7 @@
     <Product>AndersCraft Studio</Product>
     <AssemblyTitle>AndersCraft Studio</AssemblyTitle>
     <Description>Safe, staged editing for AzerothCore world databases.</Description>
-    <Version>0.7.0</Version>
+    <Version>0.8.0</Version>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Core\AndersCraftStudio.Core.csproj" />

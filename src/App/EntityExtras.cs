@@ -79,6 +79,10 @@ namespace AndersCraftStudio
             ("creatures", "SmartAI") => "Its SmartAI script rows; opens the SmartAI builder.",
             ("quests", "Starters/enders") => "Which NPCs and objects give and accept this quest.",
             ("quests", "Chain") => "Quests before and after this one.",
+            ("creatures", "Look & movement") => "Mount, pose, looping animation, auras, movement abilities, resistances (template addon + movement).",
+            ("creatures", "Extras") => "Click-to-use spells and the lines it says.",
+            ("quests", "Texts") => "What the NPC says when you return and when you hand in.",
+            ("items", "Contains & enchants") => "Random enchants, and what opening / disenchanting / prospecting / milling gives.",
             ("gameobjects", "Type data") => "Data0-Data23, labelled for this object's type.",
             ("gameobjects", "Spawns") => "Where this object is placed in the world (editable, staged).",
             ("gameobjects", "Loot") => "What a chest or fishing pool contains; opens the Loot editor.",
@@ -132,12 +136,43 @@ namespace AndersCraftStudio
             switch ((D.Key, t))
             {
                 case ("creatures", "Basics"):
-                    yield return ListCard("Models", "Which 3D models this creature can appear as (creature_template_model). Edit them in the SQL browser for now.",
-                        $"SELECT Idx, CreatureDisplayID, DisplayScale, Probability FROM creature_template_model WHERE CreatureID = {Id} ORDER BY Idx", "CreatureDisplayID", "creaturedisplay", "Model file");
+                    yield return ListEditor("models", () =>
+                    {
+                        var ed = new RowListEditor(w, "Models", "Which 3D models this creature can appear as (creature_template_model). Idx numbers the models from 0; each spawn picks one by Probability (a weight). DisplayScale 1 = normal size.",
+                            "creature_template_model", $"`CreatureID` = {Id}", new Dictionary<string, string> { ["CreatureID"] = Id }, "Idx",
+                            new[] { new RowListEditor.NameColumn { IdColumn = "CreatureDisplayID", Kind = "creaturedisplay", Header = "model file" } }, refs.ByKind);
+                        ed.NewRow = r => r.Set("Idx", NextIndex(ed, "Idx")).Set("DisplayScale", "1").Set("Probability", "1");
+                        return ed;
+                    });
                     yield return ListCard("Quests it gives", "Quests this NPC offers (creature_queststarter). Double-click to open.",
                         $"SELECT q.ID, q.LogTitle, q.QuestLevel FROM creature_queststarter s JOIN quest_template q ON q.ID = s.quest WHERE s.id = {Id} ORDER BY q.ID", open: ("quest", "ID"));
                     yield return ListCard("Quests it accepts", "Quests handed in to this NPC (creature_questender).",
                         $"SELECT q.ID, q.LogTitle, q.QuestLevel FROM creature_questender s JOIN quest_template q ON q.ID = s.quest WHERE s.id = {Id} ORDER BY q.ID", open: ("quest", "ID"));
+                    break;
+                case ("creatures", "Look & movement"):
+                    yield return ListEditor("resist", () => new RowListEditor(w, "Resistances", "creature_template_resistance: extra resistance per magic school. School 1 holy, 2 fire, 3 nature, 4 frost, 5 shadow, 6 arcane; Resistance is the amount (about 5 per level resists a lot).",
+                        "creature_template_resistance", $"`CreatureID` = {Id}", new Dictionary<string, string> { ["CreatureID"] = Id }, "School") { NewRow = r => r.Set("School", "2") });
+                    yield return ListEditor("tspells", () =>
+                    {
+                        var ed = new RowListEditor(w, "Spells it can be made to cast", "creature_template_spell: the action bar a player gets when controlling it (vehicles, mind control, possessed pets). Index 0-7 is the button.",
+                            "creature_template_spell", $"`CreatureID` = {Id}", new Dictionary<string, string> { ["CreatureID"] = Id }, "`Index`",
+                            new[] { new RowListEditor.NameColumn { IdColumn = "Spell", Kind = "spell", Header = "spell name" } }, refs.ByKind);
+                        ed.NewRow = r => r.Set("Index", NextIndex(ed, "Index"));
+                        return ed;
+                    });
+                    break;
+                case ("creatures", "Extras"):
+                    yield return ListEditor("spellclick", () => new RowListEditor(w, "Click to use (spell click)", "npc_spellclick_spells: clicking the creature casts a spell (mounting vehicles, riding taxis, quest helpers). The creature also needs the 'Click to use' service ticked on Basics. cast_flags: 1 the player casts, 2 targets the creature (0/1/2/3 combine); user_type 0 anyone, 1 friendly, 2 raid, 3 party.",
+                        "npc_spellclick_spells", $"`npc_entry` = {Id}", new Dictionary<string, string> { ["npc_entry"] = Id }, "spell_id",
+                        new[] { new RowListEditor.NameColumn { IdColumn = "spell_id", Kind = "spell", Header = "spell name" } }, refs.ByKind) { NewRow = r => r.Set("cast_flags", "1") });
+                    yield return ListEditor("ctext", () =>
+                    {
+                        var ed = new RowListEditor(w, "What it says (creature_text)", "Lines it can say or yell. SmartAI's Say a line picks a GroupID; several IDs in one group are picked at random by Probability. Type 12 say, 14 yell, 16 emote, 41 boss emote, 15 whisper, 42 boss whisper. Language 0 = everyone understands.",
+                            "creature_text", $"`CreatureID` = {Id}", new Dictionary<string, string> { ["CreatureID"] = Id }, "GroupID, ID");
+                        ed.NewRow = r => r.Set("ID", NextIndex(ed, "ID")).Set("Type", "12").Set("Probability", "100");
+                        return ed;
+                    });
+                    yield return OpenButton("Open its SmartAI script", () => w.Navigate("smartai", pg => ((SmartAIPage)pg).Open(0, id.Value)));
                     break;
                 case ("creatures", "Spawns"):
                     yield return ListEditor("spawns", () =>
@@ -150,6 +185,10 @@ namespace AndersCraftStudio
                         ed.NewRow = r => r.Set("guid", NextFree("creature", "guid").ToString(CultureInfo.InvariantCulture));
                         return ed;
                     });
+                    yield return ListEditor("spawnaddon", () => new RowListEditor(w, "Per-spawn look and pose (creature_addon)", "Overrides the template's look for single spawns: path_id (its own waypoint path), mount, bytes1 (stand state), bytes2 (weapon pose), emote (looping animation), auras (spell IDs). Add a row with the spawn's guid.",
+                        "creature_addon", $"`guid` IN (SELECT guid FROM creature WHERE {SqlGen.Ident(SpawnIdCol())} = {Id})", null, "guid"));
+                    yield return ListEditor("formations", () => new RowListEditor(w, "Formations (creature_formations)", "Spawns that move together. Every member (also the leader) gets a row: leaderGUID, memberGUID, dist (yards from the leader), angle (degrees), groupAI (1 members help the leader, 2 the leader helps members, 3 both).",
+                        "creature_formations", $"`leaderGUID` IN (SELECT guid FROM creature WHERE {SqlGen.Ident(SpawnIdCol())} = {Id}) OR `memberGUID` IN (SELECT guid FROM creature WHERE {SqlGen.Ident(SpawnIdCol())} = {Id})", null, "leaderGUID, memberGUID"));
                     break;
                 case ("creatures", "Equipment"):
                     yield return ListEditor("equip", () => new RowListEditor(w, "Equipment sets", "Weapons it holds (creature_equip_template). ID is the set number; a spawn picks a set with its equipment_id. ItemID1 = main hand, ItemID2 = off hand, ItemID3 = ranged.",
@@ -176,6 +215,14 @@ namespace AndersCraftStudio
                     yield return ListCard("Drops (creature_loot_template " + lid + ")", "Chance is in percent. A Reference row points to a shared list. Double-click to open the item.",
                         $"SELECT l.Item, i.name, l.Reference, l.Chance, l.QuestRequired, l.GroupId, l.MinCount, l.MaxCount FROM creature_loot_template l LEFT JOIN item_template i ON i.entry = l.Item WHERE l.Entry = {lid} ORDER BY l.GroupId, l.Chance DESC", open: ("item", "Item"));
                     yield return SqlLink("creature_loot_template", $"`Entry` = {lid}", "Open these loot rows in the SQL browser");
+                    yield return ListEditor("cqitems", () =>
+                    {
+                        var ed = new RowListEditor(w, "Quest items it drops (creature_questitem)", "Tells the client which quest items this creature can drop, so they sparkle and show in its tooltip. The drop itself comes from the loot table above.",
+                            "creature_questitem", $"`CreatureEntry` = {Id}", new Dictionary<string, string> { ["CreatureEntry"] = Id }, "Idx",
+                            new[] { new RowListEditor.NameColumn { IdColumn = "ItemId", Kind = "item", Header = "item name" } }, refs.ByKind);
+                        ed.NewRow = r => r.Set("Idx", NextIndex(ed, "Idx"));
+                        return ed;
+                    });
                     break;
                 case ("creatures", "SmartAI"):
                     string ai = Convert.ToString(Val("AIName"));
@@ -196,15 +243,18 @@ namespace AndersCraftStudio
                         $"SELECT c.entry, c.name, c.subname, v.maxcount, v.ExtendedCost FROM npc_vendor v JOIN creature_template c ON c.entry = v.entry WHERE v.item = {Id} ORDER BY c.entry LIMIT 200", open: ("creature", "entry"));
                     break;
                 case ("quests", "Starters/enders"):
-                    yield return ListCard("Started by NPCs", "creature_queststarter. Double-click to open the NPC.",
-                        $"SELECT c.entry, c.name, c.subname FROM creature_queststarter s JOIN creature_template c ON c.entry = s.id WHERE s.quest = {Id}", open: ("creature", "entry"));
-                    yield return ListCard("Started by objects", "gameobject_queststarter (wanted posters, books...).",
-                        $"SELECT g.entry, g.name FROM gameobject_queststarter s JOIN gameobject_template g ON g.entry = s.id WHERE s.quest = {Id}", open: ("gameobject", "entry"));
-                    yield return ListCard("Handed in to NPCs", "creature_questender.",
-                        $"SELECT c.entry, c.name, c.subname FROM creature_questender s JOIN creature_template c ON c.entry = s.id WHERE s.quest = {Id}", open: ("creature", "entry"));
-                    yield return ListCard("Handed in to objects", "gameobject_questender.",
-                        $"SELECT g.entry, g.name FROM gameobject_questender s JOIN gameobject_template g ON g.entry = s.id WHERE s.quest = {Id}", open: ("gameobject", "entry"));
-                    yield return SqlLink("creature_queststarter", $"`quest` = {Id}", "Change quest givers in the SQL browser");
+                    foreach (var (table, title, help, kind) in new[]
+                    {
+                        ("creature_queststarter", "Started by NPCs", "NPCs that offer this quest (put the creature entry in id). They also need the Quest giver service ticked.", "creature"),
+                        ("gameobject_queststarter", "Started by objects", "Objects that offer it: wanted posters, books… (game object entry in id).", "gameobject"),
+                        ("creature_questender", "Handed in to NPCs", "NPCs that accept it when it's done.", "creature"),
+                        ("gameobject_questender", "Handed in to objects", "Objects that accept it.", "gameobject"),
+                    })
+                    {
+                        var tbl = table; var k = kind; var ti = title; var he = help;
+                        yield return ListEditor(tbl, () => new RowListEditor(w, ti, he, tbl, $"`quest` = {Id}", new Dictionary<string, string> { ["quest"] = Id }, "id",
+                            new[] { new RowListEditor.NameColumn { IdColumn = "id", Kind = k, Header = k + " name" } }, refs.ByKind));
+                    }
                     break;
                 case ("gameobjects", "Basics"):
                     yield return ListCard("Quests it starts", "gameobject_queststarter: quests offered by clicking this object. Double-click to open.",
@@ -224,6 +274,8 @@ namespace AndersCraftStudio
                         ed.NewRow = r => r.Set("guid", NextFree("gameobject", "guid").ToString(CultureInfo.InvariantCulture));
                         return ed;
                     });
+                    yield return ListEditor("goaddon", () => new RowListEditor(w, "Per-spawn extras (gameobject_addon)", "For single spawns: parent_rotation0-3 (rotation when it's part of a transport) and invisibility (invisibilityType 0 none, 1 general, 3 trap…; invisibilityValue = detection needed). Add a row with the spawn's guid.",
+                        "gameobject_addon", $"`guid` IN (SELECT guid FROM gameobject WHERE id = {Id})", null, "guid"));
                     break;
                 case ("gameobjects", "Loot"):
                 {
@@ -232,6 +284,7 @@ namespace AndersCraftStudio
                     if (slot < 0)
                     {
                         yield return U.Callout($"A {GameObjectData.TypeName(type)} has no loot table. Only chests (type 3) and fishing pools (type 25) keep a loot ID, in Data1.", "info", "Loot");
+                        yield return GoQuestItems();
                         break;
                     }
                     var lootId = CurrentLong(D.Fields.First(f => f.Column == "Data" + slot));
@@ -240,6 +293,33 @@ namespace AndersCraftStudio
                     yield return ListCard($"Contents (gameobject_loot_template {lootId})", "Chance is in percent. A Reference row points to a shared list. Double-click to open the item.",
                         $"SELECT l.Item, i.name, l.Reference, l.Chance, l.QuestRequired, l.GroupId, l.MinCount, l.MaxCount FROM gameobject_loot_template l LEFT JOIN item_template i ON i.entry = l.Item WHERE l.Entry = {lootId} ORDER BY l.GroupId, l.Chance DESC", open: ("item", "Item"));
                     yield return SqlLink("gameobject_loot_template", $"`Entry` = {lootId}", "Open these loot rows in the SQL browser");
+                    yield return GoQuestItems();
+                    break;
+                }
+                case ("items", "Contains & enchants"):
+                {
+                    long rp = LongVal("RandomProperty"), rs = LongVal("RandomSuffix");
+                    if (rp == 0 && rs == 0) yield return U.Callout("This item has no random enchant group (Display tab: Random enchant group / Random suffix group are 0), so it always has the same stats.", "info", "Random enchants");
+                    else
+                    {
+                        var grp = rp != 0 ? rp : rs;
+                        yield return ListEditor("ench" + grp, () => new RowListEditor(w, $"Random enchants (item_enchantment_template {grp})", "When the item drops it rolls one of these: ench = an ItemRandomProperties ID (for Random enchant group) or ItemRandomSuffix ID (for Random suffix group); chance in percent. Other items with the same group change too.",
+                            "item_enchantment_template", $"`entry` = {grp}", new Dictionary<string, string> { ["entry"] = L(grp) }, "ench"));
+                    }
+                    foreach (var (table, title, entry, why) in new[]
+                    {
+                        ("item_loot_template", "What's inside when opened", LongVal("entry") , "Bags, boxes and clams (needs 'Can be opened' in Item flags)."),
+                        ("disenchant_loot_template", "What disenchanting gives", LongVal("DisenchantID"), "The entry is the item's DisenchantID."),
+                        ("prospecting_loot_template", "What prospecting gives", LongVal("entry"), "Ores: needs the prospectable item flag."),
+                        ("milling_loot_template", "What milling gives", LongVal("entry"), "Herbs: needs the millable item flag."),
+                    })
+                    {
+                        if (entry == 0) continue;
+                        var tbl = table; var en = entry;
+                        yield return ListCard($"{title} ({tbl} {en})", why + " Double-click an item to open it.",
+                            $"SELECT l.Item, i.name, l.Reference, l.Chance, l.GroupId, l.MinCount, l.MaxCount FROM {tbl} l LEFT JOIN item_template i ON i.entry = l.Item WHERE l.Entry = {L(en)} ORDER BY l.GroupId, l.Chance DESC", open: ("item", "Item"));
+                        yield return OpenButton($"Edit in the Loot editor ({tbl})", () => w.Navigate("loot", pg => ((LootPage)pg).Open(tbl, en)));
+                    }
                     break;
                 }
                 case ("npctext", "Variants 1-4"):
@@ -273,6 +353,27 @@ namespace AndersCraftStudio
                     break;
             }
         }
+
+        static string L(long v) => v.ToString(CultureInfo.InvariantCulture);
+
+        /// <summary>Next free small index in a list (Idx, Index, ID…), from the rows on screen.</summary>
+        static string NextIndex(RowListEditor ed, string col)
+        {
+            long max = -1;
+            if (ed.Data != null)
+                foreach (System.Data.DataRow r in ed.Data.Rows)
+                    if (r.RowState != System.Data.DataRowState.Deleted && long.TryParse(Convert.ToString(r[col]), out var v) && v > max) max = v;
+            return (max + 1).ToString(CultureInfo.InvariantCulture);
+        }
+
+        UIElement GoQuestItems() => ListEditor("goqitems", () =>
+        {
+            var ed = new RowListEditor(w, "Quest items inside (gameobject_questitem)", "Tells the client which quest items this object can contain, so it sparkles for players on the quest. The items themselves come from the loot table.",
+                "gameobject_questitem", $"`GameObjectEntry` = {Id}", new Dictionary<string, string> { ["GameObjectEntry"] = Id }, "Idx",
+                new[] { new RowListEditor.NameColumn { IdColumn = "ItemId", Kind = "item", Header = "item name" } }, refs.ByKind);
+            ed.NewRow = r => r.Set("Idx", NextIndex(ed, "Idx"));
+            return ed;
+        });
 
         /// <summary>The filled-in NPC text variants as a player would read them, with their chances.</summary>
         UIElement NpcTextPreview()

@@ -134,6 +134,59 @@ namespace AndersCraftStudio
             await Milestone5(w);
             await Milestone6(w);
             await Milestone7(w);
+            await Milestone8(w);
+        }
+
+        public static async Task RunM8(MainWindow w, string dir)
+        {
+            Directory.CreateDirectory(dir);
+            await Milestone8(w);
+        }
+
+        static async Task Milestone8(MainWindow w)
+        {
+            var S = w.S;
+            string Q(string sql) { try { using var db = S.OpenRead(S.Profile.WorldDb); return db.Scalar(sql); } catch { return null; } }
+            async Task<EntityEditorPage> Open(string ws, long id, string tab)
+            {
+                EntityEditorPage pg = null;
+                w.Navigate(ws, p => pg = (EntityEditorPage)p);
+                pg.Open(id);
+                if (tab != null) pg.ShowTab(tab);
+                w.HideToast();
+                await Wait(900);
+                return pg;
+            }
+            // a creature without a template addon: the stand-in row, edited
+            if (long.TryParse(Q("SELECT c.entry FROM creature_template c LEFT JOIN creature_template_addon a ON a.entry = c.entry WHERE a.entry IS NULL AND c.entry BETWEEN 40 AND 2000 ORDER BY c.entry LIMIT 1"), out var cr))
+            {
+                var pg = await Open("creatures", cr, "Look & movement");
+                pg.ScreensEdit("emote", "69"); pg.ScreensFocus("emote"); await Wait(400);
+                await w.Snap("100_creature_look_movement.png");
+                pg.ScreensDiscard();
+                await Open("creatures", cr, "Extras");
+                await w.Snap("101_creature_extras.png");
+            }
+            if (long.TryParse(Q("SELECT q.ID FROM quest_template q JOIN quest_offer_reward r ON r.ID = q.ID JOIN quest_request_items i ON i.ID = q.ID WHERE q.ID < 1000 ORDER BY q.ID LIMIT 1"), out var qid))
+            {
+                await Open("quests", qid, "Texts");
+                await w.Snap("102_quest_texts.png");
+                await Open("quests", qid, "Starters/enders");
+                await w.Snap("103_quest_givers_editable.png");
+            }
+            WorldTablesPage wt = null;
+            w.Navigate("world", p => wt = (WorldTablesPage)p);
+            var pool = Q("SELECT pool_entry FROM pool_gameobject GROUP BY pool_entry HAVING COUNT(*) BETWEEN 3 AND 8 LIMIT 1");
+            if (pool != null) { wt.ScreensLoad("pools", pool); await Wait(900); await w.Snap("104_world_pools.png"); }
+            if (long.TryParse(Q("SELECT id FROM game_tele ORDER BY id LIMIT 1"), out var tele)) { await Open("tele", tele, null); await w.Snap("105_teleports.png"); }
+            // admin console: the login screen and a confirmation (nothing connects or runs)
+            AdminPage adm = null;
+            w.Navigate("admin", p => adm = (AdminPage)p); adm.ScreensNeutralLogin(); await Wait(500);
+            await w.Snap("106_admin_login.png");
+            var dlg = new AdminConfirmWindow(w, "Drop table my_test_table", new[] { "DROP TABLE `my_test_table`;" }, AdminRisk.Destructive, "my_test_table", "First save a copy of my_test_table (structure + data) to Documents\\AndersCraft Studio\\dumps");
+            dlg.Show(); await Wait(400);
+            await w.SnapWindow(dlg, "107_admin_confirm.png");
+            dlg.Close();
         }
 
         /// <summary>--screens dir --m7: only the 0.7 screens (game objects, NPC text, page text, CSV import, item models).</summary>
