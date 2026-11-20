@@ -1,0 +1,20 @@
+﻿# build output
+bin/
+obj/
+publish*/
+dist/
+*.user
+.vs/
+
+# never commit: local data, private paths, screenshot runs
+changesets/
+patch_work/
+patches/
+profiles/
+/screens/
+screens_*/
+dev.local.json
+*.local.json
+settings.json
+*.pfx
+*.key

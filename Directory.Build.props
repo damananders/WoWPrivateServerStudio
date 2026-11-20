@@ -1,0 +1,8 @@
+<Project>
+  <!-- Release builds embed /_/ instead of the builder's local folder in PDB paths and stack traces. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <PathMap>$(MSBuildThisFileDirectory)=/_/</PathMap>
+  </PropertyGroup>
+</Project>

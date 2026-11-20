@@ -1,0 +1,273 @@
+# Studio's own wording for spell enums. kind|value|label|description|summary template
+# Summary tokens: {pts} amount (BasePoints+1, or a range with DieSides), {school} spell school, {per} amount per tick,
+# {period} tick interval, {dur} duration, {trigger} trigger spell name, {item} item name, {misc} MiscValue,
+# {radius} radius, {chain} chain targets, {mult} multiple value. Empty template = "<label>".
+effect|1|Instant kill|Kills the target outright.|Kills the target
+effect|2|Damage|Deals damage of the spell's school (Spell › SchoolMask).|Deals {pts} {school} damage
+effect|3|Dummy (scripted)|Does nothing by itself; a server script or spell_script_names handles it.|Runs a scripted (dummy) effect
+effect|5|Teleport|Teleports the target to a fixed location (spell_target_position).|Teleports the target
+effect|6|Apply aura|Puts an aura (buff or debuff) on the target. Pick the aura type below.|{aura}
+effect|8|Drain power|Takes power (mana, rage…) from the target; MiscValue is the power type.|Drains {pts} {misc} from the target
+effect|9|Drain health|Damages the target and heals the caster.|Drains {pts} health from the target
+effect|10|Heal|Restores health.|Heals {pts} health
+effect|16|Complete quest|Completes the quest in MiscValue for the target.|Completes quest {misc}
+effect|17|Weapon damage (no school)|Weapon damage plus the base points, always physical.|Deals weapon damage plus {pts}
+effect|18|Resurrect|Brings a dead player back with some health.|Resurrects the target with {pts} health
+effect|19|Extra attacks|Grants extra melee swings right away.|Grants {pts} extra attack(s)
+effect|24|Create item|Creates the item in ItemType (amount = base points).|Creates {pts} × {item}
+effect|27|Ground effect (persistent aura)|Leaves an area on the ground that applies an aura each tick (Blizzard, Consecration).|Leaves a ground effect ({radius})
+effect|28|Summon|Summons the creature in MiscValue; MiscValueB is the SummonProperties row.|Summons {misc}
+effect|29|Leap|Moves the caster forward instantly.|Leaps forward
+effect|30|Restore power|Gives power; MiscValue is the power type.|Restores {pts} {misc}
+effect|31|Weapon damage %|Deals a percentage of weapon damage.|Deals {pts}% weapon damage
+effect|33|Open lock|Opens locks, gathers herbs/ore; MiscValue is the lock type.|Opens a lock
+effect|35|Party aura|Aura on the whole party within the radius.|{aura} to party members within {radius}
+effect|36|Learn spell|Teaches the spell in TriggerSpell.|Teaches {trigger}
+effect|38|Dispel|Removes auras of the dispel type in MiscValue.|Dispels {pts} {misc} effect(s)
+effect|41|Jump|Jumps to the target.|Jumps to the target
+effect|42|Jump to place|Jumps to the destination.|Jumps to the destination
+effect|44|Skill step|Learns a profession tier (MiscValue = skill).|Raises skill {misc} to the next step
+effect|53|Enchant item (permanent)|Enchants an item with SpellItemEnchantment MiscValue.|Enchants an item (enchantment {misc})
+effect|54|Enchant item (temporary)|Temporary enchant (poisons, oils).|Temporarily enchants an item (enchantment {misc})
+effect|56|Summon pet|Summons the caster's pet (creature in MiscValue).|Summons pet {misc}
+effect|58|Weapon damage|Weapon damage plus the base points, in the spell's school.|Deals weapon damage plus {pts}
+effect|62|Burn power|Destroys power and deals damage for it.|Burns {pts} {misc}
+effect|63|Threat|Adds threat.|Adds {pts} threat
+effect|64|Trigger spell|Casts the spell in TriggerSpell.|Casts {trigger}
+effect|65|Raid aura|Aura on the whole raid within the radius.|{aura} to raid members within {radius}
+effect|67|Heal to full|Heals the target to full health.|Heals to full health
+effect|68|Interrupt cast|Interrupts the target's spell cast and locks the school.|Interrupts spellcasting
+effect|77|Script effect|Handled by a server script.|Runs a scripted effect
+effect|80|Add combo points|Adds combo points on the target.|Adds {pts} combo point(s)
+effect|85|Summon player|Summons a player to the caster.|Summons a player
+effect|94|Self resurrect|Lets the caster resurrect themselves (Soulstone, Reincarnation).|Self-resurrect
+effect|96|Charge|Rushes to the target.|Charges the target
+effect|98|Knock back|Knocks the target away (base points = speed, MiscValue = height).|Knocks the target back
+effect|119|Pet aura|Aura on the caster's pet.|{aura} on the pet
+effect|121|Normalized weapon damage|Weapon damage using a normalized weapon speed.|Deals normalized weapon damage plus {pts}
+effect|123|Flight path|Sends the target on a flight path (MiscValue = TaxiPath).|Flies along path {misc}
+effect|124|Pull towards|Pulls the target towards the caster.|Pulls the target in
+effect|126|Steal beneficial buff|Steals buffs of the dispel type in MiscValue (Spellsteal).|Steals {pts} beneficial effect(s)
+effect|128|Friendly area aura|Aura on friendly units around the caster.|{aura} to friendly units within {radius}
+effect|129|Enemy area aura|Aura on enemies around the caster.|{aura} to enemies within {radius}
+effect|136|Heal %|Heals a percentage of maximum health.|Heals {pts}% of maximum health
+effect|137|Restore power %|Restores a percentage of maximum power.|Restores {pts}% of maximum {misc}
+effect|143|Owner aura|Aura on the caster's owner.|{aura} on the owner
+aura|3|Damage over time|Deals damage every period while it lasts.|{per} {school} damage every {period} for {dur}
+aura|4|Dummy (scripted)|An aura a server script reacts to.|Scripted aura for {dur}
+aura|5|Confuse|The target wanders confused.|Confuses the target for {dur}
+aura|6|Charm|The caster controls the target.|Charms the target for {dur}
+aura|7|Fear|The target runs in fear.|Fears the target for {dur}
+aura|8|Heal over time|Heals every period while it lasts.|Heals {per} every {period} for {dur}
+aura|9|Attack speed|Changes attack speed by a percentage.|Changes attack speed by {pts}% for {dur}
+aura|10|Threat %|Changes threat caused, for the schools in MiscValue.|Changes threat by {pts}% for {dur}
+aura|11|Taunt|Forces the target to attack the caster.|Taunts the target for {dur}
+aura|12|Stun|The target can't move or act.|Stuns the target for {dur}
+aura|13|Damage done|Adds flat damage for the schools in MiscValue.|Increases damage done by {pts} for {dur}
+aura|14|Damage taken|Changes damage taken flat, for the schools in MiscValue.|Changes damage taken by {pts} for {dur}
+aura|15|Damage shield|Damages attackers who hit the target in melee (Thorns).|Deals {pts} {school} damage to melee attackers for {dur}
+aura|16|Stealth|The target is stealthed.|Stealth for {dur}
+aura|18|Invisibility|The target is invisible.|Invisibility for {dur}
+aura|22|Resistance|Adds resistance/armor for the schools in MiscValue.|Increases resistance by {pts} for {dur}
+aura|23|Periodic trigger spell|Casts the trigger spell every period.|Casts {trigger} every {period} for {dur}
+aura|24|Restore power over time|Gives power every period.|Restores {per} {misc} every {period} for {dur}
+aura|25|Pacify|The target can't attack.|Pacifies the target for {dur}
+aura|26|Root|The target can't move.|Roots the target for {dur}
+aura|27|Silence|The target can't cast.|Silences the target for {dur}
+aura|28|Reflect spells|Reflects spells (chance = base points).|{pts}% chance to reflect spells for {dur}
+aura|29|Stat|Changes a stat (MiscValue: 0 Str, 1 Agi, 2 Sta, 3 Int, 4 Spi, -1 all).|Changes {misc} by {pts} for {dur}
+aura|30|Skill|Changes a skill level (MiscValue = skill).|Changes skill {misc} by {pts} for {dur}
+aura|31|Run speed|Increases run speed by a percentage.|Increases run speed by {pts}% for {dur}
+aura|32|Mounted speed|Increases mounted speed by a percentage.|Mounted speed +{pts}% for {dur}
+aura|33|Slow|Decreases movement speed by a percentage.|Slows movement by {pts}% for {dur}
+aura|34|Max health|Adds maximum health.|Increases maximum health by {pts} for {dur}
+aura|35|Max power|Adds maximum power (MiscValue = power type).|Increases maximum {misc} by {pts} for {dur}
+aura|36|Shapeshift|Changes into the form in MiscValue (SpellShapeshiftForm).|Shapeshift into form {misc}
+aura|39|School immunity|Immune to the schools in MiscValue.|Immune to {misc} for {dur}
+aura|42|Proc: trigger spell|On the proc events (Spell › ProcTypeMask) casts the trigger spell.|{procchance}% chance on proc to cast {trigger}
+aura|43|Proc: damage|On the proc events deals damage.|On proc, deals {pts} {school} damage
+aura|47|Parry %|Adds parry chance.|Parry chance +{pts}% for {dur}
+aura|49|Dodge %|Adds dodge chance.|Dodge chance +{pts}% for {dur}
+aura|51|Block %|Adds block chance.|Block chance +{pts}% for {dur}
+aura|52|Crit %|Adds weapon critical strike chance.|Critical strike chance +{pts}% for {dur}
+aura|53|Leech over time|Drains health every period and heals the caster.|Drains {per} health every {period} for {dur}
+aura|54|Hit %|Adds melee/ranged hit chance.|Hit chance +{pts}% for {dur}
+aura|55|Spell hit %|Adds spell hit chance.|Spell hit chance +{pts}% for {dur}
+aura|56|Transform|Changes the model into creature MiscValue.|Transforms into {misc} for {dur}
+aura|57|Spell crit %|Adds spell critical strike chance.|Spell critical strike chance +{pts}% for {dur}
+aura|61|Scale|Changes size by a percentage.|Changes size by {pts}% for {dur}
+aura|65|Casting speed|Changes casting speed by a percentage.|Changes casting speed by {pts}% for {dur}
+aura|66|Feign death|Pretends to be dead.|Feigns death for {dur}
+aura|67|Disarm|The target's weapons are disabled.|Disarms the target for {dur}
+aura|69|Absorb damage|Absorbs damage of the schools in MiscValue.|Absorbs {pts} damage for {dur}
+aura|77|Mechanic immunity|Immune to the mechanic in MiscValue.|Immune to mechanic {misc} for {dur}
+aura|78|Mount|Mounts the creature display in MiscValue.|Mounts creature {misc}
+aura|79|Damage done %|Changes damage done by a percentage (schools in MiscValue).|Increases damage done by {pts}% for {dur}
+aura|80|Stat %|Changes a stat by a percentage.|Changes {misc} by {pts}% for {dur}
+aura|82|Water breathing|Breathe underwater.|Water breathing for {dur}
+aura|84|Health regen|Restores health every 5 seconds.|Regenerates {pts} health every 5 sec for {dur}
+aura|85|Power regen|Restores power every 5 seconds (MiscValue = power type).|Regenerates {pts} {misc} every 5 sec for {dur}
+aura|87|Damage taken %|Changes damage taken by a percentage.|Changes damage taken by {pts}% for {dur}
+aura|89|Damage over time %|Deals a percentage of maximum health every period.|{per}% of maximum health as damage every {period} for {dur}
+aura|97|Mana shield|Absorbs damage by spending mana.|Absorbs {pts} damage using mana for {dur}
+aura|99|Attack power|Adds melee attack power.|Increases attack power by {pts} for {dur}
+aura|101|Resistance %|Changes resistance by a percentage.|Changes resistance by {pts}% for {dur}
+aura|104|Water walking|Walk on water.|Water walking for {dur}
+aura|105|Slow fall|Fall slowly.|Slow fall for {dur}
+aura|107|Spell modifier (flat)|Changes a property of other spells by a flat amount (MiscValue = SpellModOp; affected spells by class mask).|Modifies spells (op {misc}) by {pts}
+aura|108|Spell modifier (%)|Changes a property of other spells by a percentage.|Modifies spells (op {misc}) by {pts}%
+aura|115|Healing taken|Changes healing taken.|Changes healing taken by {pts} for {dur}
+aura|118|Healing taken %|Changes healing taken by a percentage.|Changes healing taken by {pts}% for {dur}
+aura|124|Ranged attack power|Adds ranged attack power.|Increases ranged attack power by {pts} for {dur}
+aura|129|Run speed (always)|Run speed bonus that stacks with others.|Increases run speed by {pts}% for {dur}
+aura|133|Max health %|Changes maximum health by a percentage.|Changes maximum health by {pts}% for {dur}
+aura|135|Healing done|Adds healing done.|Increases healing done by {pts} for {dur}
+aura|136|Healing done %|Changes healing done by a percentage.|Changes healing done by {pts}% for {dur}
+aura|137|All stats %|Changes a stat (or all) by a percentage.|Changes {misc} by {pts}% for {dur}
+aura|138|Melee haste|Changes melee attack speed by a percentage.|Melee haste {pts}% for {dur}
+aura|189|Combat rating|Adds combat rating (MiscValue = rating mask).|Increases rating mask {misc} by {pts} for {dur}
+aura|206|Flight speed|Mounted flight speed (vehicles).|Flight speed +{pts}% for {dur}
+aura|207|Flight speed (mounted)|Flying mount speed.|Flight speed +{pts}% for {dur}
+aura|226|Periodic dummy|Scripted effect every period.|Scripted effect every {period} for {dur}
+aura|236|Vehicle|Rides the vehicle.|Controls a vehicle
+target|1|Caster (self)|The one casting the spell.
+target|5|Caster's pet|The caster's active pet.
+target|6|Selected enemy|The enemy the caster has targeted.
+target|7|Creatures of an entry around the caster|Creatures listed in conditions, around the caster.
+target|15|Enemies around the caster|Area: enemies within the radius around the caster.
+target|16|Enemies around the target point|Area: enemies within the radius around the chosen point.
+target|18|Point at the caster|A location at the caster's position.
+target|20|Party around the caster|Party members within the radius.
+target|21|Selected friend|The friendly unit the caster has targeted.
+target|22|Caster as the area centre|Used with an area target B: the area is around the caster.
+target|24|Enemies in a cone|Enemies in front of the caster.
+target|25|Selected unit (any)|Whatever unit the caster has targeted.
+target|27|Caster's master|The owner of the casting pet/minion.
+target|28|Ground area (enemies)|A dynamic object on the ground hitting enemies.
+target|30|Friends around the caster|Area: friendly units within the radius around the caster.
+target|31|Friends around the target point|Area: friendly units around the chosen point.
+target|33|Party around the target|Party members around the area centre.
+target|35|Selected party member|A party member the caster has targeted.
+target|38|Nearest creature of an entry|Picked by conditions.
+target|45|Chain heal targets|Friendly targets for a chain heal.
+target|53|Point at the selected enemy|A location at the target.
+target|56|Raid around the caster|Raid members within the radius.
+target|57|Selected raid member|A raid member the caster has targeted.
+target|63|Point at the selected unit|A location at whatever is targeted.
+target|87|The chosen point|The location picked with the ground targeting circle.
+power|0|Mana|
+power|1|Rage|Shown x10 in the data (100 = 10 rage).
+power|2|Focus|
+power|3|Energy|
+power|5|Runes|
+power|6|Runic power|Shown x10 in the data.
+power|-2|Health|Costs health.
+dispel|0|None|
+dispel|1|Magic|Removed by magic dispels (Dispel Magic, Purge).
+dispel|2|Curse|Removed by curse removal.
+dispel|3|Disease|Removed by disease cures.
+dispel|4|Poison|Removed by poison cures.
+dispel|5|Stealth|
+dispel|6|Invisibility|
+dispel|7|All|
+dispel|8|Special (NPC only)|
+dispel|9|Enrage|Removed by Tranquilizing Shot / Soothe.
+# ---- attribute bits (Studio's own wording; the label replaces the generated one)
+attr0|0x2|Uses the ranged slot|Behaves as a ranged attack: needs the ranged weapon, uses ranged haste and ammo.
+attr0|0x10|Is an ability|Treated as an ability rather than a spell: not reflected, not sped up by casting speed.
+attr0|0x20|Trade skill|A profession recipe: listed in the profession window.
+attr0|0x40|Passive|Always on: applied automatically and never cast.
+attr0|0x80|Hidden|Not shown in the spellbook or on the buff bar.
+attr0|0x400|On next swing|Happens on the next melee swing instead of right away (e.g. Heroic Strike).
+attr0|0x1000|Server only|The client doesn't know this spell; only the server uses it.
+attr0|0x4000|Indoors only|Can only be cast indoors.
+attr0|0x8000|Outdoors only|Can only be cast outdoors.
+attr0|0x10000|Not while shapeshifted|Can't be cast in a shapeshift form.
+attr0|0x20000|Stealth only|Can only be cast while stealthed.
+attr0|0x800000|Castable while dead|Can be cast while the caster is dead.
+attr0|0x1000000|Castable while mounted|Doesn't dismount the caster.
+attr0|0x2000000|Cooldown starts on event|The cooldown only starts when the aura ends (e.g. Stealth).
+attr0|0x4000000|Debuff|The aura is harmful.
+attr0|0x8000000|Castable while sitting|Doesn't make the caster stand up.
+attr0|0x10000000|Not in combat|Can't be cast in combat.
+attr0|0x20000000|Ignores immunities|Hits even targets that are immune.
+attr0|0x80000000|Can't be cancelled|The player can't right-click the aura off.
+attr1|0x4|Channeled|Channeled spell (the caster keeps casting while it works).
+attr1|0x40|Channeled (self)|Channeled spell, second variant.
+attr1|0x80|Can't be reflected|Spell reflection doesn't work on it.
+attr1|0x400|No threat|Causes no threat.
+attr1|0x800|Unique aura|Only one aura of this spell per target.
+attr1|0x10000|Not affected by immunities|Applies even to units immune to its effects.
+attr1|0x20000|Pets don't autocast|A pet's AI won't cast it on its own.
+attr1|0x80000|Excludes the caster|Area effects skip the caster.
+attr1|0x100000|Finishing move (damage)|Rogue/druid finisher: damage depends on combo points.
+attr1|0x400000|Finishing move (duration)|Finisher: duration depends on combo points.
+attr1|0x10000000|No buff icon|The aura shows no icon.
+attr1|0x80000000|Cast when learned|Cast on the player as soon as it's learned.
+attr2|0x1|Can target the dead|Works on dead targets.
+attr2|0x4|Ignores line of sight|Doesn't need line of sight to the target.
+attr2|0x20|Auto-repeat|Repeats automatically (Auto Shot, Wand).
+attr2|0x20000000|Can't crit|Never critically hits.
+attr3|0x8|Can't be blocked|Can't be blocked.
+attr3|0x40|Can't be avoided|Can't be dodged, parried or blocked.
+attr3|0x100|Players only|Only affects players.
+attr3|0x800|Battlegrounds only|Only works in battlegrounds.
+attr3|0x40000|Always hits|Can't miss.
+attr3|0x100000|Aura stays on death|The aura isn't removed when the target dies.
+attr4|0x40|Can't be stolen|Spellsteal can't take it.
+attr4|0x8000|Not in the spellbook|Not shown in the spellbook.
+attr4|0x10000|Not in arenas|Can't be used in arenas or rated battlegrounds.
+attr5|0x8|Usable while stunned|Can be cast while stunned.
+attr5|0x2000|Haste speeds up ticks|Spell haste shortens the time between ticks.
+attr5|0x20000|Usable while fleeing|Can be cast while feared.
+attr5|0x40000|Usable while confused|Can be cast while confused.
+attr6|0x800|Not in raids|Can't be used in raid instances.
+attr6|0x1000|Usable on a vehicle|Can be cast while riding a vehicle.
+attr6|0x8000|No pushback|Taking damage doesn't push the cast back.
+attr7|0x100|Horde only|Only Horde characters can use it.
+attr7|0x200|Alliance only|Only Alliance characters can use it.
+# ---- condition types (what value1-3 mean and when it's true; Studio's own wording)
+condition|0|Always true|No requirement.
+condition|1|Has aura|value1 spell, value2 effect index, value3 1 = check the target instead. True while the aura is on.
+condition|2|Has item|value1 item, value2 count, value3 1 = count the bank too. True if the player carries that many.
+condition|3|Item equipped|value1 item. True while it's equipped.
+condition|4|In zone|value1 zone (AreaTable). True inside that zone.
+condition|5|Reputation rank|value1 faction, value2 rank mask (1 Hated … 128 Exalted). True at one of those ranks.
+condition|6|Team|value1 469 = Alliance, 67 = Horde.
+condition|7|Skill|value1 skill (SkillLine), value2 minimum value.
+condition|8|Quest rewarded|value1 quest. True once it has been turned in.
+condition|9|Quest taken|value1 quest. True while it's in the quest log.
+condition|10|Drunk|value1 drunk state (0 sober … 3 smashed). True at or above it.
+condition|11|World state|value1 world state index, value2 value.
+condition|12|Event active|value1 game_event entry. True while the event runs.
+condition|13|Instance info|value1 entry, value2 data, value3 type. Checks an instance script's data.
+condition|14|Quest never taken|value1 quest. True if the player has never had it.
+condition|15|Class|value1 class mask (1 Warrior, 2 Paladin, 4 Hunter, 8 Rogue, 16 Priest, 32 Death knight, 64 Shaman, 128 Mage, 256 Warlock, 1024 Druid).
+condition|16|Race|value1 race mask (1 Human, 2 Orc, 4 Dwarf, 8 Night elf, 16 Undead, 32 Tauren, 64 Gnome, 128 Troll, 512 Blood elf, 1024 Draenei).
+condition|17|Achievement|value1 achievement. True once earned.
+condition|18|Title|value1 title (CharTitles). True if the player has it.
+condition|20|Gender|value1 0 male, 1 female.
+condition|22|On map|value1 map. True on that map.
+condition|23|In area|value1 area (AreaTable). True inside that sub-zone.
+condition|25|Knows spell|value1 spell. True if the player knows it.
+condition|26|In phase|value1 phase mask.
+condition|27|Level|value1 level, value2 0 equal, 1 higher, 2 lower, 3 at least, 4 at most.
+condition|28|Quest complete|value1 quest. True when its objectives are done but it isn't turned in.
+condition|29|Creature nearby|value1 creature entry, value2 distance in yards.
+condition|30|Object nearby|value1 game object entry, value2 distance in yards.
+condition|31|Object is|value1 type (3 unit, 4 player, 5 game object, 7 corpse), value2 entry (0 = any).
+condition|32|Type mask|value1 type mask (8 unit, 16 player, 32 game object, 128 corpse).
+condition|33|Relation to|value1 target, value2 0 self, 1 in party, 2 in raid or party, 3 owned by, 4 passenger of.
+condition|34|Reaction to|value1 target, value2 reaction mask (1 hated … 128 exalted).
+condition|35|Distance to|value1 target, value2 yards, value3 0 equal, 1 more, 2 less, 3 at least, 4 at most.
+condition|36|Alive|True if the target is alive.
+condition|37|Health value|value1 health, value2 comparison (as for Level).
+condition|38|Health percent|value1 percent, value2 comparison (as for Level).
+condition|39|Realm achievement|value1 achievement earned by anyone on the realm.
+condition|40|In water|True while swimming.
+condition|42|Stand state|value1 0 exact state, 1 any standing / sitting, value2 state.
+condition|43|Daily quest done|value1 quest. True if done today.
+condition|44|Charmed|True while charmed.
+condition|45|Pet type|value1 mask: 1 summon pet, 2 hunter pet.
+condition|46|On a taxi|True while flying on a flight path.
+condition|47|Quest state|value1 quest, value2 state mask (1 not taken, 2 complete, 8 in progress, 32 failed, 64 rewarded).

@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>AndersCraftStudio.Core</RootNamespace>
+    <AssemblyName>AndersCraftStudio.Core</AssemblyName>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="DbcLayouts.txt" />
+    <EmbeddedResource Include="DbcLayoutsExtra.txt" />
+    <EmbeddedResource Include="DbcDescriptions.txt" />
+    <EmbeddedResource Include="SpellCatalog.txt" />
+    <EmbeddedResource Include="SpellTexts.txt" />
+    <PackageReference Include="MySqlConnector" Version="2.6.2" />
+  </ItemGroup>
+</Project>

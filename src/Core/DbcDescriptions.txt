@@ -1,0 +1,247 @@
+# File|one-line description (Studio's own wording)
+Achievement.dbc|Achievements: name, description, points, category, faction and reward title text.
+Achievement_Category.dbc|Achievement categories and sub-categories shown in the achievement window.
+Achievement_Criteria.dbc|The individual steps an achievement needs (kill X, reach level Y, …) and their counts.
+AnimationData.dbc|Every model animation (Stand, Walk, Attack…) with its fallback animation.
+AreaGroup.dbc|Lists of areas used together by other tables (e.g. where a spell may be cast).
+AreaPOI.dbc|Points of interest on the world map (towns, battle objectives) with icons and positions.
+AreaTable.dbc|Zones and sub-zones: names, parent zone, map, exploration XP level, flags, music and ambience.
+AreaTrigger.dbc|Invisible trigger spheres/boxes (instance portals, quest spots) the server's areatrigger tables use.
+AttackAnimKits.dbc|Which attack animation plays for each weapon and hand.
+AttackAnimTypes.dbc|Names of the attack animation types.
+AuctionHouse.dbc|The three auction houses (Alliance, Horde, neutral) with deposit rate and cut.
+BankBagSlotPrices.dbc|Gold cost of each extra bank bag slot.
+BannedAddOns.dbc|Add-ons the client refuses to load (stored as name hashes).
+BarberShopStyle.dbc|Hair styles, facial hair and other choices in the barber shop, with cost modifiers.
+BattlemasterList.dbc|Battlegrounds and arenas: maps, player limits, levels and names.
+CameraShakes.dbc|Camera shake effects (strength, duration) used by spells and events.
+Cfg_Categories.dbc|Realm categories (region / language) for the realm list.
+Cfg_Configs.dbc|Realm types (Normal, PvP, RP…) shown in the realm list.
+CharBaseInfo.dbc|Which race and class combinations exist.
+CharHairGeosets.dbc|Which model geoset each hair style uses, per race and sex.
+CharHairTextures.dbc|Hair textures per race and sex (old table, mostly unused).
+CharSections.dbc|Character creation choices: skin, face, hair and facial-hair textures per race and sex.
+CharStartOutfit.dbc|Starting gear for each race, class and sex.
+CharTitles.dbc|Player titles (male and female text) and their bit position.
+CharVariations.dbc|Empty in 3.3.5a (the client ships it as a 0-byte file).
+CharacterFacialHairStyles.dbc|Facial hair / markings choices per race and sex and the geosets they turn on.
+ChatChannels.dbc|Built-in chat channels (General, Trade, LocalDefense…) with flags and names.
+ChatProfanity.dbc|Words the client's profanity filter masks.
+ChrClasses.dbc|Classes: names (male/female), power type, spell family and the cinematic.
+ChrRaces.dbc|Races: names, faction, display models, starting language, cinematic, required expansion.
+CinematicCamera.dbc|Camera path models used by cinematics, with their sound.
+CinematicSequences.dbc|Intro cinematics and the camera paths they use.
+CreatureDisplayInfo.dbc|Creature looks: model, textures, scale, sounds and blood. creature_template's modelid points here.
+CreatureDisplayInfoExtra.dbc|Extra looks for player-like creatures: race, sex, skin, face, hair and worn items.
+CreatureFamily.dbc|Creature families (Wolf, Cat…): pet skill lines, pet food, talents and names.
+CreatureModelData.dbc|Creature model files with size, collision box, footprints and mount height.
+CreatureMovementInfo.dbc|Movement settings per model type (turn speed while chasing).
+CreatureSoundData.dbc|Creature sound sets: aggro, attack, wound, death, footsteps.
+CreatureSpellData.dbc|Pet action bar spells for some creatures.
+CreatureType.dbc|Creature types (Beast, Undead, Humanoid…) and their names.
+CurrencyCategory.dbc|Headings in the currency tab of the character window.
+CurrencyTypes.dbc|Currencies (emblems, badges, tokens) and the item behind each one.
+DanceMoves.dbc|Dance moves (unused in 3.3.5a).
+DeathThudLookups.dbc|Sound played when a corpse hits the ground, by size and terrain.
+DeclinedWord.dbc|Words with declined forms (Russian client grammar).
+DeclinedWordCases.dbc|The declined forms of each word in DeclinedWord.dbc.
+DestructibleModelData.dbc|Damaged and destroyed models for destructible buildings and vehicles (Wintergrasp…).
+DungeonEncounter.dbc|Boss encounters per dungeon and difficulty (used by the LFG and achievements).
+DungeonMap.dbc|Floors of dungeon maps for the world map.
+DungeonMapChunk.dbc|Which WMO groups belong to which dungeon map floor.
+DurabilityCosts.dbc|Repair cost multipliers per item level and item type.
+DurabilityQuality.dbc|Repair cost multiplier per item quality.
+Emotes.dbc|Emote animations (EMOTE_ONESHOT_… numbers used in scripts) and their flags.
+EmotesText.dbc|Text emotes (/dance, /wave…) and which emote and messages they use.
+EmotesTextData.dbc|The messages text emotes print (%s = name).
+EmotesTextSound.dbc|Voice sounds for text emotes per race and sex.
+EnvironmentalDamage.dbc|Visuals for environmental damage (lava, falling, drowning).
+Exhaustion.dbc|Rested XP states (Rested, Normal, Tired…).
+Faction.dbc|Factions / reputations: names, parent faction, starting reputation per race and class.
+FactionGroup.dbc|The faction groups (Player, Alliance, Horde, Monster).
+FactionTemplate.dbc|Faction templates: who is friendly or hostile to whom. creature_template's faction points here.
+FileData.dbc|Names of some data files (movies).
+FootprintTextures.dbc|Footprint textures left by creatures.
+FootstepTerrainLookup.dbc|Footstep sounds per creature and terrain type.
+GMSurveyAnswers.dbc|Answer choices in the GM survey.
+GMSurveyCurrentSurvey.dbc|Which GM survey is active.
+GMSurveyQuestions.dbc|Questions in the GM survey.
+GMSurveySurveys.dbc|GM surveys and their question lists.
+GMTicketCategory.dbc|Categories for GM help tickets.
+GameObjectArtKit.dbc|Alternative textures and models game objects can switch to (e.g. capture-point banners).
+GameObjectDisplayInfo.dbc|Game object looks: model file and sounds. gameobject_template's displayId points here.
+GameTables.dbc|List of the gt*.dbc game tables and their sizes.
+GameTips.dbc|Tips shown on loading screens.
+GemProperties.dbc|Gems: the enchantment a gem gives and its socket colour.
+GlyphProperties.dbc|Glyphs: the spell each glyph applies and major/minor type.
+GlyphSlot.dbc|Glyph slots and the order they unlock in.
+GroundEffectDoodad.dbc|Small ground clutter models (grass, stones).
+GroundEffectTexture.dbc|Which ground clutter appears on which terrain texture.
+HelmetGeosetVisData.dbc|Which hair and ear geosets a helmet hides.
+HolidayDescriptions.dbc|Holiday descriptions for the calendar.
+HolidayNames.dbc|Holiday names for the calendar.
+Holidays.dbc|World events in the calendar: dates, durations, names and textures.
+Item.dbc|Client copy of basic item data: class, subclass, display and inventory slot. Must match item_template.
+ItemBagFamily.dbc|Bag families (Quiver, Soul bag, Herb bag…).
+ItemClass.dbc|Item classes (Weapon, Armor, Consumable…) and their names.
+ItemCondExtCosts.dbc|Extra conditions for extended costs (arena rating checks).
+ItemDisplayInfo.dbc|Item looks: models, textures, inventory icon and visual effects.
+ItemExtendedCost.dbc|Non-gold prices (honor, arena points, tokens) used by npc_vendor's ExtendedCost.
+ItemGroupSounds.dbc|Pick-up and drop sounds per item group.
+ItemLimitCategory.dbc|"Unique-equipped" style limits shared by several items.
+ItemPetFood.dbc|Pet food types (Meat, Fish, Bread…).
+ItemPurchaseGroup.dbc|Groups of items that count as the same purchase for refunds.
+ItemRandomProperties.dbc|Random "of the …" item suffixes with their enchantments.
+ItemRandomSuffix.dbc|Random suffixes that scale with item level, with their enchantments.
+ItemSet.dbc|Item sets: member items and the set bonuses at each piece count.
+ItemSubClass.dbc|Item sub-classes (Sword, Plate, Potion…) with names and flags.
+ItemSubClassMask.dbc|Named groups of item sub-classes used in tooltips.
+ItemVisualEffects.dbc|Model effects attached to items (glows).
+ItemVisuals.dbc|Weapon enchant glows: up to five effects each.
+LFGDungeonExpansion.dbc|Level ranges per expansion for random dungeons.
+LFGDungeonGroup.dbc|Groups of dungeons in the Dungeon Finder list.
+LFGDungeons.dbc|Dungeon Finder entries: map, difficulty, level range, type and name.
+LanguageWords.dbc|Words used to scramble other languages in chat.
+Languages.dbc|Languages (Common, Orcish…).
+Light.dbc|Outdoor lighting zones per map with their light settings.
+LightFloatBand.dbc|Lighting values that change over the day (fog distance…).
+LightIntBand.dbc|Lighting colours that change over the day (sky, fog…).
+LightParams.dbc|Lighting parameter sets (highlight sky, skybox, glow).
+LightSkybox.dbc|Skybox models.
+LiquidMaterial.dbc|Liquid materials and their shaders.
+LiquidType.dbc|Liquid types (water, magma, slime…) with damage spells and textures.
+LoadingScreenTaxiSplines.dbc|Flight paths drawn on loading screens.
+LoadingScreens.dbc|Loading screen images per map.
+Lock.dbc|Locks on chests, doors and herbs: the key, skill or spell each needs.
+LockType.dbc|Lock types (Lockpicking, Herbalism, Mining…) and their wording.
+MailTemplate.dbc|Prewritten mails (subject and body) the server can send.
+Map.dbc|Maps: continents, instances, battlegrounds: names, type, expansion and corpse location.
+MapDifficulty.dbc|Per map and difficulty: player limit, reset time and the "requires …" message.
+Material.dbc|Item materials and their sounds.
+Movie.dbc|In-game movies.
+MovieFileData.dbc|Movie file resolutions.
+MovieVariation.dbc|Movie variations per resolution.
+NPCSounds.dbc|NPC greeting, farewell and annoyed sounds.
+NameGen.dbc|Name parts for the random name button on character creation.
+NamesProfanity.dbc|Name patterns refused as profane.
+NamesReserved.dbc|Name patterns reserved and refused for characters.
+ObjectEffect.dbc|Effects attached to objects.
+ObjectEffectGroup.dbc|Groups of object effects.
+ObjectEffectModifier.dbc|Modifiers for object effects.
+ObjectEffectPackage.dbc|Packages of object effects.
+ObjectEffectPackageElem.dbc|Members of object effect packages.
+OverrideSpellData.dbc|Replacement action bars (vehicles, possession) listing the spells shown.
+Package.dbc|Packages (unused).
+PageTextMaterial.dbc|Backgrounds for books and letters (Parchment, Stone…).
+PaperDollItemFrame.dbc|Character window slots and their empty-slot icons.
+ParticleColor.dbc|Colour sets for particle effects.
+PetPersonality.dbc|Pet happiness levels (old pet system).
+PetitionType.dbc|Petition types (guild charter, arena charter).
+PowerDisplay.dbc|Alternative power bars (vehicles) with name and colour.
+PvpDifficulty.dbc|Battleground brackets: level ranges per battleground.
+QuestFactionReward.dbc|Reputation amounts for quest_template's RewardFactionValue index.
+QuestInfo.dbc|Quest types (Group, Raid, PvP…) shown in the quest log.
+QuestSort.dbc|Quest categories that aren't zones (Seasonal, class quests…). Negative QuestSortID points here.
+QuestXP.dbc|XP reward per quest level and difficulty index.
+RandPropPoints.dbc|Random property budget per item level and quality.
+Resistances.dbc|Magic schools and their names.
+ScalingStatDistribution.dbc|Heirloom stat lists and how they scale.
+ScalingStatValues.dbc|Heirloom stat values per character level.
+ScreenEffect.dbc|Full-screen effects (fog, blur) spells and zones can apply.
+ServerMessages.dbc|Messages for the server shutdown and restart announcements.
+SheatheSoundLookups.dbc|Sounds of drawing and sheathing weapons.
+SkillCostsData.dbc|Old skill training costs.
+SkillLine.dbc|Skills and professions: name, category and description.
+SkillLineAbility.dbc|Which spells belong to which skill, and at what skill level they turn grey/green.
+SkillLineCategory.dbc|Skill categories in the skills window.
+SkillRaceClassInfo.dbc|Which races and classes get which skills, and the skill tier.
+SkillTiers.dbc|Skill caps and costs per tier (Apprentice…Grand Master).
+SoundAmbience.dbc|Day and night ambient sound for areas.
+SoundEmitters.dbc|Sound emitters placed in the world.
+SoundEntries.dbc|Sounds: file names, volume and distances. Most SoundID columns point here.
+SoundEntriesAdvanced.dbc|Extra settings for some sounds.
+SoundFilter.dbc|Sound filters (underwater, reverb).
+SoundFilterElem.dbc|Steps of each sound filter.
+SoundProviderPreferences.dbc|EAX reverb settings per area.
+SoundSamplePreferences.dbc|Sound sample settings.
+SoundWaterType.dbc|Water sounds per liquid type.
+SpamMessages.dbc|Patterns the client treats as spam.
+Spell.dbc|Every spell: effects, auras, targets, costs, cast times, ranges, icons, names and tooltips.
+SpellCastTimes.dbc|Cast time entries; Spell.dbc's CastingTimeIndex points here.
+SpellCategory.dbc|Spell cooldown categories (spells that share a cooldown).
+SpellChainEffects.dbc|Chain effects drawn between targets (Chain Lightning).
+SpellDescriptionVariables.dbc|Formulas used in spell tooltips.
+SpellDifficulty.dbc|Which spell to use in 10/25 normal/heroic for a boss spell.
+SpellDispelType.dbc|Dispel types (Magic, Curse, Disease, Poison…).
+SpellDuration.dbc|Duration entries; Spell.dbc's DurationIndex points here.
+SpellEffectCameraShakes.dbc|Camera shakes triggered by spell effects.
+SpellFocusObject.dbc|Required nearby objects for casting (Anvil, Forge…).
+SpellIcon.dbc|Spell and achievement icons (texture paths).
+SpellItemEnchantment.dbc|Enchantments: what they do, their text, visual glow and conditions.
+SpellItemEnchantmentCondition.dbc|Meta-gem conditions (needs more red than blue gems…).
+SpellMechanic.dbc|Mechanics (Stun, Root, Fear…).
+SpellMissile.dbc|Missile flight settings for projectiles.
+SpellMissileMotion.dbc|Missile motion scripts.
+SpellRadius.dbc|Radius entries; Spell.dbc's EffectRadiusIndex points here.
+SpellRange.dbc|Range entries (min/max, friendly/hostile); Spell.dbc's RangeIndex points here.
+SpellRuneCost.dbc|Death knight rune costs per spell.
+SpellShapeshiftForm.dbc|Shapeshift forms and stances: model, action bar and attack speed.
+SpellVisual.dbc|What a spell looks and sounds like at each stage (precast, cast, impact…).
+SpellVisualEffectName.dbc|Model files used by spell visuals.
+SpellVisualKit.dbc|Visual kits: animations, effects and sounds a spell visual plays.
+SpellVisualKitAreaModel.dbc|Area models used by visual kits.
+SpellVisualKitModelAttach.dbc|Models attached to characters by visual kits.
+SpellVisualPrecastTransitions.dbc|Animations between precast and cast.
+StableSlotPrices.dbc|Gold cost of each stable slot.
+Startup_Strings.dbc|Texts the client shows at startup.
+Stationery.dbc|Mail stationery looks.
+StringLookups.dbc|Paths used by the client for some file lookups.
+SummonProperties.dbc|How summoned creatures behave (pet, guardian, totem…) and their slot.
+Talent.dbc|Talents: tree, row, column, the spell per rank and prerequisites.
+TalentTab.dbc|Talent trees per class (and pet talent trees).
+TaxiNodes.dbc|Flight masters: map, position, name and mount models.
+TaxiPath.dbc|Flight paths between two flight masters and their cost.
+TaxiPathNode.dbc|The points along each flight path.
+TeamContributionPoints.dbc|Honor values (old system).
+TerrainType.dbc|Terrain types (grass, dirt, snow…) and their footstep effects.
+TerrainTypeSounds.dbc|Sounds per terrain type.
+TotemCategory.dbc|Tool and totem types (Earth Totem, Blacksmith Hammer…) required by spells.
+TransportAnimation.dbc|Movement paths of transports (elevators, boats, zeppelins).
+TransportPhysics.dbc|Wave motion of transports.
+TransportRotation.dbc|Rotations of transports along their path.
+UISoundLookups.dbc|Interface sounds.
+UnitBlood.dbc|Blood effects.
+UnitBloodLevels.dbc|Blood amounts per violence setting.
+Vehicle.dbc|Vehicles: seats, camera, turn/pitch speed and power bar.
+VehicleSeat.dbc|Vehicle seats: attachment, animations, flags and who may use them.
+VehicleUIIndSeat.dbc|Seat positions drawn on the vehicle UI.
+VehicleUIIndicator.dbc|Vehicle UI background textures.
+VideoHardware.dbc|Default video settings per graphics card.
+VocalUISounds.dbc|Voice sounds for UI errors ("Not enough mana").
+WMOAreaTable.dbc|Areas inside buildings and caves (WMOs) with names and sounds.
+WeaponImpactSounds.dbc|Sounds of weapons hitting.
+WeaponSwingSounds2.dbc|Sounds of weapons swinging.
+Weather.dbc|Weather effects (rain, snow, sand) and their sounds.
+WorldChunkSounds.dbc|Sounds per map chunk.
+WorldMapArea.dbc|World map pages: which area, map and coordinates each covers.
+WorldMapContinent.dbc|Continent pages of the world map and their boundaries.
+WorldMapOverlay.dbc|Explored-area overlays on the world map.
+WorldMapTransforms.dbc|Coordinate transforms between maps on the world map.
+WorldSafeLocs.dbc|Graveyards and other safe spots (positions).
+WorldStateUI.dbc|World state displays (battleground scores, capture bars).
+WorldStateZoneSounds.dbc|Music and ambience driven by world states.
+WowError_Strings.dbc|Error message texts.
+ZoneIntroMusicTable.dbc|Music played when entering a zone.
+ZoneMusic.dbc|Day and night music per zone.
+gtBarberShopCostBase.dbc|Barber shop base cost per level.
+gtChanceToMeleeCrit.dbc|Melee crit chance per agility point, per class and level.
+gtChanceToMeleeCritBase.dbc|Base melee crit chance per class.
+gtChanceToSpellCrit.dbc|Spell crit chance per intellect point, per class and level.
+gtChanceToSpellCritBase.dbc|Base spell crit chance per class.
+gtCombatRatings.dbc|Rating points needed for 1% of each combat rating, per level.
+gtNPCManaCostScaler.dbc|Mana cost scaling for NPC spells per level.
+gtOCTClassCombatRatingScalar.dbc|Per-class multipliers for combat ratings.
+gtOCTRegenHP.dbc|Out-of-combat health regeneration per class and level.
+gtOCTRegenMP.dbc|Out-of-combat mana regeneration per class and level.
+gtRegenHPPerSpt.dbc|Health regeneration per spirit point, per class and level.
+gtRegenMPPerSpt.dbc|Mana regeneration per spirit point, per class and level.

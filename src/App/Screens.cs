@@ -1,0 +1,540 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using AndersCraftStudio.Core;
+
+namespace AndersCraftStudio
+{
+    /// <summary>
+    /// --screens &lt;dir&gt; [--demo-conf]: walks every screen off-screen and saves PNGs, then exits.
+    /// Uses a throw-away settings/changesets folder. With --demo-conf the browser reads through the worldserver.conf
+    /// login in a READ ONLY session (for screenshots before studio_ro exists). Nothing is ever applied.
+    /// </summary>
+    static class Screens
+    {
+
+        static async Task Wait(int ms = 400) { await Task.Delay(ms); }
+
+        public static async Task Run(MainWindow w, string dir)
+        {
+            Directory.CreateDirectory(dir);
+            var S = w.S;
+            bool demo = S.DemoConf;
+            S.DemoConf = false;
+
+            // ---- wizard
+            var wiz = w.Wizard;
+            await w.Snap("01_wizard_welcome.png");
+            wiz.Go(2);
+            var conf = S.Profile?.ConfPath; wiz.UseConf(conf != null && File.Exists(conf) ? conf : null);
+            await Wait(1800);
+            wiz.Go(2);
+            await w.Snap("02_wizard_find_server.png");
+            wiz.Go(3);
+            wiz.TestAccountsNow();          // real login attempt with studio_ro / studio_rw: only reads grants if it works
+            await Wait(3500);
+            await w.Snap("03_wizard_accounts.png");
+            wiz.Go(4);
+            await w.Snap("04_wizard_client.png");
+            S.DemoConf = demo;              // lets the wizard read the table list for the sandbox plan
+            wiz.Go(5);
+            wiz.BuildSandboxScript();
+            await Wait(2500);
+            await w.Snap("05_wizard_sandbox.png");
+
+            // ---- finish → browser without a verified account
+            S.DemoConf = false;
+            wiz.FinishNow();
+            var verified = S.Profile.AccountsVerifiedUtc;
+            S.Profile.AccountsVerifiedUtc = null;          // show the "finish step 3" state once
+            w.WizardDone(); w.Navigate("sql");
+            await Wait(600);
+            w.HideToast();
+            await w.Snap("06_sql_setup_needed.png");
+            S.Profile.AccountsVerifiedUtc = verified;
+            if (!demo && !S.ScreensRealAccount) return;
+
+            // ---- browser with data: your studio_ro account, or the read-only demo connection
+            S.DemoConf = demo && !S.ScreensRealAccount;
+            w.WizardDone(); w.Navigate("sql");
+            await Wait(1500);
+            var sql = (SqlBrowserPage)w.GetPage("sql");
+            sql.OpenTable("world", "creature_template");
+            w.HideToast();
+            await Wait(800);
+            await w.Snap("07_sql_browser.png");
+            sql.ScreensFilter("name LIKE '%Wolf%'");
+            await Wait(800);
+            sql.ScreensEditCell("minlevel", "12");
+            await Wait(600);
+            await w.Snap("08_sql_browser_staged_edit.png");
+            sql.SetQuery("SELECT entry, name, subname, minlevel, maxlevel, faction, `rank`\nFROM creature_template\nWHERE name LIKE '%Defias%'\nORDER BY entry\nLIMIT 50;");
+            sql.RunQuery();
+            await Wait(900);
+            w.HideToast();
+            await w.Snap("09_query_select.png");
+            sql.SetQuery("-- typed write statements are staged, never run\nUPDATE creature_template\nSET HealthModifier = HealthModifier * 2\nWHERE entry IN (38, 116);");
+            sql.RunQuery();
+            await Wait(900);
+            await w.Snap("10_query_write_staged.png");
+            sql.SetQuery("DROP TABLE creature_template;");
+            sql.RunQuery();
+            await Wait(500);
+            sql.SetQuery("GRANT ALL ON *.* TO 'x'@'%';");
+            sql.RunQuery();
+            await Wait(500);
+            await w.Snap("11_query_blocked.png");
+
+            // ---- changes
+            w.Navigate("changes");
+            await Wait(700);
+            await w.Snap("12_changes_diff.png");
+            var ch = (ChangesPage)w.GetPage("changes");
+            ch.ScreensDetailTab(1); await Wait(300);
+            await w.Snap("13_changes_sql.png");
+            ch.ScreensDetailTab(2); await Wait(300);
+            await w.Snap("14_changes_undo_sql.png");
+            var raw = S.Changes.Pending.Changes.FirstOrDefault(c => c.Kind == ChangeKind.Raw && !c.Structure);
+            if (raw != null) { ch.Select(raw.Id); ch.ScreensDetailTab(2); await Wait(300); await w.Snap("15_changes_typed_sql_undo.png"); }
+            ch.ScreensDetailTab(0);
+            ch.ScreensConfirm = "APPLY";
+            await Wait(300);
+            await w.Snap("16_changes_apply_panel.png");
+
+            // ---- history: a clearly-labelled sample record in the throw-away folder (no apply happened)
+            var sample = new Changeset
+            {
+                Name = "Sample record for this screenshot (nothing was applied)", State = ChangesetState.Applied, AppliedTarget = "Sandbox", AppliedDatabase = S.Profile.SandboxDb,
+                Changes = S.Changes.Pending.Changes.Where(c => !c.Structure).Take(2).ToList(),
+            };
+            sample.Log.Add(new ApplyRecord { Utc = DateTime.UtcNow, Target = "Sandbox", Database = S.Profile.SandboxDb, BackupDir = Path.Combine(S.Profiles.Settings.BackupRoot, "(sample)"), Success = true, Kind = "Apply", Message = "sample" });
+            S.Changes.Save(sample);
+            ch.ScreensShowHistory(sample.Id);
+            await Wait(400);
+            await w.Snap("17_history_rollback.png");
+
+            // ---- settings, placeholders, search
+            w.Navigate("settings");
+            await Wait(400);
+            w.HideToast();
+            await w.Snap("18_settings.png");
+            w.Navigate("creatures");
+            await Wait(300);
+            await w.Snap("19_coming_soon.png");
+            w.Navigate("sql");
+            await Wait(300);
+            await w.SnapSearch("20_search.png", "loot");
+
+            await Milestone2(w);
+            await Milestone3(w);
+            await Milestone4(w);
+            await Milestone5(w);
+            await Milestone6(w);
+        }
+
+        /// <summary>--screens dir --fresh: what a brand-new user sees (no profile, nothing found on the drives).</summary>
+        public static async Task RunFresh(MainWindow w, string dir)
+        {
+            Directory.CreateDirectory(dir);
+            await w.Snap("90_fresh_wizard_welcome.png");
+            w.Wizard.Go(2);
+            w.Wizard.AutoDetectNow();
+            await Wait(2500);
+            await w.Snap("91_fresh_wizard_nothing_found.png");
+            w.WizardDone();
+            await Wait(500); w.HideToast();
+            await w.Snap("92_fresh_home_not_set_up.png");
+            w.Navigate("creatures"); await Wait(300);
+            await w.Snap("93_fresh_workspace_not_set_up.png");
+            w.Navigate("help"); await Wait(400);
+            await w.Snap("94_help_getting_started.png");
+        }
+
+        static async Task Milestone6(MainWindow w)
+        {
+            var S = w.S;
+            // home
+            w.Navigate("home"); await Wait(900); w.HideToast();
+            await w.Snap("83_home.png");
+            // templates: preview a boss clone (nothing staged), then stage a vendor
+            TemplatesPage tp = null;
+            w.Navigate("templates", p => tp = (TemplatesPage)p);
+            tp.ScreensOpen("clone-boss", new Dictionary<string, string> { ["creature"] = "448", ["level"] = "60", ["health"] = "3", ["damage"] = "2" });
+            tp.Run(false); await Wait(800);
+            await w.Snap("84_templates_preview.png");
+            tp.ScreensOpen("vendor", new Dictionary<string, string> { ["look"] = "66", ["name"] = "Studio Supplier", ["items"] = "159, 4540, 2512, 2515" });
+            tp.Run(true); await Wait(800); w.HideToast();
+            await w.Snap("85_templates_vendor_staged.png");
+            // world tables
+            WorldTablesPage wt = null;
+            w.Navigate("world", p => wt = (WorldTablesPage)p);
+            long gossipSrc = 0;
+            try { using var db = S.OpenRead(S.Profile.WorldDb); gossipSrc = long.Parse(db.Scalar("SELECT SourceGroup FROM conditions WHERE SourceTypeOrReferenceId = 15 GROUP BY SourceGroup HAVING COUNT(*) BETWEEN 2 AND 5 LIMIT 1") ?? "0"); } catch { }
+            wt.ScreensLoad("conditions", gossipSrc.ToString(), "", 15); await Wait(900);
+            await w.Snap("86_world_conditions.png");
+            long path = 0;
+            try { using var db = S.OpenRead(S.Profile.WorldDb); path = long.Parse(db.Scalar("SELECT id FROM waypoint_data GROUP BY id HAVING COUNT(*) BETWEEN 4 AND 12 LIMIT 1") ?? "0"); } catch { }
+            wt.ScreensLoad("waypoints", path.ToString()); await Wait(900);
+            await w.Snap("87_world_waypoints.png");
+            // asset import: an icon made from a picture, into the temp work folder
+            AssetsPage ap = null;
+            w.Navigate("assets", p => ap = (AssetsPage)p);
+            ap.ScreensKind("icon");
+            var png = Path.Combine(Path.GetTempPath(), "studio_screens_icon.png");
+            MakeDemoPng(png);
+            ap.UseFile(png); await Wait(400);
+            ap.Import(); await Wait(800); w.HideToast();
+            await w.Snap("88_assets_icon_imported.png");
+            // SQL browser structure tab
+            SqlBrowserPage sb = null;
+            w.Navigate("sql", p => sb = (SqlBrowserPage)p);
+            sb.OpenTable(null, "creature_template"); await Wait(600);
+            sb.ScreensStructure(); await Wait(700);
+            await w.Snap("89_sql_structure.png");
+            // DBC compare dialog
+            DbcPage dp = null;
+            w.Navigate("dbc", p => dp = (DbcPage)p);
+            dp.OpenTable("ChrClasses.dbc"); await Wait(500);
+            dp.ScreensColumns(); await Wait(600);
+            if (dp.ScreensLastWindow != null) { await w.SnapWindow(dp.ScreensLastWindow, "89b_dbc_columns.png"); dp.ScreensLastWindow.Close(); }
+            AboutWindow.ShowAbout(w); await Wait(500);
+            if (AboutWindow.Last != null) { await w.SnapWindow(AboutWindow.Last, "89c_about.png"); AboutWindow.Last.Close(); }
+        }
+
+        static void MakeDemoPng(string path)
+        {
+            int n = 128;
+            var px = new byte[n * n * 4];
+            for (int y = 0; y < n; y++) for (int x = 0; x < n; x++)
+            {
+                double dx = x - n / 2.0, dy = y - n / 2.0, r = Math.Sqrt(dx * dx + dy * dy) / (n / 2.0);
+                int q = (y * n + x) * 4;
+                px[q] = (byte)Math.Clamp(40 + 60 * r, 0, 255); px[q + 1] = (byte)Math.Clamp(180 - 140 * r, 0, 255); px[q + 2] = (byte)Math.Clamp(250 - 80 * r, 0, 255); px[q + 3] = 255;
+                if (Math.Abs(dx) < 6 || Math.Abs(dy) < 6) { px[q] = 230; px[q + 1] = 240; px[q + 2] = 255; }
+            }
+            var bmp = System.Windows.Media.Imaging.BitmapSource.Create(n, n, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, px, n * 4);
+            var enc = new System.Windows.Media.Imaging.PngBitmapEncoder(); enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+            using var fs = File.Create(path); enc.Save(fs);
+        }
+
+        static async Task Milestone5(MainWindow w)
+        {
+            // ---- Spell editor: reads Spell.dbc and the client's icons; edits go only into the temp changeset
+            // start from the real Fireball: drop the M4 screenshot's staged test edit of Spell.dbc
+            w.S.Changes.Pending.Changes.RemoveAll(c => c.Dbc != null && c.Table == "Spell.dbc");
+            w.S.SaveChanges();
+            SpellEditorPage sp = null;
+            w.Navigate("spells", p => sp = (SpellEditorPage)p);
+            await Wait(600);
+            sp.ScreensSearch("Fireball");
+            sp.Open(133); w.HideToast(); await Wait(900);
+            await w.Snap("72_spells_overview.png");
+            sp.ScreensTab("Effects"); await Wait(600);
+            await w.Snap("73_spells_effects.png");
+            sp.ScreensTab("Targeting & range"); await Wait(500);
+            await w.Snap("74_spells_range_link.png");
+            sp.ScreensTab("Attributes"); await Wait(600);
+            await w.Snap("75_spells_attributes.png");
+            sp.ScreensTab("Visuals"); await Wait(600);
+            await w.Snap("76_spells_visuals.png");
+            var ip = sp.ScreensIconPicker();
+            ip.Show(); ip.Filter("fire"); await Wait(900);
+            await w.SnapWindow(ip, "77_spells_icon_picker.png");
+            ip.Close();
+            // duplicate as new, rename, change damage, live tooltip
+            sp.ScreensDuplicate(); w.HideToast(); await Wait(600);
+            sp.ScreensTab("Overview");
+            sp.ScreensSet("Name_enUS", "Studio Firebolt");
+            sp.ScreensSet("NameSubtext_enUS", "Custom");
+            sp.ScreensSet("EffectBasePoints_1", "199");
+            sp.ScreensSet("EffectDieSides_1", "101");
+            sp.ScreensSet("Description_enUS", "Hurls a blazing bolt that causes $s1 Fire damage and an additional $o2 Fire damage over $d.");
+            await Wait(700);
+            await w.Snap("78_spells_new_spell_live_tooltip.png");
+            sp.ScreensCompare(); await Wait(600);
+            if (Dialog.Last != null) { await w.SnapWindow(Dialog.Last, "79_spells_compare.png"); Dialog.Last.Close(); Dialog.Last = null; }
+            sp.ScreensStage(); w.HideToast();
+            sp.ScreensStageServer(); w.HideToast();
+            sp.ScreensTab("Server side"); await Wait(800);
+            await w.Snap("80_spells_server_side.png");
+            w.Navigate("changes");
+            var ch = (ChangesPage)w.GetPage("changes");
+            var spc = w.S.Changes.Pending.Changes.LastOrDefault(c => c.Dbc != null && c.Table == "Spell.dbc");
+            if (spc != null) ch.Select(spc.Id);
+            await Wait(600);
+            await w.Snap("81_changes_new_spell.png");
+            w.Navigate("spells");
+            await Wait(300);
+            await w.SnapSearch("82_search_spells.png", "frostbolt");
+        }
+
+        static async Task Milestone4(MainWindow w)
+        {
+            var S = w.S;
+            long Scalar(string sql) { try { using var db = S.OpenRead(S.Profile.WorldDb); return long.Parse(db.Scalar(sql) ?? "0"); } catch { return 0; } }
+
+            // ---- DBC tables (reads the server's Data\dbc and the client's MPQs; edits are staged into the temp changeset only)
+            DbcPage dp = null;
+            w.Navigate("dbc", p => dp = (DbcPage)p);
+            await Wait(500);
+            dp.OpenTable("Spell.dbc", 133); w.HideToast(); await Wait(900);
+            await w.Snap("61_dbc_spell_find_id.png");
+            dp.ScreensFilter("Name:fireball SpellLevel>60"); await Wait(600);
+            dp.ScreensSelectFirst(); await Wait(400);
+            await w.Snap("62_dbc_filter_and_links.png");
+            dp.ScreensTableSearch("zone");
+            dp.OpenTable("AreaTable.dbc", 12); dp.ScreensAllLocales(true); await Wait(800);
+            dp.ScreensScrollToColumn("AreaName"); await Wait(500);
+            await w.Snap("63_dbc_localized_columns.png");
+            dp.ScreensAllLocales(false);
+            dp.ScreensTableSearch("");
+            dp.OpenTable("SpellVisualKit.dbc"); await Wait(800);
+            await w.Snap("64_dbc_raw_mode.png");
+            dp.OpenTable("Spell.dbc", 133); await Wait(600);
+            dp.ScreensEdit(133, "Name_enUS", "Fireball (Studio test)");
+            dp.ScreensEdit(133, "RangeIndex", "6");
+            dp.OpenTable("Spell.dbc", 133); await Wait(400);
+            dp.ScreensScrollToColumn("Name"); await Wait(500);
+            await w.Snap("65_dbc_unstaged_edit.png");
+            dp.ScreensStage(); await Wait(400);
+            w.HideToast();
+            dp.ScreensSource("client"); await Wait(1500);
+            dp.OpenTable("ChrRaces.dbc"); dp.ScreensOnlyDiff(true); await Wait(1200); dp.ScreensOnlyDiff(false); await Wait(300);
+            w.HideToast();
+            await w.Snap("66_dbc_client_merged_view.png");
+            dp.ScreensOnlyDiff(false);
+            dp.ScreensSource("server"); await Wait(400);
+
+            // ---- Changes: DBC diff and the two outputs (not clicked)
+            w.Navigate("changes");
+            var ch = (ChangesPage)w.GetPage("changes");
+            var dbc = S.Changes.Pending.Changes.FirstOrDefault(c => c.Dbc != null);
+            if (dbc != null) ch.Select(dbc.Id);
+            await Wait(600);
+            await w.Snap("67_changes_dbc_diff.png");
+            ch.ScreensScrollApplyToEnd(); await Wait(400);
+            await w.Snap("68_changes_dbc_outputs.png");
+
+            // ---- SmartAI: creature_text lines of a Talk action
+            long talker = Scalar("SELECT s.entryorguid FROM smart_scripts s JOIN creature_text t ON t.CreatureID = s.entryorguid AND t.GroupID = s.action_param1 WHERE s.source_type = 0 AND s.action_type = 1 AND s.entryorguid > 0 GROUP BY s.entryorguid HAVING COUNT(*) BETWEEN 2 AND 6 ORDER BY s.entryorguid LIMIT 1");
+            if (talker > 0)
+            {
+                SmartAIPage sp = null;
+                w.Navigate("smartai", p => sp = (SmartAIPage)p);
+                sp.Open(0, talker); await Wait(800);
+                int idx = sp.Rows.FindIndex(r => r.ActionType == 1);
+                if (idx >= 0) { sp.ScreensSelect(idx); await Wait(800); sp.ScreensScrollEditorToEnd(); await Wait(400); }
+                w.HideToast();
+                await w.Snap("69_smartai_creature_text.png");
+            }
+
+            // ---- paged lists: the creature with the most spawns
+            long many = Scalar($"SELECT {(Scalar("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'creature' AND COLUMN_NAME = 'id1'") > 0 ? "id1" : "id")} FROM creature GROUP BY 1 HAVING COUNT(*) > 500 ORDER BY COUNT(*) DESC LIMIT 1");
+            if (many > 0)
+            {
+                EntityEditorPage cr = null;
+                w.Navigate("creatures", p => cr = (EntityEditorPage)p);
+                cr.Open(many); cr.ShowTab("Spawns"); w.HideToast(); await Wait(1200);
+                cr.ListEditorFor("spawns")?.GoPage(1); await Wait(800);
+                await w.Snap("70_spawns_paged.png");
+            }
+            w.Navigate("dbc");
+            await Wait(300);
+            await w.SnapSearch("71_search_dbc_tables.png", "spell");
+        }
+
+        static async Task Milestone3(MainWindow w)
+        {
+            var S = w.S;
+            long Scalar(string sql) { try { using var db = S.OpenRead(S.Profile.WorldDb); return long.Parse(db.Scalar(sql) ?? "0"); } catch { return 0; } }
+
+            // ---- loot
+            LootPage lp = null;
+            w.Navigate("loot", p => lp = (LootPage)p);
+            lp.Open("creature_loot_template", 69);
+            w.HideToast(); await Wait(800);
+            await w.Snap("50_loot_creature.png");
+            lp.RunSim(); await Wait(600);
+            lp.ScreensScrollToEnd(); await Wait(400);
+            await w.Snap("51_loot_simulator.png");
+            long withRef = Scalar("SELECT Entry FROM creature_loot_template WHERE Reference <> 0 GROUP BY Entry HAVING COUNT(*) >= 2 ORDER BY COUNT(*) DESC LIMIT 1");
+            if (withRef > 0)
+            {
+                lp.Open("creature_loot_template", withRef); await Wait(600);
+                await w.Snap("52_loot_with_references.png");
+                long rf = Math.Abs(Scalar($"SELECT Reference FROM creature_loot_template WHERE Entry = {withRef} AND Reference <> 0 LIMIT 1"));
+                lp.ScreensBackTo("creature_loot_template", withRef);
+                lp.Open("reference_loot_template", rf); await Wait(600);
+                await w.Snap("53_loot_reference_drill_in.png");
+            }
+            lp.Open("creature_loot_template", 69); await Wait(500);
+            if (lp.Editor.Data.Rows.Count > 0) lp.Editor.ScreensEditCell(0, "Chance", "75");
+            await Wait(400);
+            await w.Snap("54_loot_unstaged_edit.png");
+            lp.Editor.Stage(); w.HideToast();
+
+            // ---- SmartAI
+            long smart = Scalar("SELECT s.entryorguid FROM smart_scripts s JOIN creature_template c ON c.entry = s.entryorguid WHERE s.source_type = 0 AND c.AIName = 'SmartAI' GROUP BY s.entryorguid HAVING COUNT(*) BETWEEN 3 AND 8 ORDER BY s.entryorguid LIMIT 1");
+            SmartAIPage sp = null;
+            w.Navigate("smartai", p => sp = (SmartAIPage)p);
+            if (smart != 0)
+            {
+                sp.Open(0, smart); w.HideToast(); await Wait(800);
+                await w.Snap("55_smartai_builder.png");
+                // add a row: in combat, every 8-12s, cast Fireball on the victim
+                var r = new SmartRow { EntryOrGuid = smart, SourceType = 0, Id = sp.Rows.Max(x => x.Id) + 1, EventType = 0, ActionType = 11, TargetType = 2, EventChance = 100 };
+                r.EventParams[1] = 2000; r.EventParams[2] = 8000; r.EventParams[3] = 12000; r.ActionParams[0] = 133; r.Comment = "Studio screenshot: example row";
+                sp.Rows.Add(r);
+                sp.ScreensSelect(sp.Rows.Count - 1); sp.ScreensChanged(); await Wait(600);
+                await w.Snap("56_smartai_new_row.png");
+                var bad = new SmartRow { EntryOrGuid = smart, SourceType = 0, Id = r.Id + 1, EventType = 4, ActionType = 11, TargetType = 2, Link = 99 };
+                bad.ActionParams[0] = 9999999;
+                sp.Rows.Add(bad);
+                sp.ScreensSelect(sp.Rows.Count - 1); sp.ScreensChanged(); await Wait(600);
+                await w.Snap("57_smartai_checks.png");
+            }
+
+            // ---- editable lists on the creature editor
+            EntityEditorPage cr = null;
+            w.Navigate("creatures", p => cr = (EntityEditorPage)p);
+            cr.Open(69); cr.ShowTab("Spawns"); w.HideToast(); await Wait(800);
+            var spawns = cr.ListEditorFor("spawns");
+            if (spawns != null && spawns.Data.Rows.Count > 0) spawns.ScreensEditCell(0, "spawntimesecs", "600");
+            await Wait(400);
+            await w.Snap("58_creature_spawns_editable.png");
+            cr.Open(66); cr.ShowTab("Vendor/trainer"); await Wait(800);
+            var vend = cr.ListEditorFor("vendor");
+            if (vend != null) vend.ScreensAddRow(dr => { dr["item"] = "2287"; dr["slot"] = "50"; });
+            await Wait(400);
+            await w.Snap("59_vendor_editable.png");
+            vend?.Stage(); w.HideToast();
+            w.Navigate("changes");
+            await Wait(600);
+            await w.Snap("60_changes_with_m3_edits.png");
+        }
+
+        static async Task Milestone2(MainWindow w)
+        {
+            var S = w.S;
+            async Task<EntityEditorPage> OpenEntity(string ws, long id, string tab)
+            {
+                EntityEditorPage pg = null;
+                w.Navigate(ws, p => pg = (EntityEditorPage)p);
+                pg.Open(id);
+                if (tab != null) pg.ShowTab(tab);
+                w.HideToast();
+                await Wait(700);
+                return pg;
+            }
+
+            // ---- creatures
+            var cr = await OpenEntity("creatures", 197, "Basics");             // Marshal McBride (Northshire quest giver)
+            cr.ScreensEdit("subname", "Marshal of Northshire");
+            cr.ScreensEdit("npcflag", "3");
+            cr.ScreensFocus("npcflag");
+            await Wait(500);
+            await w.Snap("21_creatures_basics.png");
+            cr.ShowTab("Stats & combat");
+            cr.ScreensEdit("HealthModifier", "1.5");
+            cr.ScreensFocus("HealthModifier");
+            await Wait(500);
+            await w.Snap("22_creatures_stats.png");
+            cr.ScreensStage();
+            w.HideToast();
+            cr = await OpenEntity("creatures", 69, "Loot");                    // Diseased Timber Wolf
+            await w.Snap("23_creatures_loot.png");
+            cr.ShowTab("Spawns"); await Wait(600);
+            await w.Snap("24_creatures_spawns.png");
+            cr = await OpenEntity("creatures", 66, "Vendor/trainer");         // Tharynn Bouden, general goods
+            await w.Snap("25_creatures_vendor.png");
+            long smart = 0;
+            try { using var db = S.OpenRead(S.Profile.WorldDb); smart = long.Parse(db.Scalar("SELECT c.entry FROM creature_template c JOIN smart_scripts s ON s.entryorguid = c.entry AND s.source_type = 0 WHERE c.AIName = 'SmartAI' ORDER BY c.entry LIMIT 1")); } catch { }
+            if (smart > 0) { await OpenEntity("creatures", smart, "SmartAI"); await w.Snap("26_creatures_smartai.png"); }
+
+            // ---- picker dialog (drawn off-screen)
+            var refs = new Refs(S);
+            var pw = new PickerWindow(w, "Pick faction", "Decides who the creature is friendly, neutral or hostile to (a FactionTemplate ID).", q => refs.Search("factiontemplate", q), "Stormwind")
+            { WindowStartupLocation = WindowStartupLocation.Manual, Left = -20000, Top = -20000, ShowActivated = false };
+            pw.Show();
+            await Wait(600);
+            await w.SnapWindow(pw, "27_picker_faction.png");
+            pw.Close();
+
+            // ---- items
+            var it = await OpenEntity("items", 25, "Basics");                  // Worn Shortsword
+            it.ScreensEdit("Quality", "3");
+            it.ScreensEdit("name", "Worn Shortsword of Testing");
+            it.ScreensFocus("Quality");
+            await Wait(400);
+            await w.Snap("28_items_basics.png");
+            it.ShowTab("Weapon/armor"); it.ScreensFocus("delay"); await Wait(400);
+            await w.Snap("29_items_weapon.png");
+            it = await OpenEntity("items", 19019, "Spells");                   // Thunderfury
+            it.ScreensFocus("spellid_1"); await Wait(300);
+            await w.Snap("30_items_spells.png");
+            it = await OpenEntity("items", 159, "Prices");                     // Refreshing Spring Water
+            it.ScreensFocus("BuyPrice"); await Wait(300);
+            await w.Snap("31_items_prices.png");
+
+            // ---- quests
+            var qs = await OpenEntity("quests", 7, "Basics");                   // Kobold Camp Cleanup
+            qs.ScreensEdit("LogTitle", "Kobold Camp Cleanup (revised)");
+            qs.ScreensFocus("Flags"); await Wait(300);
+            await w.Snap("32_quests_basics.png");
+            qs.ShowTab("Objectives"); qs.ScreensFocus("RequiredNpcOrGo1"); await Wait(500);
+            await w.Snap("33_quests_objectives.png");
+            qs.ShowTab("Rewards"); qs.ScreensFocus("RewardXPDifficulty"); await Wait(500);
+            await w.Snap("34_quests_rewards.png");
+            qs.ShowTab("Starters/enders"); await Wait(500);
+            await w.Snap("35_quests_givers.png");
+            qs = await OpenEntity("quests", 33, "Chain"); qs.ScreensFocus("PrevQuestID"); await Wait(300);
+            await w.Snap("36_quests_chain.png");
+
+            // ---- duplicate as new → staged INSERT
+            it = await OpenEntity("items", 25, "Basics");
+            it.ScreensDiscard();
+            it.ScreensDuplicate();
+            await Wait(500);
+            await w.Snap("37_duplicate_toast.png");
+            w.Navigate("changes");
+            var ch = (ChangesPage)w.GetPage("changes");
+            var ins = S.Changes.Pending.Changes.LastOrDefault(c => c.Kind == ChangeKind.Insert);
+            if (ins != null) { ch.Select(ins.Id); ch.ScreensDetailTab(1); }
+            await Wait(500);
+            await w.Snap("38_changes_with_m2_edits.png");
+            ch.ScreensDetailTab(0);
+
+            // ---- Ctrl+K entities, client patches, settings
+            w.Navigate("creatures");
+            await Wait(300);
+            await w.SnapSearch("39_search_entities.png", "Defias");
+            // ---- client patches: reads the real client folder, builds only into a temp folder, never installs
+            var client = S.Profile?.ClientDir ?? "";
+            var dbcDir = Path.Combine(ConfParser.ParseFile(S.Profile.ConfPath).DataDir ?? "", "dbc");
+            ClientPatchesPage cp = null;
+            w.Navigate("patches", p => cp = (ClientPatchesPage)p);
+            cp.ScreensPrepare(dbcDir, client);
+            await Wait(600);
+            await w.Snap("40_client_patches_build.png");
+            cp.ScreensBuild();
+            await Wait(600);
+            await w.Snap("40b_client_patches_built.png");
+            cp.ScreensInstalled("CharTitles");
+            await Wait(600);
+            await w.Snap("40c_client_patches_installed.png");
+            cp.ScreensBrowse(Path.Combine(client, "Data", "patch-Z.MPQ"), "DBFilesClient");
+            await Wait(800);
+            await w.Snap("40d_client_patches_browse.png");
+            cp.ScreensBrowse(Path.Combine(client, "Data", "patch-L.mpq"), "");
+            await Wait(1500);
+            await w.Snap("40e_client_patches_recovered_names.png");
+            w.Navigate("settings");
+            await Wait(300);
+            w.HideToast();
+            await w.Snap("41_settings_custom_ids.png");
+        }
+    }
+}

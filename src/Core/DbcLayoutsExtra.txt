@@ -1,0 +1,247 @@
+# Studio-authored layouts for DBCs the server doesn't load. Same format as DbcLayouts.txt.
+# Each is checked against the real file when opened (column count, record size, text fields); a layout that
+# doesn't fit is ignored and the columns are guessed instead.
+@SpellIcon.dbc
+ID|i|
+TextureFilename|s|Icon texture path (Interface\Icons\...)
+
+@LoadingScreens.dbc
+ID|i|
+Name|s|Internal name
+FileName|s|Loading screen texture path
+HasWideScreen|i|1 = a widescreen version exists
+
+@GameTips.dbc
+ID|i|
+Text|L|Tip shown on the loading screen
+
+@Languages.dbc
+ID|i|
+Name|L|Language name
+
+@ItemClass.dbc
+ID|i|Item class number
+SubclassMapID|i|
+Flags|x|
+ClassName|L|Class name shown in the auction house
+
+@Startup_Strings.dbc
+ID|i|
+Name|s|Internal key
+Message|L|Text shown by the client at startup
+
+@ServerMessages.dbc
+ID|i|
+Text|L|Server announcement text
+
+@SpellMechanic.dbc
+ID|i|Mechanic number (stun, root, …)
+StateName|L|Name shown in the client
+
+@SpellDispelType.dbc
+ID|i|Dispel type number
+Name|L|Name shown in the client
+Mask|x|
+ImmunityPossible|i|
+InternalName|s|
+
+@Resistances.dbc
+ID|i|School number
+Flags|x|
+FizzleSoundID|i|Sound when a spell of this school fails
+Name|L|School name
+
+@ChatProfanity.dbc
+ID|i|
+Text|s|Filtered word or pattern
+Language|i|
+
+@SkillLineCategory.dbc
+ID|i|
+Name|L|Category heading in the skills window
+SortIndex|i|
+
+@WorldSafeLocs.dbc
+ID|i|
+ContinentID|i|Map the graveyard / safe spot is on
+X|f|
+Y|f|
+Z|f|
+AreaName|L|Name
+
+@QuestInfo.dbc
+ID|i|Quest type number (group, raid, PvP, …)
+InfoName|L|Name shown in the quest log
+
+@CurrencyCategory.dbc
+ID|i|
+Flags|x|
+Name|L|Heading in the currency tab
+
+@LockType.dbc
+ID|i|
+Name|L|
+ResourceName|L|
+Verb|L|
+CursorName|s|
+
+@EmotesTextData.dbc
+ID|i|
+Text|L|Emote message (%s = name)
+
+@DeclinedWord.dbc
+ID|i|
+Word|s|
+
+@HolidayNames.dbc
+ID|i|
+Name|L|Holiday name
+
+@HolidayDescriptions.dbc
+ID|i|
+Description|L|Holiday description
+
+@GMTicketCategory.dbc
+ID|i|
+Category|L|Ticket category name
+
+@GMSurveyQuestions.dbc
+ID|i|
+Question|L|
+
+@AreaTrigger.dbc
+ID|i|Trigger ID (areatrigger_* tables in the world DB use it)
+ContinentID|i|Map
+X|f|
+Y|f|
+Z|f|
+Radius|f|Sphere radius (0 = box)
+BoxLength|f|
+BoxWidth|f|
+BoxHeight|f|
+BoxYaw|f|
+
+@LightSkybox.dbc
+ID|i|
+Name|s|Skybox model path
+Flags|x|
+
+@SoundAmbience.dbc
+ID|i|
+AmbienceID_1|i|Day sound (SoundEntries.dbc)
+AmbienceID_2|i|Night sound (SoundEntries.dbc)
+
+@ZoneIntroMusicTable.dbc
+ID|i|
+Name|s|
+SoundID|i|Music played when entering the zone (SoundEntries.dbc)
+Priority|i|
+MinDelayMinutes|i|
+
+@ZoneMusic.dbc
+ID|i|
+SetName|s|
+SilenceIntervalMin_1|i|Day, ms
+SilenceIntervalMin_2|i|Night, ms
+SilenceIntervalMax_1|i|Day, ms
+SilenceIntervalMax_2|i|Night, ms
+Sounds_1|i|Day music (SoundEntries.dbc)
+Sounds_2|i|Night music (SoundEntries.dbc)
+
+@ItemVisuals.dbc
+ID|i|
+Slot_1|i|ItemVisualEffects.dbc
+Slot_2|i|
+Slot_3|i|
+Slot_4|i|
+Slot_5|i|
+
+@AnimationData.dbc
+ID|i|Animation number
+Name|s|
+WeaponFlags|x|
+BodyFlags|x|
+Flags|x|
+Fallback|i|Animation used when a model lacks this one
+BehaviorID|i|
+BehaviorTier|i|
+
+@FactionGroup.dbc
+ID|i|
+MaskID|i|
+InternalName|s|
+Name|L|
+
+@Exhaustion.dbc
+ID|i|
+Xp|i|
+Factor|f|
+OutdoorHours|f|
+InnHours|f|
+Name|L|Rest state name
+Threshold|f|
+
+@NameGen.dbc
+ID|i|
+Name|s|Name part for the random name button
+RaceID|i|
+Sex|i|0 = male, 1 = female
+
+@Stationery.dbc
+ID|i|
+ItemID|i|Item that gives this mail look
+Texture|s|
+Flags|x|
+
+@BannedAddOns.dbc
+ID|i|
+NameMD5_1|x|
+NameMD5_2|x|
+NameMD5_3|x|
+NameMD5_4|x|
+VersionMD5_1|x|
+VersionMD5_2|x|
+VersionMD5_3|x|
+VersionMD5_4|x|
+LastModified|i|
+Flags|x|
+
+@SpellVisualEffectName.dbc
+ID|i|
+Name|s|
+FileName|s|Model path
+AreaEffectSize|f|
+Scale|f|
+MinAllowedScale|f|
+MaxAllowedScale|f|
+
+@WorldMapContinent.dbc
+ID|i|
+MapID|i|
+LeftBoundary|i|
+RightBoundary|i|
+TopBoundary|i|
+BottomBoundary|i|
+ContinentOffsetX|f|
+ContinentOffsetY|f|
+Scale|f|
+TaxiMinX|f|
+TaxiMinY|f|
+TaxiMaxX|f|
+TaxiMaxY|f|
+WorldMapID|i|
+
+@TerrainType.dbc
+ID|i|
+TerrainDesc|s|
+FootstepSprayRun|i|
+FootstepSprayWalk|i|
+SoundID|i|
+Flags|x|
+
+@SkillCostsData.dbc
+ID|i|
+SkillCostsID|i|
+Cost_1|i|
+Cost_2|i|
+Cost_3|i|
