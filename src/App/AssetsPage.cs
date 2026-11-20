@@ -163,6 +163,7 @@ namespace AndersCraftStudio
                         var skins = Directory.GetFiles(dir, Path.GetFileNameWithoutExtension(source) + "0?.skin").OrderBy(x => x).ToList();
                         var tex = Directory.GetFiles(dir).Where(x => new[] { ".blp", ".png", ".tga" }.Contains(Path.GetExtension(x).ToLowerInvariant())).OrderBy(x => x).ToList();
                         sp.Children.Add(U.T($"Found next to it: {skins.Count} skin file(s){(skins.Count == 0 ? " — the client needs at least Name00.skin" : "")}, {tex.Count} texture(s) {(tex.Count > 0 ? "(" + string.Join(", ", tex.Select(Path.GetFileName).Take(6)) + ")" : "")}.", 12.5, skins.Count == 0 ? "Bad" : "Muted", null, true, new Thickness(0, 0, 0, 12)));
+                        sp.Children.Add(PreviewOf(source));
                     }
                     sp.Children.Add(U.Wrap(
                         Fld("Model name", "Folder and file name under Creature\\.", Box("name", stem.Length > 0 ? stem : "CustomModel")),
@@ -185,6 +186,7 @@ namespace AndersCraftStudio
                         var skins = Directory.GetFiles(dir, Path.GetFileNameWithoutExtension(source) + "0?.skin").OrderBy(x => x).ToList();
                         var tex = Directory.GetFiles(dir).Where(x => new[] { ".blp", ".png", ".tga" }.Contains(Path.GetExtension(x).ToLowerInvariant())).OrderBy(x => x).ToList();
                         sp.Children.Add(U.T($"Found next to it: {skins.Count} skin file(s){(skins.Count == 0 ? " — the client needs at least Name00.skin" : "")}, {tex.Count} texture(s) {(tex.Count > 0 ? "(" + string.Join(", ", tex.Select(Path.GetFileName).Take(6)) + ")" : "")}. The first texture becomes the model's texture.", 12.5, skins.Count == 0 ? "Bad" : "Muted", null, true, new Thickness(0, 0, 0, 12)));
+                        sp.Children.Add(PreviewOf(source));
                     }
                     var slot = new ComboBox { Width = 200 }; foreach (var x in AssetImport.ItemModelSlots) slot.Items.Add(x); slot.SelectedIndex = 0; f["slot"] = slot;
                     sp.Children.Add(U.Wrap(
@@ -424,6 +426,15 @@ namespace AndersCraftStudio
             }
             catch (Exception ex) { w.Toast("Not imported: " + ex.Message, "bad"); return; }
             BuildForm();
+        }
+
+        /// <summary>The chosen .m2 in the 3D viewer, with its .skin and textures from the same folder.</summary>
+        UIElement PreviewOf(string m2)
+        {
+            var v = new ModelViewer(S.Models, 300);
+            v.LoadFile(m2);
+            var b = new Border { Margin = new Thickness(0, 0, 0, 12), Child = v.View };
+            return b;
         }
 
         static int NextPow2(int n) { int p = 1; while (p < n && p < 2048) p <<= 1; return p; }

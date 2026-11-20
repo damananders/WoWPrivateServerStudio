@@ -1,5 +1,22 @@
 # Release notes
 
+## 0.9.0 — 3D model viewer
+
+**New**
+* **3D model viewer** in Creatures (Basics), Game objects (Basics), Items (Display) and Asset import: the model textured
+  and lit, straight from your client's archives (and your patch work folders), with turn / move / zoom, wireframe and a
+  model picker for creatures with several looks.
+* **Animations**: every sequence by name (Stand, Walk, Attack, Spell, Death…), play / pause / speed, including the ones
+  kept in separate .anim files.
+* Reflective metal and glow layers are approximated, so weapons look like metal.
+* **Script tables without a key** (event_scripts, spell_scripts) are now editable: rows are matched on every column.
+* **DBC tables open in tabs**: switch between several tables without losing unstaged edits.
+
+**Not yet (Level 3)**: spell particle effects, characters wearing armour, body-armour texture import.
+
+**Tests**: 151 automated tests (new: M2 / .skin reading on real client models, mesh building, animation, script-row
+matching, DBC tabs).
+
 ## 0.8.0 — no other tools needed
 
 Studio now covers everything Keira3 and HeidiSQL do: a new user can set up a server's databases and edit all of its

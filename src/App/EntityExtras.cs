@@ -144,6 +144,7 @@ namespace AndersCraftStudio
                         ed.NewRow = r => r.Set("Idx", NextIndex(ed, "Idx")).Set("DisplayScale", "1").Set("Probability", "1");
                         return ed;
                     });
+                    yield return CreaturePreview();
                     yield return ListCard("Quests it gives", "Quests this NPC offers (creature_queststarter). Double-click to open.",
                         $"SELECT q.ID, q.LogTitle, q.QuestLevel FROM creature_queststarter s JOIN quest_template q ON q.ID = s.quest WHERE s.id = {Id} ORDER BY q.ID", open: ("quest", "ID"));
                     yield return ListCard("Quests it accepts", "Quests handed in to this NPC (creature_questender).",
@@ -257,6 +258,7 @@ namespace AndersCraftStudio
                     }
                     break;
                 case ("gameobjects", "Basics"):
+                    yield return Preview3D("3D preview", v => v.Load(S.Models.GameObject(CurrentLong(D.Fields.First(f => f.Column == "displayId")))));
                     yield return ListCard("Quests it starts", "gameobject_queststarter: quests offered by clicking this object. Double-click to open.",
                         $"SELECT q.ID, q.LogTitle, q.QuestLevel FROM gameobject_queststarter s JOIN quest_template q ON q.ID = s.quest WHERE s.id = {Id} ORDER BY q.ID", open: ("quest", "ID"));
                     yield return ListCard("Quests it accepts", "gameobject_questender: quests handed in at this object.",
@@ -296,6 +298,10 @@ namespace AndersCraftStudio
                     yield return GoQuestItems();
                     break;
                 }
+                case ("items", "Display"):
+                    yield return Preview3D("3D preview", v => v.Load(S.Models.Item(CurrentLong(D.Fields.First(f => f.Column == "displayid")), CurrentLong(D.Fields.First(f => f.Column == "InventoryType")))),
+                        "Weapons, shields, helmets, shoulders and other items with a model of their own. Body armour has no model: it's drawn onto the character.");
+                    break;
                 case ("items", "Contains & enchants"):
                 {
                     long rp = LongVal("RandomProperty"), rs = LongVal("RandomSuffix");
@@ -355,6 +361,48 @@ namespace AndersCraftStudio
         }
 
         static string L(long v) => v.ToString(CultureInfo.InvariantCulture);
+
+        /// <summary>A card with the 3D viewer, filled by <paramref name="load"/> (read-only).</summary>
+        UIElement Preview3D(string title, Action<ModelViewer> load, string help = null, UIElement extra = null)
+        {
+            var v = new ModelViewer(S.Models);
+            var sp = new StackPanel();
+            var head = U.Row(U.T(title, 15, "Text", FontWeights.SemiBold, false), new Border { Width = 10 }, U.Pill("read-only", "OkBg", "Ok"));
+            if (extra != null) { head.Children.Add(new Border { Width = 12 }); head.Children.Add(extra); }
+            sp.Children.Add(head);
+            if (help != null) sp.Children.Add(U.T(help, 12.5, "Muted", null, true, new Thickness(0, 4, 0, 8)));
+            else sp.Children.Add(new Border { Height = 8 });
+            sp.Children.Add(v.View);
+            lastViewer = v;
+            try { load(v); } catch (Exception ex) { v.ShowMessage(ex.Message); }
+            return U.Card(sp, new Thickness(18, 14, 18, 14), new Thickness(0, 0, 0, 12));
+        }
+
+        public ModelViewer lastViewer;
+
+        UIElement CreaturePreview()
+        {
+            var displays = new List<long>();
+            try
+            {
+                using var db = S.OpenRead(S.Profile.WorldDb);
+                foreach (var r in db.Query($"SELECT CreatureDisplayID FROM creature_template_model WHERE CreatureID = {Id} ORDER BY Idx", 10).Rows) displays.Add(Convert.ToInt64(r[0], CultureInfo.InvariantCulture));
+            }
+            catch { }
+            foreach (var c in new[] { "modelid1", "modelid2", "modelid3", "modelid4" }) { var x = LongVal(c); if (x > 0 && !displays.Contains(x)) displays.Add(x); }   // older databases
+            var pick = new ComboBox { Width = 180 };
+            foreach (var d in displays) pick.Items.Add(new ComboBoxItem { Content = $"Display {d}", Tag = d });
+            ModelViewer viewer = null;
+            pick.SelectionChanged += (s, e) => { if (viewer != null && pick.SelectedItem is ComboBoxItem ci) viewer.Load(S.Models.Creature((long)ci.Tag)); };
+            var card = Preview3D("3D preview", v =>
+            {
+                viewer = v;
+                if (displays.Count == 0) { v.ShowMessage("This creature has no model yet (add one to the Models list above)."); return; }
+                v.Load(S.Models.Creature(displays[0]));
+            }, displays.Count > 1 ? "This creature has several models; each spawn picks one. Choose which to look at." : null, displays.Count > 1 ? pick : null);
+            if (displays.Count > 1) pick.SelectedIndex = 0;
+            return card;
+        }
 
         /// <summary>Next free small index in a list (Idx, Index, ID…), from the rows on screen.</summary>
         static string NextIndex(RowListEditor ed, string col)

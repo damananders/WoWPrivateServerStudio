@@ -89,7 +89,8 @@ namespace AndersCraftStudio
             };
             MainWindow.Fresh = fresh;
             MainWindow.OnlyM7 = args.Contains("--m7");
-            MainWindow.OnlyM8 = args.Contains("--m8");      // screenshots only: just the 0.7 screens
+            MainWindow.OnlyM8 = args.Contains("--m8");
+            MainWindow.OnlyM9 = args.Contains("--m9");      // screenshots only: just the 0.7 screens
             var w = new MainWindow(state, screens);
             var code = Current.Run(w);
             if (screens != null)
@@ -143,6 +144,10 @@ namespace AndersCraftStudio
         public int StagedCount => Changes.Pending.Changes.Count;
 
         /// <summary>Opens a read-only connection to one of the profile's databases using studio_ro.</summary>
+        ModelLibrary models;
+        /// <summary>Models and textures for the 3D viewer (client archives + patch work folders, read-only).</summary>
+        public ModelLibrary Models => models ??= new ModelLibrary(this);
+
         public ReadOnlyDb OpenRead(string database)
         {
             if (Profile == null) throw new InvalidOperationException("No server profile yet. Run setup first.");

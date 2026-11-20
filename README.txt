@@ -1,8 +1,15 @@
-AndersCraft Studio 0.8 (full Keira3 + HeidiSQL coverage)
-=========================================================
+AndersCraft Studio 0.9 (3D model viewer)
+========================================
 End-user README: README.md. Licence: LICENSE (MIT). Changes: RELEASE_NOTES.md. Build: CONTRIBUTING.md.
 Feature parity with HeidiSQL / Keira3 / WDBX / MPQ tools / spell editors: PARITY_AUDIT.md.
-Distributable: dist\AndersCraftStudio-0.8.zip (self-contained) and dist\AndersCraftStudio-0.8-framework-dependent.zip.
+Distributable: dist\AndersCraftStudio-0.9.zip (self-contained) and dist\AndersCraftStudio-0.9-framework-dependent.zip.
+
+VERSION 0.9
+  - Core\M2.cs: clean-room 3.3.5a M2 + .skin reader, meshes, bones, keyframe tracks, .anim files, skinning, sphere-mapped layers.
+  - App\ModelViewer.cs: WPF Viewport3D viewer + ModelLibrary (client archives + patch work folders, display DBCs).
+  - Keyless tables: RowListEditor.MatchAllColumns, SqlGen.WhereKey matches fractions with ABS(...) < 0.0005.
+  - DBC tabs: Core\OpenTabs.cs, DbcPage keeps per-table state.
+  - Screens: --screens <dir> [--public] --m9 renders just the 0.9 screens.
 
 VERSION 0.8
   - Admin console (AdminPage.cs, Core\Admin.cs): admin login per session, never saved; direct SQL, databases/tables/indexes/views,

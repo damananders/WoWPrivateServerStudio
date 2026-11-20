@@ -98,6 +98,7 @@ namespace AndersCraftStudio.Core
         /// <summary>Canonical text of one field, used by the grid, CSV and staged changes. Numbers keep their exact bits.</summary>
         public string FieldText(DbcRow r, int field)
         {
+            if (field < 0 || field >= Layout.FieldIsString.Length || field >= r.V.Length) return "";   // a row of another table (grid switching tabs)
             if (Layout.FieldIsString[field]) return r.S[field] ?? "";
             var c = Layout.ColumnOf(field);
             uint v = r.V[field];

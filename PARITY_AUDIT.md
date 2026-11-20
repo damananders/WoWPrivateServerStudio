@@ -4,7 +4,7 @@ What the tools AndersCraft Studio replaces can do, and where Studio stands. Stud
 **read-only by default, stage → review → apply with a backup, never overwrite originals**. Features that would need a
 live-write shortcut are listed as *out of scope by design*.
 
-Legend: ✅ has it · ➕ added in 0.6 · 🆕 added in 0.7 · 🔷 added in 0.8 · 🟡 partly / different way · ❌ missing · ⛔ out of scope by design
+Legend: ✅ has it · ➕ added in 0.6 · 🆕 added in 0.7 · 🔷 added in 0.8 · 🟢 added in 0.9 · 🟡 partly / different way · ❌ missing · ⛔ out of scope by design
 
 **Status in 0.8: HeidiSQL and Keira3 are fully covered.** A new user can install Studio on a fresh MySQL server and set up
 AzerothCore's databases, Studio's own accounts and the sandbox without any other tool.
@@ -66,7 +66,7 @@ AzerothCore's databases, Studio's own accounts and the sandbox without any other
 | game_tele | 🔷 | Form editor (*Teleport locations*). |
 | item_enchantment_template; item / disenchant / prospecting / milling loot | 🔷 | Item › *Contains & enchants*: random enchant list, and the loot lists with links to the Loot editor. |
 | gameobject_questitem, gameobject_addon | 🔷 | Editable lists on the game object *Loot* and *Spawns* tabs. |
-| Pools, spell_area, dungeon access, event/spell/waypoint scripts | 🔷 | World tables (pools and dungeon requirements editable; event_scripts and spell_scripts have no primary key, so they are shown and changed through SQL). |
+| Pools, spell_area, dungeon access, event/spell/waypoint scripts | 🔷 🟢 | World tables, all editable. event_scripts and spell_scripts have no primary key, so 0.9 finds each row by all of its values (decimals to 0.0005); Apply refuses if a match isn't exactly one row. |
 | npc_text | 🆕 | Form editor: 8 variants with male/female text, chance, language, broadcast text and 3 emotes each, a *How it reads* preview, and who uses it (gossip menus, creatures, objects). Gossip menus link to it. |
 | page_text | 🆕 | Form editor with next-page chaining, the whole book read in order (loops and missing pages flagged), and who uses it (items, readable objects, earlier pages). Items link to their page. |
 
@@ -83,7 +83,7 @@ AzerothCore's databases, Studio's own accounts and the sandbox without any other
 | Mass edit | ➕ | *Bulk edit*: set / add / multiply a column on the filtered rows. |
 | Compare two files | ➕ | *Compare…*: server ↔ client side by side, field by field. |
 | Create a new DBC file | 🟡 | *Save copy as…* writes any table (with new rows) to a new file; the 3.3.5a client can't load new DBC types anyway. |
-| Several files open at once | 🟡 | One grid at a time with instant switching; edits per file stay staged. |
+| Several files open at once | 🟢 | Every table you open gets a tab (up to 8); unstaged edits, filter and page stay with each tab while you switch. |
 | DB2 / newer formats | ⛔ | Not used by 3.3.5a. |
 
 ## MPQ tools
@@ -105,7 +105,8 @@ AzerothCore's databases, Studio's own accounts and the sandbox without any other
 | Edit all fields | ✅ | 10-tab form for the meaningful fields; every column in DBC tables. |
 | spell_dbc (server side) | ✅ | |
 | Icon | ✅ ➕ | Icon picker from the client's BLPs; 0.6 adds importing your own icons. |
-| Visuals | 🟡 | SpellVisual rows by ID and kit numbers; no 3D preview. |
+| Visuals | 🟡 | SpellVisual rows by ID and kit numbers. Spell effect particles aren't drawn (see Level 3 below). |
+| 3D model preview | 🟢 | Built-in viewer: creatures, game objects, items and imported models, textured, with every animation (see below). |
 | Mass / batch edit | ➕ | *Batch edit…* → DBC tables bulk edit / find & replace on filtered spells. |
 | Export / import a spell to a file | ➕ | `.studio-spell.json` with the related range/cast/duration/radius/icon/visual rows. |
 | Live tooltip | ✅ | Studio extra. |
@@ -126,10 +127,22 @@ with ItemDisplayInfo wiring.
 
 **Closed in 0.8:** every remaining Keira3 table (above, 🔷) and every HeidiSQL feature, through the Admin console.
 
-**Still not covered, on purpose or because it can't be done safely:**
-* No 3D model or spell visual preview (Studio shows the IDs and file names); body armour textures aren't covered by item
-  model import; one DBC grid at a time; no DB2 formats (not used by 3.3.5a).
-* event_scripts and spell_scripts have no primary key, so their rows can't be edited one by one in a list; change them
-  with SQL (SQL browser › *Stage .sql script*, or the Admin console).
+## 3D model viewer (0.9)
+
+| What | Status |
+|---|---|
+| Creatures (Basics tab), game objects (Basics), items (Display), Asset import previews | 🟢 Textured, lit, turn / move / zoom, wireframe, reset view; several models per creature selectable. |
+| Animations | 🟢 Every sequence of the model by name (AnimationData.dbc), play / pause / speed; keyframes from the .m2 and its .anim files; rest pose as fallback. |
+| Reflective metal, glows | 🟢 Sphere-mapped reflection layers and additive glows approximated. |
+| Character-style NPCs (player bodies) | 🟡 Shown as the bare body with default geosets; face, hair and clothing textures are Level 3. |
+| WMO buildings (big game objects) | ❌ Not M2 models; the viewer says so. |
+
+**Closed in 0.9:** 3D viewer with animations; script tables without a key; several DBCs open side by side.
+
+**Level 3 — the only things left (not started):**
+* Spell visual effects: particle and ribbon emitters (the effect models' meshes would show, but not their particles).
+* Characters wearing armour: player body + hair/face + geosets + blended armour textures (CharSections, ItemDisplayInfo textures).
+* Body-armour texture import (Item\TextureComponents) — goes with the item above.
+* DB2 files: not used by 3.3.5a, so not needed.
 * Admin console actions run directly. Account, permission and connection changes can't be undone with a click; deleted
   tables and rows come back only from a backup (Studio offers one first).

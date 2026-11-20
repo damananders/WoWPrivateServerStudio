@@ -153,7 +153,14 @@ namespace AndersCraftStudio.Core
         public static string WhereKey(IList<KeyPart> key)
         {
             if (key == null || key.Count == 0) throw new ArgumentException("A primary key is required.");
-            return string.Join(" AND ", key.Select(k => k.Value == "NULL" ? Ident(k.Column) + " IS NULL" : Ident(k.Column) + " = " + k.Value));
+            return string.Join(" AND ", key.Select(k => k.Value == "NULL" ? Ident(k.Column) + " IS NULL" : IsFraction(k.Value) ? "ABS(" + Ident(k.Column) + " - " + k.Value + ") < 0.0005" : Ident(k.Column) + " = " + k.Value));
+        }
+
+        /// <summary>A number literal with a fraction or exponent: FLOAT columns can't be matched with = (0.1 isn't stored exactly).</summary>
+        public static bool IsFraction(string lit)
+        {
+            if (string.IsNullOrEmpty(lit) || lit[0] == '\'' || lit[0] == 'X') return false;
+            return (lit.Contains('.') || lit.Contains('E') || lit.Contains('e')) && double.TryParse(lit, NumberStyles.Float, CultureInfo.InvariantCulture, out _);
         }
 
         public static string UpdateRow(string table, IList<KeyPart> key, IEnumerable<(string column, string literal)> set)

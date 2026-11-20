@@ -135,6 +135,83 @@ namespace AndersCraftStudio
             await Milestone6(w);
             await Milestone7(w);
             await Milestone8(w);
+            await Milestone9(w);
+        }
+
+        public static async Task RunM9(MainWindow w, string dir)
+        {
+            Directory.CreateDirectory(dir);
+            await Milestone9(w);
+        }
+
+        static async Task Milestone9(MainWindow w)
+        {
+            var S = w.S;
+            string Q(string sql) { try { using var db = S.OpenRead(S.Profile.WorldDb); return db.Scalar(sql); } catch { return null; } }
+            async Task<EntityEditorPage> Open(string ws, long id, string tab)
+            {
+                EntityEditorPage pg = null;
+                w.Navigate(ws, p => pg = (EntityEditorPage)p);
+                pg.Open(id);
+                if (tab != null) pg.ShowTab(tab);
+                w.HideToast();
+                await Wait(1500);
+                return pg;
+            }
+            async Task Shot(EntityEditorPage pg, string file, int anim = -1, double frame = -1, bool wire = false)
+            {
+                var v = pg.lastViewer;
+                if (v == null) return;
+                if (anim >= 0) { v.SelectAnimation(anim); await Wait(300); }
+                if (frame >= 0) v.ShowFrame(frame);
+                if (wire) v.ScreensWire(true);
+                ((FrameworkElement)v.View).BringIntoView(); await Wait(800);
+                await w.Snap(file);
+                if (wire) v.ScreensWire(false);
+            }
+            var wolf = await Open("creatures", 69, "Basics");                 // Diseased Timber Wolf
+            await Shot(wolf, "110_viewer_creature_wolf.png", 4, 400);
+            await Shot(wolf, "111_viewer_wireframe.png", 0, 200, true);
+            var sword = await Open("items", 25, "Display");                    // Worn Shortsword
+            await Shot(sword, "112_viewer_item_sword.png");
+            if (long.TryParse(Q("SELECT g.entry FROM gameobject_template g WHERE g.type = 3 AND g.name LIKE '%Chest%' AND g.displayId IN (10, 259, 75, 2450) ORDER BY g.entry LIMIT 1") ?? Q("SELECT entry FROM gameobject_template WHERE type = 3 AND name LIKE '%Chest%' ORDER BY entry LIMIT 1"), out var chest))
+            {
+                var go = await Open("gameobjects", chest, "Basics");
+                await Shot(go, "113_viewer_gameobject_chest.png");
+            }
+            var boss = await Open("creatures", 448, "Basics");                 // Hogger
+            await Shot(boss, "114_viewer_creature_hogger.png", 16, 300);
+            // asset import: preview a model from disk (the wolf, copied out of the client into a temp folder)
+            var tmp = Path.Combine(Path.GetTempPath(), "studio_screens_model");
+            Directory.CreateDirectory(tmp);
+            foreach (var f in new[] { @"Creature\Wolf\Wolf.m2", @"Creature\Wolf\Wolf00.skin" }.Concat((S.Models.Creature(long.TryParse(Q("SELECT CreatureDisplayID FROM creature_template_model WHERE CreatureID = 69 LIMIT 1"), out var wd) ? wd : 0).CreatureSkins ?? new string[0]).Where(x => !string.IsNullOrEmpty(x)).Select(x => @"Creature\Wolf\" + x + ".blp")))
+            {
+                var b = S.Models.Read(f);
+                if (b != null) File.WriteAllBytes(Path.Combine(tmp, Path.GetFileName(f)), b);
+            }
+            if (File.Exists(Path.Combine(tmp, "Wolf.m2")))
+            {
+                AssetsPage ap = null;
+                w.Navigate("assets", p => ap = (AssetsPage)p);
+                ap.ScreensKind("model"); await Wait(300);
+                ap.UseFile(Path.Combine(tmp, "Wolf.m2")); await Wait(1500);
+                await w.Snap("115_viewer_asset_import.png");
+            }
+            // several DBCs open as tabs
+            DbcPage dp = null;
+            w.Navigate("dbc", p => dp = (DbcPage)p);
+            foreach (var f in new[] { "Spell.dbc", "Map.dbc", "Faction.dbc", "ItemDisplayInfo.dbc" }) { dp.OpenTable(f); await Wait(500); }
+            dp.OpenTable("Map.dbc"); await Wait(600);
+            await w.Snap("116_dbc_tabs.png");
+            // script tables edited by matching every column
+            var sid = Q("SELECT id FROM event_scripts GROUP BY id HAVING COUNT(*) BETWEEN 2 AND 6 LIMIT 1");
+            if (sid != null)
+            {
+                WorldTablesPage wt = null;
+                w.Navigate("world", p => wt = (WorldTablesPage)p);
+                wt.ScreensLoad("scripts", sid); await Wait(900);
+                await w.Snap("117_world_scripts_keyless.png");
+            }
         }
 
         public static async Task RunM8(MainWindow w, string dir)

@@ -30,6 +30,9 @@ namespace AndersCraftStudio
         public List<UIElement> ExtraButtons { get; } = new List<UIElement>();
 
         public List<string> Key { get; private set; } = new List<string>();
+        /// <summary>For tables without a primary key (event_scripts, spell_scripts): rows are matched on every column.</summary>
+        public bool MatchAllColumns { get; set; }
+        bool keyless;
         public List<string> Columns { get; private set; } = new List<string>();
         Dictionary<string, Type> types = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
         Dictionary<string, bool> nullable = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
@@ -82,6 +85,8 @@ namespace AndersCraftStudio
                 var order = string.Join(", ", new[] { orderBy }.Where(o => !string.IsNullOrEmpty(o)).Concat(Key.Select(SqlGen.Ident)));
                 var dt = db.QueryTable($"SELECT * FROM {SqlGen.Ident(Table)} WHERE {where}" + (order.Length > 0 ? " ORDER BY " + order : "") + $" LIMIT {PageSize} OFFSET {(long)page * PageSize}", PageSize, out _);
                 Columns = dt.Columns.Cast<DataColumn>().Select(c => c.ColumnName).ToList();
+                keyless = Key.Count == 0 && MatchAllColumns;
+                if (keyless) Key = Columns.ToList();
                 types = dt.Columns.Cast<DataColumn>().ToDictionary(c => c.ColumnName, c => c.DataType, StringComparer.OrdinalIgnoreCase);
                 nullable = dt.Columns.Cast<DataColumn>().ToDictionary(c => c.ColumnName, c => c.ExtendedProperties["nullable"] is bool b ? b : true, StringComparer.OrdinalIgnoreCase);
                 var dbRows = dt.Rows.Cast<DataRow>().Select(r => RowValues.FromObjects(Columns, r.ItemArray)).ToList();
@@ -176,6 +181,7 @@ namespace AndersCraftStudio
             if (!string.IsNullOrEmpty(help)) root.Children.Add(U.T(help, 12.5, "Muted", null, true, new Thickness(0, 4, 0, 10)));
             if (error != null) { root.Children.Add(U.Callout("Not available on this server: " + error, "warn")); return; }
             if (Key.Count == 0) { root.Children.Add(U.Callout($"{Table} has no primary key, so Studio can't edit its rows safely. Use the SQL browser.", "warn")); }
+            if (keyless) root.Children.Add(U.Callout($"{Table} has no primary key, so Studio finds each row by all of its values (numbers with decimals match to 0.0005). Changing a row is staged as remove + add. If two rows are exactly the same, Apply stops rather than guess which one you meant.", "info", "Rows matched on every column"));
             root.Children.Add(grid);
             grid.IsReadOnly = Key.Count == 0;
             var add = U.Btn("Add row", AddRow, null, "Adds a row that belongs to this list. Fill in the cells, then Stage.");

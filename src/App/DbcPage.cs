@@ -52,6 +52,12 @@ namespace AndersCraftStudio
         int PageSize => Math.Max(50, S.Profiles.Settings.PageSize);
         bool dirty;
         string stageProblem;
+
+        /// <summary>One open table's state while another tab is shown (unstaged edits stay).</summary>
+        sealed class TabState { public DbcTable B, Wk; public bool Dirty; public string Filter, Problem, Source; public int Page; }
+        readonly OpenTabs<TabState> tabs = new OpenTabs<TabState>(8, t => t != null && t.Dirty);
+        TabState Snapshot() => new TabState { B = baseTable, Wk = working, Dirty = dirty, Filter = filterBox.Text, Problem = stageProblem, Source = source, Page = page };
+        public IReadOnlyList<string> OpenFiles => tabs.Names;
         HashSet<uint> diffKeys; string diffNote;
         readonly Dictionary<string, Dictionary<uint, string>> linkNames = new Dictionary<string, Dictionary<uint, string>>(StringComparer.OrdinalIgnoreCase);
         readonly Refs refs;
@@ -112,6 +118,7 @@ namespace AndersCraftStudio
             U.OnKey(view, Key.PageDown, ModifierKeys.Alt, () => GoPage(page + 1));
             U.OnKey(view, Key.PageUp, ModifierKeys.Alt, () => GoPage(page - 1));
             U.OnKey(view, Key.D, ModifierKeys.Control, DuplicateRow);
+            S.ChangesChanged += () => tabs.DropClean(n => string.Equals(n, file, StringComparison.OrdinalIgnoreCase));   // other tabs reload with the new changeset
         }
 
         // ================================================================ sources
@@ -205,8 +212,9 @@ namespace AndersCraftStudio
 
         void Open(string f, bool force = false, bool keepPage = false)
         {
-            if (!force && dirty && f != file && MessageBox.Show(w, $"{file} has edits that aren't staged yet. Open another table and drop them?", "Unstaged edits", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
-            { FillTableList(); return; }
+            // keep the table we're leaving open in its tab (with any unstaged edits)
+            if (file != null && working != null && !string.Equals(f, file, StringComparison.OrdinalIgnoreCase)) tabs.Put(file, Snapshot());
+            if (!force && !string.Equals(f, file, StringComparison.OrdinalIgnoreCase) && tabs.TryGet(f, out var saved) && saved != null && saved.Source == source) { Restore(f, saved); return; }
             var src = Source;
             if (src == null) return;
             byte[] bytes;
@@ -234,12 +242,61 @@ namespace AndersCraftStudio
             ApplyFilter();
             if (keepPage) GoPage(keep);
             FillTableList();
+            tabs.Put(f, Snapshot());
+            BuildMain();
+        }
+
+        void Restore(string f, TabState st)
+        {
+            baseTable = st.B; working = st.Wk; dirty = st.Dirty; stageProblem = st.Problem;
+            file = f; diffKeys = null; onlyDiff.IsChecked = false; linkNames.Clear();
+            filterBox.Text = st.Filter ?? ""; findBox.Text = "";
+            filtered = Enumerable.Range(0, working.Rows.Count).ToList(); page = 0;
+            tabs.Put(f, st);
+            BuildMain();
+            ApplyFilter();
+            GoPage(st.Page);
+            FillTableList();
+        }
+
+        void CloseTab(string f)
+        {
+            bool isCurrent = string.Equals(f, file, StringComparison.OrdinalIgnoreCase);
+            bool d = isCurrent ? dirty : tabs.TryGet(f, out var st) && st != null && st.Dirty;
+            if (d && MessageBox.Show(w, $"{f} has edits that aren't staged yet. Close it and drop them?", "Unstaged edits", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            if (isCurrent) { file = null; working = baseTable = null; dirty = false; }
+            var next = tabs.Close(f);
+            if (isCurrent)
+            {
+                if (next != null) Open(next);
+                else main.Content = U.Card(U.Stack(U.H2("Pick a table"), U.T("Every table you open gets a tab, so you can switch between several.", 13.5, "Muted")), new Thickness(28), new Thickness(0));
+            }
+            else BuildMain();
+        }
+
+        UIElement TabStrip()
+        {
+            var wrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
+            foreach (var n in tabs.Names.ToList())
+            {
+                bool cur = string.Equals(n, file, StringComparison.OrdinalIgnoreCase);
+                bool d = cur ? dirty : tabs.TryGet(n, out var st) && st != null && st.Dirty;
+                var name = n;
+                var label = new Button { Content = Path.GetFileNameWithoutExtension(n) + (d ? " •" : ""), Style = U.S(cur ? "BtnPrimary" : "BtnGhost"), Padding = new Thickness(10, 4, 6, 4), ToolTip = n + (d ? " — has unstaged edits" : "") };
+                label.Click += (s, e) => { if (!cur) Open(name); };
+                var x = new Button { Content = "×", Style = U.S("BtnGhost"), Padding = new Thickness(6, 4, 8, 4), ToolTip = "Close this tab" };
+                x.Click += (s, e) => CloseTab(name);
+                var pair = U.Row(label, x); pair.Margin = new Thickness(0, 0, 8, 4);
+                wrap.Children.Add(pair);
+            }
+            return wrap;
         }
 
         void BuildMain()
         {
             var l = baseTable.Layout;
             header.Children.Clear();
+            if (tabs.Names.Count > 1) header.Children.Add(TabStrip());
             var title = U.Row(U.T(file, 20, "Text", FontWeights.SemiBold, false));
             title.Children.Add(new Border { Width = 10 });
             title.Children.Add(U.Pill($"{baseTable.Rows.Count:N0} rows"));

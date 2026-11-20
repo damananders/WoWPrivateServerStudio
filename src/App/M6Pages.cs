@@ -348,7 +348,7 @@ SOFTWARE.";
             new Kind { Key = "dungeon", Title = "Dungeon requirements", What = "Level, item level and keys/quests needed to enter.",
                 Explain = "dungeon_access_template sets per map and difficulty the minimum/maximum level and average item level. dungeon_access_requirements adds items, quests or achievements (requirement_type 0 achievement, 1 quest, 2 item) a player (or only the leader) needs, with the message shown when it's missing." },
             new Kind { Key = "scripts", Title = "Script tables", What = "event_scripts, spell_scripts and waypoint_scripts.",
-                Explain = "Old-style command scripts: each row is a command (command = what, delay = seconds after the start, datalong/dataint/x y z o = its values). event_scripts runs on game events (from objects, spells and transports), spell_scripts on spell effects, waypoint_scripts at waypoints. event_scripts and spell_scripts have no primary key, so rows can be read here and changed with Stage .sql script in the SQL browser." },
+                Explain = "Old-style command scripts: each row is a command (command = what, delay = seconds after the start, datalong/dataint/x y z o = its values). event_scripts runs on game events (from objects, spells and transports), spell_scripts on spell effects, waypoint_scripts at waypoints. event_scripts and spell_scripts have no primary key, so Studio finds each row by all of its values." },
         };
 
         // inputs
@@ -428,6 +428,14 @@ SOFTWARE.";
         }
 
         static string L(long v) => v.ToString(CultureInfo.InvariantCulture);
+
+        RowListEditor ListKeyless(string title, string help, string table, string where, Dictionary<string, string> fixedV, string order)
+        {
+            var ed = new RowListEditor(w, title, help, table, where, fixedV, order, null, (sp, id) => refs.ByKind(sp, id)) { MatchAllColumns = true };
+            ed.Load();
+            editors.Add(ed);
+            return ed;
+        }
 
         public void Load()
         {
@@ -567,12 +575,12 @@ SOFTWARE.";
                         if (!Num(k1, out var sid)) throw new FormatException("Script ID: enter a number.");
                         foreach (var (table, help) in new[]
                         {
-                            ("event_scripts", "Commands run for event " + sid + " (no primary key: read here, change with Stage .sql script)."),
-                            ("spell_scripts", "Commands run for spell " + sid + " (no primary key: read here, change with Stage .sql script)."),
+                            ("event_scripts", "Commands run for event " + sid + "."),
+                            ("spell_scripts", "Commands run for spell " + sid + " (effIndex = which spell effect)."),
                             ("waypoint_scripts", "Commands run at waypoints with action " + sid + " (guid is the key)."),
                         })
                         {
-                            var ed = List(table, help, table, $"`id` = {L(sid)}", new Dictionary<string, string> { ["id"] = L(sid) }, "delay");
+                            var ed = ListKeyless(table, help, table, $"`id` = {L(sid)}", new Dictionary<string, string> { ["id"] = L(sid) }, "delay");
                             stack.Children.Add(U.Card(ed.View, new Thickness(18, 14, 18, 12), new Thickness(0, 0, 0, 12)));
                         }
                         break;

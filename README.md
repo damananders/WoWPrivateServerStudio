@@ -15,8 +15,9 @@ SQL and hex editors — and it is built so that **nothing reaches your database 
 | ![Conditions](docs/screens/conditions.png) | ![Asset import](docs/screens/asset-import.png) | ![Changes](docs/screens/changes.png) |
 | **Game objects** | **NPC text** | **CSV import** |
 | ![Game objects](docs/screens/game-objects.png) | ![NPC text](docs/screens/npc-text.png) | ![CSV import](docs/screens/csv-import.png) |
-| **Admin console** | **Look & movement** | |
-| ![Admin console](docs/screens/admin-console.png) | ![Look & movement](docs/screens/creature-look-movement.png) | |
+| **3D model viewer** | Creatures, game objects, items and models you import, textured, with every animation (walk, attack, cast…), turn / move / zoom and wireframe. Read straight from your client's archives. |
+| **Admin console** | **Look & movement** | **3D viewer** |
+| ![Admin console](docs/screens/admin-console.png) | ![Look & movement](docs/screens/creature-look-movement.png) | ![3D viewer](docs/screens/model-viewer.png) |
 
 ## What you can do
 
@@ -54,7 +55,7 @@ SQL and hex editors — and it is built so that **nothing reaches your database 
 * MySQL's `mysqldump.exe` (comes with MySQL Server) for the backup before each Apply. Studio finds it in the usual place.
 * For the Admin console: a MySQL administrator login (usually root). It's only needed for admin work and never saved.
 * Optional: your 3.3.5a game client folder (icons, client DBCs, patches).
-* Download **AndersCraftStudio-0.8.zip** (self-contained, nothing else to install). The small framework-dependent build
+* Download **AndersCraftStudio-0.9.zip** (self-contained, nothing else to install). The small framework-dependent build
   needs the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0).
 
 ## Getting started
@@ -80,7 +81,10 @@ built patches in `Documents\AndersCraft Studio` (changeable in Settings).
 
 * The **Admin console runs statements directly**, like any MySQL client — that's its job. Content editing belongs in the
   editors, which stage and back up every change. Account, permission and connection changes can't be undone with a click.
-* event_scripts and spell_scripts have no primary key, so World tables shows them read-only; change them with SQL.
+* event_scripts and spell_scripts have no primary key: Studio finds each row by all of its values, and Apply refuses if a
+  match isn't exactly one row (two identical rows).
+* The 3D viewer needs your client folder (setup step 4). It doesn't draw spell particle effects, player-style NPCs' faces,
+  hair and clothes, or WMO buildings.
 * **Windows SmartScreen** may say *Windows protected your PC* the first time, because the exe isn't code-signed.
   Click **More info** › **Run anyway**. The source is in this repository if you'd rather build it yourself.
 * Apply, Roll back, patch Install/Uninstall and the DBC outputs are covered by automated tests against fakes and temporary

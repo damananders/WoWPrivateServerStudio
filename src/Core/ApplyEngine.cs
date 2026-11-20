@@ -53,7 +53,7 @@ namespace AndersCraftStudio.Core
                         case ChangeKind.Update:
                         {
                             var cur = db.Query(SqlGen.SelectRow(c.Table, c.Key, c.Fields.Select(f => f.Name), true), 2);
-                            if (cur.Rows.Count != 1) throw new ApplyConflict($"{c.Table} ({c.KeyText}) no longer exists.");
+                            if (cur.Rows.Count != 1) throw new ApplyConflict($"{c.Table} ({c.KeyText}) {(cur.Rows.Count == 0 ? "no longer exists" : "matches more than one row, so Studio won't guess which to change")}.");
                             foreach (var f in c.Fields)
                             {
                                 var now = SqlGen.Literal(cur.Rows[0][cur.ColumnIndex(f.Name)]);
@@ -65,7 +65,7 @@ namespace AndersCraftStudio.Core
                         case ChangeKind.Delete:
                         {
                             var cur = db.Query(SqlGen.SelectRow(c.Table, c.Key, c.Fields.Select(f => f.Name), true), 2);
-                            if (cur.Rows.Count != 1) throw new ApplyConflict($"{c.Table} ({c.KeyText}) no longer exists.");
+                            if (cur.Rows.Count != 1) throw new ApplyConflict($"{c.Table} ({c.KeyText}) {(cur.Rows.Count == 0 ? "no longer exists" : "matches more than one row, so Studio won't guess which to change")}.");
                             foreach (var f in c.Fields)
                             {
                                 var now = SqlGen.Literal(cur.Rows[0][cur.ColumnIndex(f.Name)]);
@@ -130,7 +130,7 @@ namespace AndersCraftStudio.Core
                         case ChangeKind.Update:
                         {
                             var cur = db.Query(SqlGen.SelectRow(c.Table, c.Key, c.Fields.Select(f => f.Name), true), 2);
-                            if (cur.Rows.Count != 1) throw new ApplyConflict($"{c.Table} ({c.KeyText}) no longer exists.");
+                            if (cur.Rows.Count != 1) throw new ApplyConflict($"{c.Table} ({c.KeyText}) {(cur.Rows.Count == 0 ? "no longer exists" : "matches more than one row, so Studio won't guess which to change")}.");
                             foreach (var f in c.Fields)
                             {
                                 var now = SqlGen.Literal(cur.Rows[0][cur.ColumnIndex(f.Name)]);
