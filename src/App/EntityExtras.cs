@@ -49,6 +49,22 @@ namespace AndersCraftStudio
                     var slot = EntityDefs.InventoryType.TryGetValue(LongVal("InventoryType"), out var s) ? s : "";
                     return $"{q} · {slot} · item level {LongVal("ItemLevel")}" + (LongVal("RequiredLevel") > 0 ? $" · requires level {LongVal("RequiredLevel")}" : "");
                 }
+                case "gameobjects":
+                {
+                    var t = LongVal("type");
+                    var size = Val("size") is float f && Math.Abs(f - 1f) > 0.001 ? $" · size {f.ToString("0.##", CultureInfo.InvariantCulture)}" : "";
+                    return $"{GameObjectData.TypeName(t)} (type {t}) · model {LongVal("displayId")}{size}";
+                }
+                case "npctext":
+                {
+                    int n = Enumerable.Range(0, 8).Count(v => !string.IsNullOrEmpty(Convert.ToString(Val($"text{v}_0"))) || !string.IsNullOrEmpty(Convert.ToString(Val($"text{v}_1"))));
+                    return $"{n} variant(s) with text · what an NPC says when its gossip window opens";
+                }
+                case "pagetext":
+                {
+                    var next = LongVal("NextPageID");
+                    return next != 0 ? $"Continues on page {next}" : "Last page of its book";
+                }
                 default:
                     return $"Level {LongVal("QuestLevel")} · minimum {LongVal("MinLevel")}" + (EntityDefs.QuestInfo.TryGetValue(LongVal("QuestInfoID"), out var qi) && LongVal("QuestInfoID") != 0 ? " · " + qi : "");
             }
@@ -63,6 +79,12 @@ namespace AndersCraftStudio
             ("creatures", "SmartAI") => "Its SmartAI script rows; opens the SmartAI builder.",
             ("quests", "Starters/enders") => "Which NPCs and objects give and accept this quest.",
             ("quests", "Chain") => "Quests before and after this one.",
+            ("gameobjects", "Type data") => "Data0-Data23, labelled for this object's type.",
+            ("gameobjects", "Spawns") => "Where this object is placed in the world (editable, staged).",
+            ("gameobjects", "Loot") => "What a chest or fishing pool contains; opens the Loot editor.",
+            ("gameobjects", "Extras") => "Faction, flags and money (gameobject_template_addon).",
+            ("npctext", "Used by") => "Gossip menus, creatures and objects that show this text.",
+            ("pagetext", "Used by") => "Items, objects and pages that lead to this page.",
             _ => t + " fields",
         };
 
@@ -79,6 +101,24 @@ namespace AndersCraftStudio
                 case "items":
                     yield return Link("Dropped by ›", "Creatures whose loot includes it.", () => ShowTab("Basics"));
                     yield return Link("Sold by ›", "Vendors that sell it.", () => ShowTab("Prices"));
+                    break;
+                case "gameobjects":
+                {
+                    yield return Link("Type data ›", "Its settings, labelled for its type.", () => ShowTab("Type data"));
+                    yield return Link("Spawns ›", "Where it is placed in the world.", () => ShowTab("Spawns"));
+                    if (GameObjectData.LootSlot(LongVal("type")) >= 0) yield return Link("Loot ›", "What's inside.", () => ShowTab("Loot"));
+                    var goId = id.Value;
+                    yield return Link("SmartAI ›", "Its SmartAI rows (source type 1).", () => w.Navigate("smartai", pg => ((SmartAIPage)pg).Open(1, goId)));
+                    var ps = GameObjectData.PageSlot(LongVal("type"));
+                    if (ps >= 0 && LongVal("Data" + ps) > 0) { var pid = LongVal("Data" + ps); yield return Link("Read the page ›", "Open its page text.", () => w.Navigate("pagetext", pg => ((EntityEditorPage)pg).Open(pid))); }
+                    break;
+                }
+                case "npctext":
+                    yield return Link("Used by ›", "Gossip menus and NPCs that show it.", () => ShowTab("Used by"));
+                    break;
+                case "pagetext":
+                    if (LongVal("NextPageID") > 0) { var np = LongVal("NextPageID"); yield return Link("Next page ›", "Open the next page of the book.", () => w.Navigate("pagetext", pg => ((EntityEditorPage)pg).Open(np))); }
+                    yield return Link("Used by ›", "Items and objects that show it.", () => ShowTab("Used by"));
                     break;
                 case "quests":
                     yield return Link("Givers ›", "Who starts and ends it.", () => ShowTab("Starters/enders"));
@@ -159,12 +199,71 @@ namespace AndersCraftStudio
                     yield return ListCard("Started by NPCs", "creature_queststarter. Double-click to open the NPC.",
                         $"SELECT c.entry, c.name, c.subname FROM creature_queststarter s JOIN creature_template c ON c.entry = s.id WHERE s.quest = {Id}", open: ("creature", "entry"));
                     yield return ListCard("Started by objects", "gameobject_queststarter (wanted posters, books...).",
-                        $"SELECT g.entry, g.name FROM gameobject_queststarter s JOIN gameobject_template g ON g.entry = s.id WHERE s.quest = {Id}");
+                        $"SELECT g.entry, g.name FROM gameobject_queststarter s JOIN gameobject_template g ON g.entry = s.id WHERE s.quest = {Id}", open: ("gameobject", "entry"));
                     yield return ListCard("Handed in to NPCs", "creature_questender.",
                         $"SELECT c.entry, c.name, c.subname FROM creature_questender s JOIN creature_template c ON c.entry = s.id WHERE s.quest = {Id}", open: ("creature", "entry"));
                     yield return ListCard("Handed in to objects", "gameobject_questender.",
-                        $"SELECT g.entry, g.name FROM gameobject_questender s JOIN gameobject_template g ON g.entry = s.id WHERE s.quest = {Id}");
+                        $"SELECT g.entry, g.name FROM gameobject_questender s JOIN gameobject_template g ON g.entry = s.id WHERE s.quest = {Id}", open: ("gameobject", "entry"));
                     yield return SqlLink("creature_queststarter", $"`quest` = {Id}", "Change quest givers in the SQL browser");
+                    break;
+                case ("gameobjects", "Basics"):
+                    yield return ListCard("Quests it starts", "gameobject_queststarter: quests offered by clicking this object. Double-click to open.",
+                        $"SELECT q.ID, q.LogTitle, q.QuestLevel FROM gameobject_queststarter s JOIN quest_template q ON q.ID = s.quest WHERE s.id = {Id} ORDER BY q.ID", open: ("quest", "ID"));
+                    yield return ListCard("Quests it accepts", "gameobject_questender: quests handed in at this object.",
+                        $"SELECT q.ID, q.LogTitle, q.QuestLevel FROM gameobject_questender s JOIN quest_template q ON q.ID = s.quest WHERE s.id = {Id} ORDER BY q.ID", open: ("quest", "ID"));
+                    yield return ListCard("Quests that ask you to use it", "Quests whose objective is this object (a negative RequiredNpcOrGo).",
+                        $"SELECT ID, LogTitle, QuestLevel FROM quest_template WHERE -{Id} IN (RequiredNpcOrGo1, RequiredNpcOrGo2, RequiredNpcOrGo3, RequiredNpcOrGo4) ORDER BY ID LIMIT 200", open: ("quest", "ID"));
+                    break;
+                case ("gameobjects", "Spawns"):
+                    yield return ListEditor("gospawns", () =>
+                    {
+                        var ed = new RowListEditor(w, "Spawns", "Every placed copy of this object. Edit positions, rotation, respawn time (spawntimesecs; negative = stays despawned until a script spawns it) and state here. Duplicate row makes a new spawn with the next free guid; Remove row deletes a spawn.",
+                            "gameobject", $"`id` = {Id}", new Dictionary<string, string> { ["id"] = Id }, "guid",
+                            new[] { new RowListEditor.NameColumn { IdColumn = "map", Kind = "map", Header = "map name" }, new RowListEditor.NameColumn { IdColumn = "zoneId", Kind = "area", Header = "zone name" }, new RowListEditor.NameColumn { IdColumn = "areaId", Kind = "area", Header = "area name" } },
+                            refs.ByKind);
+                        ed.NewRow = r => r.Set("guid", NextFree("gameobject", "guid").ToString(CultureInfo.InvariantCulture));
+                        return ed;
+                    });
+                    break;
+                case ("gameobjects", "Loot"):
+                {
+                    var type = CurrentLong(D.Fields.First(f => f.Column == "type"));
+                    var slot = GameObjectData.LootSlot(type);
+                    if (slot < 0)
+                    {
+                        yield return U.Callout($"A {GameObjectData.TypeName(type)} has no loot table. Only chests (type 3) and fishing pools (type 25) keep a loot ID, in Data1.", "info", "Loot");
+                        break;
+                    }
+                    var lootId = CurrentLong(D.Fields.First(f => f.Column == "Data" + slot));
+                    if (lootId == 0) { yield return U.Callout("Its loot table ID (Data1 on the Type data tab) is 0, so it contains nothing. Set it to a gameobject_loot_template entry; the object's own entry number is the usual choice.", "warn", "Loot"); break; }
+                    yield return OpenButton("Edit these drops in the Loot editor (with drop simulator)", () => w.Navigate("loot", pg => ((LootPage)pg).Open("gameobject_loot_template", lootId)));
+                    yield return ListCard($"Contents (gameobject_loot_template {lootId})", "Chance is in percent. A Reference row points to a shared list. Double-click to open the item.",
+                        $"SELECT l.Item, i.name, l.Reference, l.Chance, l.QuestRequired, l.GroupId, l.MinCount, l.MaxCount FROM gameobject_loot_template l LEFT JOIN item_template i ON i.entry = l.Item WHERE l.Entry = {lootId} ORDER BY l.GroupId, l.Chance DESC", open: ("item", "Item"));
+                    yield return SqlLink("gameobject_loot_template", $"`Entry` = {lootId}", "Open these loot rows in the SQL browser");
+                    break;
+                }
+                case ("npctext", "Variants 1-4"):
+                    yield return NpcTextPreview();
+                    break;
+                case ("npctext", "Used by"):
+                    yield return ListCard("Gossip menus", "gossip_menu rows that show this text (conditions can pick between several texts of one menu).",
+                        $"SELECT MenuID, TextID FROM gossip_menu WHERE TextID = {Id} ORDER BY MenuID");
+                    yield return ListCard("Creatures", "Creatures whose gossip menu shows this text. Double-click to open.",
+                        $"SELECT c.entry, c.name, c.subname, c.gossip_menu_id FROM creature_template c JOIN gossip_menu g ON g.MenuID = c.gossip_menu_id WHERE g.TextID = {Id} ORDER BY c.entry LIMIT 200", open: ("creature", "entry"));
+                    yield return ListCard("Game objects", "Quest givers (Data3) and goobers (Data19) whose gossip menu shows this text.",
+                        $"SELECT o.entry, o.name, o.type FROM gameobject_template o JOIN gossip_menu g ON g.MenuID = IF(o.type = 2, o.Data3, o.Data19) WHERE o.type IN (2, 10) AND g.TextID = {Id} ORDER BY o.entry LIMIT 200", open: ("gameobject", "entry"));
+                    yield return OpenButton("Open gossip menus in World tables", () => w.Navigate("world"));
+                    break;
+                case ("pagetext", "Page"):
+                    yield return BookPreview();
+                    break;
+                case ("pagetext", "Used by"):
+                    yield return ListCard("Items", "Items that open this page when read (item_template.PageText). Double-click to open.",
+                        $"SELECT entry, name FROM item_template WHERE PageText = {Id} ORDER BY entry LIMIT 200", open: ("item", "entry"));
+                    yield return ListCard("Game objects", "Readable objects (type 9, Data0) and goobers (type 10, Data7) that show this page.",
+                        $"SELECT entry, name, type FROM gameobject_template WHERE (type = 9 AND Data0 = {Id}) OR (type = 10 AND Data7 = {Id}) ORDER BY entry LIMIT 200", open: ("gameobject", "entry"));
+                    yield return ListCard("Pages before it", "Pages whose Next page is this one. Double-click to open.",
+                        $"SELECT ID, NextPageID, LEFT(Text, 80) AS Text FROM page_text WHERE NextPageID = {Id} ORDER BY ID", open: ("pagetext", "ID"));
                     break;
                 case ("quests", "Chain"):
                     yield return ListCard("Leads here", "Quests that point to this one as their follow-up.",
@@ -173,6 +272,63 @@ namespace AndersCraftStudio
                         $"SELECT q.ID, q.LogTitle, q.QuestLevel FROM quest_template_addon a JOIN quest_template q ON q.ID = a.ID WHERE a.PrevQuestID = {Id} ORDER BY q.ID", open: ("quest", "ID"));
                     break;
             }
+        }
+
+        /// <summary>The filled-in NPC text variants as a player would read them, with their chances.</summary>
+        UIElement NpcTextPreview()
+        {
+            var sp = new StackPanel();
+            sp.Children.Add(U.Row(U.T("How it reads", 15, "Text", FontWeights.SemiBold, false), new Border { Width = 10 }, U.Pill("preview", "OkBg", "Ok")));
+            sp.Children.Add(U.T("Each time the window opens, the server picks one filled-in variant by its chance. $N, $C and $R are shown as placeholders.", 12.5, "Muted", null, true, new Thickness(0, 4, 0, 10)));
+            string Txt(string c) { var f = D.Fields.First(x => x.Column == c); if (!Exists(f)) return ""; var t = CurrentText(f); return t == "NULL" ? "" : t; }
+            double Num(string c) => double.TryParse(Txt(c), NumberStyles.Float, CultureInfo.InvariantCulture, out var p) ? p : 0;
+            string Fix(string t) => t.Replace("$B", "\n").Replace("$b", "\n").Replace("$N", "<name>").Replace("$n", "<name>").Replace("$C", "<class>").Replace("$c", "<class>").Replace("$R", "<race>").Replace("$r", "<race>");
+            double total = 0; int shown = 0;
+            for (int v = 0; v < 8; v++) if (Txt($"text{v}_0").Length > 0 || Txt($"text{v}_1").Length > 0) total += Num($"Probability{v}");
+            for (int v = 0; v < 8; v++)
+            {
+                var male = Txt($"text{v}_0"); var female = Txt($"text{v}_1");
+                if (male.Length == 0 && female.Length == 0) continue;
+                shown++;
+                var pr = Num($"Probability{v}");
+                var chance = total > 0 ? (pr / total).ToString("P0", CultureInfo.InvariantCulture) + " of the time" : "chance 0";
+                sp.Children.Add(U.T($"Variant {v + 1} · {chance}", 12, "Amber", FontWeights.SemiBold, false, new Thickness(0, 6, 0, 4)));
+                var body = Fix(male.Length > 0 ? male : female) + (female.Length > 0 && male.Length > 0 && female != male ? "\n\n(Female characters read: " + Fix(female) + ")" : "");
+                sp.Children.Add(new Border { Background = U.R("Panel2"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 10, 12, 10), Child = U.T(body, 13, "Text", null, true) });
+            }
+            if (shown == 0) sp.Children.Add(U.T("No variant has text yet.", 13, "Faint"));
+            else if (total <= 0) sp.Children.Add(U.Callout("Every filled-in variant has chance 0, so none of them can be picked. Give at least one a chance above 0.", "warn"));
+            return U.Card(sp, new Thickness(18, 14, 18, 14), new Thickness(0, 0, 0, 12));
+        }
+
+        /// <summary>This page and the pages after it, read as a book (follows NextPageID, read-only, stops at loops).</summary>
+        UIElement BookPreview()
+        {
+            var sp = new StackPanel();
+            sp.Children.Add(U.Row(U.T("The book from here", 15, "Text", FontWeights.SemiBold, false), new Border { Width = 10 }, U.Pill("read-only", "OkBg", "Ok")));
+            sp.Children.Add(U.T("This page and every page after it, following Next page. Unstaged edits to this page show here too.", 12.5, "Muted", null, true, new Thickness(0, 4, 0, 10)));
+            var seen = new HashSet<long>();
+            long pageId = id.Value; int n = 0;
+            var text = CurrentText(D.Fields.First(f => f.Column == "Text"));
+            long next = CurrentLong(D.Fields.First(f => f.Column == "NextPageID"));
+            try
+            {
+                using var db = S.OpenRead(S.Profile.WorldDb);
+                while (true)
+                {
+                    seen.Add(pageId); n++;
+                    sp.Children.Add(U.T($"Page {n} · page_text {pageId}", 12, "Amber", FontWeights.SemiBold, false, new Thickness(0, 6, 0, 4)));
+                    sp.Children.Add(new Border { Background = U.R("Panel2"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 10, 12, 10), Child = U.T((text == "NULL" ? "" : text).Replace("$B", "\n").Replace("$b", "\n"), 13, "Text", null, true) });
+                    if (next == 0) break;
+                    if (seen.Contains(next)) { sp.Children.Add(U.Callout($"Page {next} was already shown: the chain loops back. Set the last page's Next page to 0.", "warn")); break; }
+                    if (n >= 30) { sp.Children.Add(U.T("… stopped after 30 pages.", 12.5, "Faint")); break; }
+                    var t = db.Query($"SELECT Text, NextPageID FROM page_text WHERE ID = {next.ToString(CultureInfo.InvariantCulture)}", 1);
+                    if (t.Rows.Count == 0) { sp.Children.Add(U.Callout($"Next page {next} doesn't exist, so the book ends early.", "warn")); break; }
+                    pageId = next; text = Convert.ToString(t.Rows[0][0]); next = Convert.ToInt64(t.Rows[0][1], CultureInfo.InvariantCulture);
+                }
+            }
+            catch (Exception ex) { sp.Children.Add(U.T("Couldn't read the next pages: " + ex.Message, 12.5, "Faint")); }
+            return U.Card(sp, new Thickness(18, 14, 18, 14), new Thickness(0, 0, 0, 12));
         }
 
         readonly Dictionary<string, RowListEditor> listEditors = new Dictionary<string, RowListEditor>();

@@ -4,7 +4,7 @@ What the tools AndersCraft Studio replaces can do, and where Studio stands. Stud
 **read-only by default, stage → review → apply with a backup, never overwrite originals**. Features that would need a
 live-write shortcut are listed as *out of scope by design*.
 
-Legend: ✅ has it · ➕ added in 0.6 (this audit) · 🟡 partly / different way · ❌ missing · ⛔ out of scope by design
+Legend: ✅ has it · ➕ added in 0.6 · 🆕 added in 0.7 · 🟡 partly / different way · ❌ missing · ⛔ out of scope by design
 
 ## HeidiSQL (database admin)
 
@@ -19,7 +19,7 @@ Legend: ✅ has it · ➕ added in 0.6 (this audit) · 🟡 partly / different w
 | Export grid / table to CSV (Excel) | ✅ | Whole filtered table or the result grid. |
 | SQL dump export | ➕ | *Export SQL…*: CREATE TABLE + INSERTs for the filtered table, read with the read-only account. 🟡 One table at a time (no whole-database dump; Apply's mysqldump backups cover that). |
 | Run a .sql file | ➕ | *Open .sql…* (into the editor) and *Stage .sql script…* (the whole file becomes staged changes; SET/LOCK/transaction lines skipped; GRANT/CALL etc. refuse the file). |
-| Import data | 🟡 | SQL via *Stage .sql script*; CSV import exists for DBC tables but not for database tables (use a CSV → SQL tool, then stage the script). |
+| Import data | 🆕 | *Import CSV…* on any world/sandbox table: map CSV columns to table columns, pick add / update / both, preview every change, then stage INSERTs and changed cells with undo (matched by the primary key, read with the read-only account). SQL via *Stage .sql script*. |
 | Table structure (columns, indexes, foreign keys) | ➕ | *Structure* tab with CREATE TABLE. Read-only. |
 | Find text across a table | ➕ | *Find text…* builds a filter over every column. |
 | User / session info | ➕ | Home shows the account Studio browses as and the MySQL version. |
@@ -43,8 +43,9 @@ Legend: ✅ has it · ➕ added in 0.6 (this audit) · 🟡 partly / different w
 | Area triggers | ➕ | World tables › Area triggers (teleport, scripts, quest exploration, tavern; position from AreaTrigger.dbc). |
 | spell_dbc | ✅ | From the Spell editor's Server side tab. |
 | SQL preview / export of changes | ✅ | Changes › SQL / Undo SQL tabs and *Export SQL…*. |
-| Game objects (gameobject_template) | 🟡 | No dedicated form yet: SQL browser (staged edits), loot and SmartAI cover them. |
-| npc_text / page_text editors | 🟡 | Previewed in Gossip; edited in the SQL browser. |
+| Game objects (gameobject_template + addon) | 🆕 | Form editor where Data0-Data23 are labelled for the object's type (all 36 types), with spawns (editable list), loot (chests and fishing pools, opens the Loot editor), quests it starts/accepts, faction/flags/money and a SmartAI link. |
+| npc_text | 🆕 | Form editor: 8 variants with male/female text, chance, language, broadcast text and 3 emotes each, a *How it reads* preview, and who uses it (gossip menus, creatures, objects). Gossip menus link to it. |
+| page_text | 🆕 | Form editor with next-page chaining, the whole book read in order (loops and missing pages flagged), and who uses it (items, readable objects, earlier pages). Items link to their page. |
 
 ## WDBXEditor (DBC / DB2)
 
@@ -86,15 +87,20 @@ Legend: ✅ has it · ➕ added in 0.6 (this audit) · 🟡 partly / different w
 | Export / import a spell to a file | ➕ | `.studio-spell.json` with the related range/cast/duration/radius/icon/visual rows. |
 | Live tooltip | ✅ | Studio extra. |
 
-## Asset import (new in 0.6)
+## Asset import (new in 0.6, item models in 0.7)
 
 | Asset | What Studio does |
 |---|---|
 | Icons (PNG/JPG/BMP/TGA/BLP) | Resizes to 64×64, encodes BLP (DXT5 / DXT1 / palette, with mips), places it in `Interface\Icons`, stages a SpellIcon.dbc row, optionally an ItemDisplayInfo row. Shown in the Spell editor's icon picker straight away. |
 | Creature models (.m2 + .skin + textures) | Shows M2 info, copies to `Creature\<Name>\` (skins renamed, PNG/TGA textures converted), stages CreatureModelData + CreatureDisplayInfo rows. |
+| Item models (.m2 + .skin + textures) | 🆕 Copies to `Item\ObjectComponents\<Slot>\` (weapon, shield, head, shoulder, quiver, ammo, pouch), converts textures, stages an ItemDisplayInfo row copied from a base display. It shows up in the Items editor's Display picker as *icon · model*; optionally stages it on an item too. |
 | Sounds (WAV/MP3) | Preview playback, copies to `Sound\Custom\`, stages a SoundEntries row. |
 | Any file | Copied to the archive path you choose, with a table of where each kind of file goes. |
 | Manifest | `studio_manifest.json` in each work folder lists every imported file and its DBC rows. |
 
-**Remaining gaps worth doing later:** a gameobject form editor, npc_text/page_text forms, CSV import for database tables,
-a 3D model / spell visual preview, item model import with ItemDisplayInfo wiring.
+**Closed in 0.7:** game object, npc_text and page_text form editors; CSV import into database tables; item model import
+with ItemDisplayInfo wiring.
+
+**Known limits (by choice):** no 3D model or spell visual preview (Studio shows the IDs and file names); body armour
+textures (chest, legs…) aren't covered by item model import; one DBC grid at a time; no DB2 formats (not used by 3.3.5a).
+Account management and table structure changes stay with your MySQL tools (⛔ above).

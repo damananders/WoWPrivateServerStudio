@@ -324,6 +324,30 @@ namespace AndersCraftStudio.Core
             return r;
         }
 
+        /// <summary>Item model folders the 3.3.5a client looks in, by what the item is.</summary>
+        public static readonly string[] ItemModelSlots = { "Weapon", "Shield", "Head", "Shoulder", "Quiver", "Ammo", "Pouch" };
+
+        public static string ItemModelFolder(string slot) => @"Item\ObjectComponents\" + (ItemModelSlots.Contains(slot) ? slot : "Weapon") + @"\";
+
+        /// <summary>
+        /// A new ItemDisplayInfo.dbc row copied from <paramref name="baseId"/> (sounds, geosets, visuals) that shows the model
+        /// Name.mdx with texture <paramref name="texture"/>. Shoulders get the model on both sides. The icon is kept unless one is given.
+        /// </summary>
+        public static DbcRow ItemModelRow(DbcTable idi, uint baseId, string name, string texture, string slot, string icon, uint start)
+        {
+            var src = idi.Find(baseId) ?? throw new ArgumentException($"ItemDisplayInfo {baseId} doesn't exist.");
+            var r = src.Clone();
+            r.V[0] = idi.NextFreeId(start);
+            var l = idi.Layout;
+            bool both = slot == "Shoulder";
+            idi.TrySetField(r, l.FieldByName("ModelName_1"), SafeName(name) + ".mdx", out _);
+            idi.TrySetField(r, l.FieldByName("ModelName_2"), both ? SafeName(name) + ".mdx" : "", out _);
+            idi.TrySetField(r, l.FieldByName("ModelTexture_1"), texture == null ? "" : SafeName(texture), out _);
+            idi.TrySetField(r, l.FieldByName("ModelTexture_2"), both && texture != null ? SafeName(texture) : "", out _);
+            if (!string.IsNullOrWhiteSpace(icon)) idi.TrySetField(r, l.FieldByName("InventoryIcon_1"), SafeName(icon), out _);
+            return r;
+        }
+
         /// <summary>CreatureModelData + CreatureDisplayInfo rows for a model at Creature\Name\Name.m2 with up to 3 skin textures.</summary>
         public static (DbcRow model, DbcRow display) CreatureRows(DbcTable cmd, DbcTable cdi, uint baseModelId, uint baseDisplayId, string name, IList<string> textures, uint start, float scale = 1f)
         {

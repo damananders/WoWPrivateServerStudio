@@ -182,7 +182,7 @@ namespace AndersCraftStudio
                     var rid = Convert.ToInt64(r[0], CultureInfo.InvariantCulture);
                     var top = new DockPanel();
                     var idt = U.T("#" + rid, 11.5, "Faint", null, false); DockPanel.SetDock(idt, Dock.Right); top.Children.Add(idt);
-                    top.Children.Add(U.T(Convert.ToString(r[1]), 13, "Text", FontWeights.SemiBold, false));
+                    top.Children.Add(U.T(Refs.OneLine(Convert.ToString(r[1]), 60) is string rowName && rowName.Length > 0 ? rowName : "(empty)", 13, "Text", FontWeights.SemiBold, false));
                     results.Items.Add(new ListBoxItem { Content = U.Stack(top, U.T(Convert.ToString(r[2]), 11.5, "Muted", null, false, new Thickness(0, 2, 0, 0))), Tag = rid, IsSelected = rid == id });
                 }
                 resultInfo.Text = t.Rows.Count == 0 ? "No matches." : t.Rows.Count >= 200 ? "First 200 matches. Type more to narrow it down." : $"{t.Rows.Count} match(es).";
@@ -289,7 +289,8 @@ namespace AndersCraftStudio
         UIElement BuildHeader()
         {
             var r = rows[D.Table];
-            var name = Convert.ToString(r[D.NameCol]);
+            var name = Refs.OneLine(Convert.ToString(r[D.NameCol]), 60);
+            if (string.IsNullOrEmpty(name)) name = $"({D.Singular} {id})";
             stageBtn = U.Btn("Stage edits", StageEdits, "BtnPrimary", "Put your edits into the changeset (Ctrl+S). Nothing is written to the database until you Apply on the Changes screen.");
             discardBtn = U.Btn("Discard", () => { session.Clear(); RefreshAllFields(); UpdatePreview(); w.Toast("Unstaged edits discarded.", "info"); }, "BtnGhost", "Throw away edits you haven't staged yet.");
             var dup = U.Btn("Duplicate as new", DuplicateAsNew, null, $"Copy this {D.Singular} to a free ID in your custom range ({S.Profiles.Settings.CustomIdStart}+) as a staged INSERT. (Ctrl+D)");
@@ -331,7 +332,19 @@ namespace AndersCraftStudio
         {
             fieldUis.Clear();
             var sp = new StackPanel();
-            foreach (var grp in D.InTab(tab).GroupBy(f => (f.Group ?? "", f.Table ?? "")))
+            var tabFields = D.InTab(tab).ToList();
+            if (D.TypeColumn != null && tabFields.Any(f => f.Column.StartsWith("Data", StringComparison.Ordinal)))
+            {
+                var tf = D.Fields.First(f => f.Column == D.TypeColumn);
+                long type = CurrentLong(tf);
+                var used = tabFields.Select(f => GameObjectData.Relabel(f, type)).Where(f => f != null).ToList();
+                var hidden = tabFields.Where(f => GameObjectData.Relabel(f, type) == null && Exists(f) && CurrentLong(f) != 0).Select(f => $"{f.Column} = {CurrentText(f)}").ToList();
+                sp.Children.Add(U.Callout($"This is a {GameObjectData.TypeName(type)} (type {type}), so Studio shows the {used.Count} data setting(s) that type uses, with their meaning. " +
+                    (used.Count == 0 ? "This type doesn't use any data settings. " : "") + "Change the type on the Basics tab and these labels change with it." +
+                    (hidden.Count > 0 ? $" Slots this type ignores but that aren't 0 (kept as they are): {string.Join(", ", hidden)}." : ""), "info", "Type data"));
+                tabFields = used;
+            }
+            foreach (var grp in tabFields.GroupBy(f => (f.Group ?? "", f.Table ?? "")))
             {
                 var fields = grp.ToList();
                 var wrap = new WrapPanel();
@@ -673,7 +686,7 @@ namespace AndersCraftStudio
             if (ui == null) return;
             Input(ui, text); ui.Sync?.Invoke();
         }
-        public void ScreensFocus(string column) { var f = D.Fields.FirstOrDefault(x => x.Column == column); if (f != null) ShowGuide(f); }
+        public void ScreensFocus(string column) { var f = fieldUis.FirstOrDefault(x => x.F.Column == column)?.F ?? D.Fields.FirstOrDefault(x => x.Column == column); if (f != null) ShowGuide(f); }
         public void ScreensStage() => StageEdits();
         public void ScreensDiscard() { session.Clear(); RefreshAllFields(); }
         public void ScreensDuplicate() => DuplicateAsNew();

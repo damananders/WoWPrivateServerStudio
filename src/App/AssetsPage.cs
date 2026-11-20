@@ -41,7 +41,7 @@ namespace AndersCraftStudio
             view.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 16) };
             var strip = U.StepStrip(1); DockPanel.SetDock(strip, Dock.Right); strip.VerticalAlignment = VerticalAlignment.Center; head.Children.Add(strip);
-            head.Children.Add(U.Stack(U.H1("Asset import"), U.T("Bring your own icons, creature models, sounds and other files into a patch. Studio converts them, puts them at the right path in a Client patches work folder, and stages the DBC rows that make the game use them.", 13.5, "Muted")));
+            head.Children.Add(U.Stack(U.H1("Asset import"), U.T("Bring your own icons, creature and item models, sounds and other files into a patch. Studio converts them, puts them at the right path in a Client patches work folder, and stages the DBC rows that make the game use them.", 13.5, "Muted")));
             view.Children.Add(head);
             var g = new Grid();
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(250) });
@@ -54,6 +54,7 @@ namespace AndersCraftStudio
             {
                 ("icon", "Icon", "PNG, JPG, BMP, TGA or BLP → a 64×64 BLP in Interface\\Icons, plus a SpellIcon.dbc row (and optionally an item display)."),
                 ("model", "Creature model", ".m2 with its .skin files and textures → Creature\\<Name>\\, plus CreatureModelData and CreatureDisplayInfo rows."),
+                ("itemmodel", "Item model", ".m2 with its .skin files and textures → Item\\ObjectComponents\\<Slot>\\, plus an ItemDisplayInfo row the Items editor can pick."),
                 ("sound", "Sound", "WAV or MP3 → Sound\\Custom\\, plus a SoundEntries row other tables can point to."),
                 ("file", "Any file", "Anything else, at the archive path you choose."),
             })
@@ -84,6 +85,7 @@ namespace AndersCraftStudio
             {
                 "icon" => "Icons are 64×64 BLP textures in Interface\\Icons. Studio resizes your picture, converts it (DXT5 keeps soft transparency, DXT1 is smaller, Palette is closest to Blizzard's style) and adds a SpellIcon.dbc row so the Spell editor's icon picker shows it. For items, it can also copy an ItemDisplayInfo row with the new icon; use that display ID on item_template.displayid.",
                 "model" => "A creature model is an .m2 file, its .skin files (Name00.skin … Name03.skin) and its textures. Studio copies them to Creature\\<Name>\\, renames the skins to match, converts PNG/TGA textures to BLP, and stages a CreatureModelData row (copied from a base model, for collision and size) and a CreatureDisplayInfo row. Put the new display ID in creature_template_model.CreatureDisplayID (or modelid on older databases).",
+                "itemmodel" => "An item model (weapon, shield, helm, shoulders…) is an .m2 file, its .skin files and its textures, placed in Item\\ObjectComponents\\<Slot>\\. Studio copies them there, converts PNG/TGA textures to BLP, and stages an ItemDisplayInfo row copied from a base display (for sounds, geosets and the icon) that points at the new model and texture. The new display shows up in the Items editor's Display tab picker as \"icon · model name\"; Studio can also stage it on an item for you. Body armour (chest, legs…) has no model of its own: it uses textures on the character, which this import doesn't cover.",
                 "sound" => "Sounds are WAV or MP3 files (the formats Blizzard's own 3.3.5a sounds use; Studio doesn't import OGG). Studio copies the file to Sound\\Custom\\ and stages a SoundEntries row (volume and distances copied from a base sound). Use its ID wherever a SoundID is asked for: SmartAI's Play sound, creature_text.Sound, DBC columns.",
                 _ => "Any file can go into a patch at any path. Check the table below for where the client looks for each kind of file. The file is copied into the work folder; nothing is registered in a DBC.",
             };
@@ -169,6 +171,30 @@ namespace AndersCraftStudio
                         Fld("Scale", "CreatureModelScale of the new display.", Box("scale", "1"), 120)));
                     break;
                 }
+                case "itemmodel":
+                {
+                    if (source != null)
+                    {
+                        try
+                        {
+                            var info = M2Info.Read(File.ReadAllBytes(source));
+                            sp.Children.Add(U.Callout($"Model \"{info.Name}\" · M2 version {info.Version}{(info.Version == 264 ? " (3.3.5a)" : " — the 3.3.5a client expects 264")} · {info.Vertices:N0} vertices · {info.Views} skin view(s)" + (info.Textures.Count > 0 ? "\nTextures: " + string.Join(", ", info.Textures) : ""), info.Version == 264 ? "ok" : "warn", "Model info"));
+                        }
+                        catch (Exception ex) { sp.Children.Add(U.Callout(ex.Message, "bad")); }
+                        var dir = Path.GetDirectoryName(source);
+                        var skins = Directory.GetFiles(dir, Path.GetFileNameWithoutExtension(source) + "0?.skin").OrderBy(x => x).ToList();
+                        var tex = Directory.GetFiles(dir).Where(x => new[] { ".blp", ".png", ".tga" }.Contains(Path.GetExtension(x).ToLowerInvariant())).OrderBy(x => x).ToList();
+                        sp.Children.Add(U.T($"Found next to it: {skins.Count} skin file(s){(skins.Count == 0 ? " — the client needs at least Name00.skin" : "")}, {tex.Count} texture(s) {(tex.Count > 0 ? "(" + string.Join(", ", tex.Select(Path.GetFileName).Take(6)) + ")" : "")}. The first texture becomes the model's texture.", 12.5, skins.Count == 0 ? "Bad" : "Muted", null, true, new Thickness(0, 0, 0, 12)));
+                    }
+                    var slot = new ComboBox { Width = 200 }; foreach (var x in AssetImport.ItemModelSlots) slot.Items.Add(x); slot.SelectedIndex = 0; f["slot"] = slot;
+                    sp.Children.Add(U.Wrap(
+                        Fld("Model name", "File name in Item\\ObjectComponents\\<Slot>.", Box("name", stem.Length > 0 ? stem : "CustomItem")),
+                        Fld("What it is", "Decides the folder the client looks in. Shoulders get the model on both sides.", slot, 220),
+                        Fld("Base ItemDisplayInfo ID", "Copied for sounds, geosets, visual effects and the icon (pick an item of the same kind).", Box("basedisplay", "1542"), 220),
+                        Fld("Icon (optional)", "An icon file name in Interface\\Icons, e.g. INV_Sword_04. Empty = keep the base display's icon.", Box("icon", "", true), 260),
+                        Fld("Use it on item (optional)", "An item_template entry: Studio stages its displayid change too. Empty = just add the display.", Box("useon", ""), 200)));
+                    break;
+                }
                 case "sound":
                 {
                     if (source != null)
@@ -226,6 +252,7 @@ namespace AndersCraftStudio
             {
                 "icon" => "Pictures (*.png;*.jpg;*.jpeg;*.bmp;*.tga;*.blp)|*.png;*.jpg;*.jpeg;*.bmp;*.tga;*.blp",
                 "model" => "M2 models (*.m2)|*.m2",
+                "itemmodel" => "M2 models (*.m2)|*.m2",
                 "sound" => "Sounds (*.wav;*.mp3;*.ogg)|*.wav;*.mp3;*.ogg",
                 _ => "All files|*.*",
             };
@@ -325,6 +352,51 @@ namespace AndersCraftStudio
                         lastMessage = $"{folder}{name}.m2 with {skins.Count} skin(s) and {texNames.Count} texture(s); staged {string.Join(", ", added)}. Use display ID {displayId} on a creature (creature_template_model.CreatureDisplayID).";
                         break;
                     }
+                    case "itemmodel":
+                    {
+                        var name = AssetImport.SafeName(Val("name"));
+                        var slot = (string)((ComboBox)f["slot"]).SelectedItem ?? "Weapon";
+                        if (!uint.TryParse(Val("basedisplay"), out var bd)) throw new FormatException("Base ItemDisplayInfo ID: enter a number.");
+                        long useOn = 0;
+                        if (Val("useon").Length > 0 && !long.TryParse(Val("useon"), out useOn)) throw new FormatException("Use it on item: enter an item entry number, or leave it empty.");
+                        var folder = AssetImport.ItemModelFolder(slot);
+                        AssetImport.Place(work, folder + name + ".m2", File.ReadAllBytes(source));
+                        var dir = Path.GetDirectoryName(source);
+                        var skins = Directory.GetFiles(dir, Path.GetFileNameWithoutExtension(source) + "0?.skin").OrderBy(x => x).ToList();
+                        foreach (var sk in skins) AssetImport.Place(work, folder + name + Path.GetFileNameWithoutExtension(sk).Substring(Path.GetFileNameWithoutExtension(source).Length) + ".skin", File.ReadAllBytes(sk));
+                        var texNames = new List<string>();
+                        foreach (var tf in Directory.GetFiles(dir).Where(x => new[] { ".blp", ".png", ".tga" }.Contains(Path.GetExtension(x).ToLowerInvariant())).OrderBy(x => x))
+                        {
+                            var tn = AssetImport.SafeName(Path.GetFileNameWithoutExtension(tf));
+                            byte[] data = Path.GetExtension(tf).ToLowerInvariant() == ".blp" ? File.ReadAllBytes(tf) : null;
+                            if (data == null)
+                            {
+                                var pic = LoadPicture(tf);
+                                if (!BlpEncoder.IsPowerOfTwo(pic.Width) || !BlpEncoder.IsPowerOfTwo(pic.Height)) pic = BlpEncoder.Resize(pic, NextPow2(pic.Width), NextPow2(pic.Height));
+                                data = BlpEncoder.Encode(pic, BlpFormat.Dxt5);
+                            }
+                            AssetImport.Place(work, folder + tn + ".blp", data);
+                            texNames.Add(tn);
+                        }
+                        uint displayId = 0;
+                        StageRows("ItemDisplayInfo.dbc", t => { var r = AssetImport.ItemModelRow(t, bd, name, texNames.FirstOrDefault(), slot, Val("icon"), CustomStart); displayId = r.V[0]; return r; }, added);
+                        string itemNote = "";
+                        if (useOn > 0)
+                        {
+                            if (!S.HasReadAccount) throw new InvalidOperationException("Using it on an item needs the read-only account (setup step 3). The display was not staged on an item.");
+                            using var db = S.OpenRead(S.Profile.WorldDb);
+                            var cur = db.Query($"SELECT displayid FROM item_template WHERE entry = {useOn.ToString(CultureInfo.InvariantCulture)}", 1);
+                            if (cur.Rows.Count == 0) throw new InvalidOperationException($"There's no item {useOn}; the display row was staged, but not used on an item.");
+                            var before = cur.Rows[0][0];
+                            ChangeFactory.StageCellEdit(S.Changes.Pending, "item_template", new List<KeyPart> { new KeyPart("entry", useOn.ToString(CultureInfo.InvariantCulture), "#" + useOn) }, "displayid",
+                                SqlGen.Literal(before), SqlGen.Display(before), displayId.ToString(CultureInfo.InvariantCulture), displayId.ToString(CultureInfo.InvariantCulture));
+                            added.Add($"item_template {useOn}.displayid");
+                            itemNote = $" Item {useOn} now uses it (staged).";
+                        }
+                        AssetImport.AddToManifest(work, new AssetRecord { Kind = "itemmodel", Source = source, ArchivePath = folder + name + ".m2", DbcRows = added, Note = $"{slot}, {skins.Count} skin(s), {texNames.Count} texture(s)" });
+                        lastMessage = $"{folder}{name}.m2 with {skins.Count} skin(s) and {texNames.Count} texture(s); staged {string.Join(", ", added)}. Pick display {displayId} on an item's Display tab (it's listed as \"icon · {name}\").{itemNote}";
+                        break;
+                    }
                     case "sound":
                     {
                         var name = AssetImport.SafeName(Val("name"));
@@ -357,7 +429,7 @@ namespace AndersCraftStudio
         static int NextPow2(int n) { int p = 1; while (p < n && p < 2048) p <<= 1; return p; }
 
         // screenshots
-        public void ScreensKind(string k) => kinds.SelectedIndex = new[] { "icon", "model", "sound", "file" }.ToList().IndexOf(k);
+        public void ScreensKind(string k) => kinds.SelectedIndex = new[] { "icon", "model", "itemmodel", "sound", "file" }.ToList().IndexOf(k);
         public void ScreensWorkName(string n) => workName.Text = n;
     }
 }

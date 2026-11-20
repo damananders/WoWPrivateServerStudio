@@ -139,6 +139,7 @@ SOFTWARE.";
             foreach (var (key, text, tip) in new[]
             {
                 ("creatures", "Creatures", "NPCs and monsters"), ("items", "Items", "Gear and everything in bags"), ("quests", "Quests", "Text, objectives, rewards"),
+                ("gameobjects", "Game objects", "Chests, doors, herbs, signs"), ("npctext", "NPC text", "Gossip greetings"), ("pagetext", "Page text", "Books and letters"),
                 ("loot", "Loot", "Drops and the simulator"), ("smartai", "SmartAI", "Behaviour as sentences"), ("world", "World tables", "Conditions, waypoints, gossip, events, area triggers"),
                 ("templates", "Templates", "Ready-made actions"), ("spells", "Spells", "Spell.dbc with a live tooltip"), ("dbc", "DBC tables", "All 246 client tables"),
                 ("assets", "Asset import", "Icons, models, sounds"), ("patches", "Client patches", "Build and install MPQs"), ("sql", "SQL browser", "Every table, read-only queries"),
@@ -468,7 +469,21 @@ SOFTWARE.";
                         foreach (System.Data.DataRow r in texts.Data.Rows)
                         {
                             if (!long.TryParse(Convert.ToString(r["TextID"]), out var tid)) continue;
-                            try { var t = db.Query($"SELECT text0_0, text0_1 FROM npc_text WHERE ID = {L(tid)}", 1); if (t.Rows.Count > 0) preview.Children.Add(U.T($"npc_text {tid}: " + (Convert.ToString(t.Rows[0][0]) is string a && a.Length > 0 ? a : Convert.ToString(t.Rows[0][1])), 13, "Text", null, true, new Thickness(0, 0, 0, 6))); } catch { }
+                            try
+                            {
+                                var t = db.Query($"SELECT text0_0, text0_1 FROM npc_text WHERE ID = {L(tid)}", 1);
+                                if (t.Rows.Count > 0)
+                                {
+                                    var textId = tid;
+                                    var edit = U.Btn("Edit text ›", () => w.Navigate("npctext", pg => ((EntityEditorPage)pg).Open(textId)), "BtnGhost", $"Open npc_text {tid} in the NPC text editor (all 8 variants, chances, emotes).");
+                                    edit.Padding = new Thickness(8, 3, 8, 3); edit.Margin = new Thickness(0, 0, 10, 0); edit.VerticalAlignment = VerticalAlignment.Top;
+                                    var line = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+                                    DockPanel.SetDock(edit, Dock.Left); line.Children.Add(edit);
+                                    line.Children.Add(U.T($"npc_text {tid}: " + (Convert.ToString(t.Rows[0][0]) is string a && a.Length > 0 ? a : Convert.ToString(t.Rows[0][1])), 13, "Text", null, true));
+                                    preview.Children.Add(line);
+                                }
+                            }
+                            catch { }
                         }
                         try { foreach (var r in db.Query($"SELECT entry, name FROM creature_template WHERE gossip_menu_id = {L(menu)} LIMIT 10", 10).Rows) preview.Children.Add(U.T($"Used by creature {r[0]} \"{r[1]}\"", 12.5, "Muted")); } catch { }
                         stack.Children.Add(U.Card(U.Stack(U.H2("What players read"), preview), new Thickness(18, 14, 18, 12), new Thickness(0, 0, 0, 12)));

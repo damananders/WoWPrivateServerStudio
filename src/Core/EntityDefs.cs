@@ -29,17 +29,22 @@ namespace AndersCraftStudio.Core
         public List<FieldDef> Fields = new List<FieldDef>();
         /// <summary>Side tables that share the entity's ID: table → its key column.</summary>
         public Dictionary<string, string> SideTables = new Dictionary<string, string>();
+        /// <summary>When set, a column whose value changes what other fields mean (game object type); the form relabels them.</summary>
+        public string TypeColumn;
         public IEnumerable<FieldDef> InTab(string tab) => Fields.Where(f => f.Tab == tab);
     }
 
     public static class EntityDefs
     {
         // built lazily, after all the option tables below are initialised
-        static EntityDef creature, item, quest;
+        static EntityDef creature, item, quest, gameObject, npcText, pageText;
         public static EntityDef Creature => creature ??= BuildCreature();
         public static EntityDef Item => item ??= BuildItem();
         public static EntityDef Quest => quest ??= BuildQuest();
-        public static IEnumerable<EntityDef> All => new[] { Creature, Item, Quest };
+        public static EntityDef GameObject => gameObject ??= BuildGameObject();
+        public static EntityDef NpcText => npcText ??= BuildNpcText();
+        public static EntityDef PageText => pageText ??= BuildPageText();
+        public static IEnumerable<EntityDef> All => new[] { Creature, Item, Quest, GameObject, NpcText, PageText };
         public static EntityDef ByKey(string k) => All.FirstOrDefault(e => e.Key == k);
 
         // ------------------------------------------------------------------ shared lists
@@ -151,6 +156,25 @@ namespace AndersCraftStudio.Core
 
         public static readonly Dictionary<long, string> XpDifficulty = new Dictionary<long, string>
         { [0] = "None", [1] = "Tiny", [2] = "Small", [3] = "Below normal", [4] = "Normal", [5] = "Above normal", [6] = "Large", [7] = "Huge", [8] = "Maximum" };
+
+        public static readonly Dictionary<long, string> Language = new Dictionary<long, string>
+        {
+            [0] = "Universal (everyone understands)", [1] = "Orcish", [2] = "Darnassian", [3] = "Taurahe", [6] = "Dwarvish", [7] = "Common", [8] = "Demonic", [9] = "Titan",
+            [10] = "Thalassian", [11] = "Draconic", [12] = "Kalimag", [13] = "Gnomish", [14] = "Troll", [33] = "Gutterspeak", [35] = "Draenei", [36] = "Zombie", [37] = "Gnomish binary", [38] = "Goblin binary",
+        };
+
+        public static readonly Dictionary<long, string> Emote = new Dictionary<long, string>
+        {
+            [0] = "None", [1] = "Talk", [2] = "Bow", [3] = "Wave", [4] = "Cheer", [5] = "Exclaim", [6] = "Question", [7] = "Eat", [10] = "Dance (keeps dancing)", [11] = "Laugh",
+            [14] = "Rude", [15] = "Roar", [16] = "Kneel", [17] = "Kiss", [18] = "Cry", [19] = "Chicken", [20] = "Beg", [21] = "Applaud", [22] = "Shout", [23] = "Flex", [24] = "Shy",
+            [25] = "Point", [66] = "Salute", [94] = "Dance (once)", [273] = "Nod yes", [274] = "Shake no", [275] = "Train",
+        };
+
+        public static readonly Dictionary<ulong, string> GameObjectFlags = new Dictionary<ulong, string>
+        {
+            [0x1] = "In use (looks activated)", [0x2] = "Locked", [0x4] = "Needs a quest or condition to use", [0x8] = "Transport", [0x10] = "Can't be selected",
+            [0x20] = "Never despawns", [0x40] = "Triggered by a script", [0x200] = "Damaged", [0x400] = "Destroyed",
+        };
 
         static EntityDefs() { for (int i = 0; i < AiNameList.Length; i++) AiNames[i] = AiNameList[i] == "" ? "(none: use C++ script or default)" : AiNameList[i]; }
 
@@ -335,7 +359,7 @@ namespace AndersCraftStudio.Core
             b.F("itemset", "Item set", FieldKind.Int, "Set ID (ItemSet.dbc). Wearing several pieces gives set bonuses.", "0 = not part of a set.");
             b.F("RandomProperty", "Random enchant group", FieldKind.Int, "Gives a random 'of the Bear' style suffix from item_enchantment_template.", "0 = fixed stats.");
             b.F("RandomSuffix", "Random suffix group", FieldKind.Int, "Like the random enchant group, but scaled to item level.", "Use either this or the random enchant group, not both.");
-            b.F("PageText", "Readable text page", FieldKind.Int, "Makes the item readable (page_text ID), like letters and books.", "0 = not readable.");
+            b.F("PageText", "Readable text page", FieldKind.Ref, "Makes the item readable (page_text ID), like letters and books. Open it to edit the pages.", "0 = not readable.", refKind: "pagetext");
             b.F("lockid", "Lock", FieldKind.Int, "For lockboxes: which lock (Lock.dbc) must be picked or opened.", "0 = not locked.");
             b.F("duration", "Lifetime (seconds)", FieldKind.Int, "The item disappears after this long. 0 = forever.", "Good for temporary event items.");
             b.F("FoodType", "Pet food type", FieldKind.Int, "For food: which hunter pet diets accept it (1 meat, 2 fish, 3 cheese, 4 bread, 5 fungus, 6 fruit).", "0 for non-food.");
@@ -440,6 +464,87 @@ namespace AndersCraftStudio.Core
             b.F("NextQuestID", "Unlocks quest", FieldKind.Ref, "A quest this one unlocks.", "Usually set on one side of the chain only.", refKind: "quest");
             b.F("ExclusiveGroup", "Exclusive group", FieldKind.Int, "Quests sharing a positive group: doing one hides the others. Negative: all must be done.", "Used for 'choose one path' story branches.");
             b.F("BreadcrumbForQuestId", "Breadcrumb for", FieldKind.Ref, "Marks this as a 'go talk to X' lead-in for another quest.", "The breadcrumb disappears once the target quest is taken.", refKind: "quest");
+            return e;
+        }
+
+        /// <summary>SQL that turns gameobject_template.type into its Studio name (for search lists).</summary>
+        static string GoTypeSql() => "ELT(type + 1, " + string.Join(", ", Enumerable.Range(0, 36).Select(i => SqlGen.Literal(GameObjectData.TypeName(i)))) + ")";
+
+        public const int GameObjectDataSlots = 24;
+
+        static EntityDef BuildGameObject()
+        {
+            var e = new EntityDef
+            {
+                Key = "gameobjects", Title = "Game objects", Singular = "game object", Table = "gameobject_template", KeyCol = "entry", NameCol = "name", Glyph = "",
+                ListExtra = "CONCAT(COALESCE(" + GoTypeSql() + ", CONCAT('type ', type)), IF(size <> 1, CONCAT(' · size ', ROUND(size, 2)), ''))",
+                Tabs = new[] { "Basics", "Type data", "Spawns", "Loot", "Extras" },
+                TypeColumn = "type",
+            };
+            e.SideTables["gameobject_template_addon"] = "entry";
+            const string A = "gameobject_template_addon";
+            var b = new B(e);
+            b.Tab("Basics").Group("Identity");
+            b.F("name", "Name", FieldKind.Text, "The name shown when the mouse is over the object, and in quest objectives.", "Plain object names read best: Iron Chest, Wanted Poster, Mailbox.");
+            b.F("type", "Object type", FieldKind.Enum, "What kind of object this is. The type decides what Data0-Data23 mean, so the Type data tab changes when you change it.", "Changing the type of an existing object also changes the meaning of every data value; check the Type data tab afterwards.", GameObjectData.Types);
+            b.F("displayId", "Model", FieldKind.Int, "Which 3D model it uses (GameObjectDisplayInfo ID).", "Borrow the model number of an existing object with the look you want.");
+            b.F("size", "Size", FieldKind.Float, "Scale of the model. 1 = normal size.", "Large values also make the click area bigger.");
+            b.F("IconName", "Mouse cursor", FieldKind.Text, "Cursor shown over it, e.g. Point, Interact, Quest, PickLock, Gunner.", "Leave empty for the default hand.");
+            b.F("castBarCaption", "Cast bar text", FieldKind.Text, "Text on the cast bar while a player uses it (e.g. Opening, Gathering).", "Empty = the default for the type.");
+            b.Group("Scripts");
+            b.F("AIName", "AI type", FieldKind.Text, "SmartGameObjectAI makes it run smart_scripts rows (source type 1). Empty = no AI.", "Use the SmartAI builder to write the behaviour.");
+            b.F("ScriptName", "C++ script", FieldKind.Text, "Name of a C++ script compiled into the server.", "Only set this to a script that exists in your build.");
+
+            b.Tab("Type data").Group("Type data");
+            for (int i = 0; i < GameObjectDataSlots; i++)
+                b.F("Data" + i, "Data " + i, FieldKind.Int, "A setting whose meaning depends on the object type. Studio labels it for the type picked on the Basics tab.", "If a slot isn't used by the type, leave it at 0.");
+
+            b.Tab("Extras").Group("Faction, flags and money", A);
+            b.F("faction", "Faction", FieldKind.Ref, "Who can use it (FactionTemplate ID). 0 = everyone.", "Battleground flags and banners use a faction so only one side can click them.", refKind: "factiontemplate");
+            b.F("flags", "Object flags", FieldKind.Flags, "Special states, such as locked or can't be selected.", "'Needs a quest or condition' hides the sparkle until the player has the quest.", bits: GameObjectFlags);
+            b.F("mingold", "Least money inside", FieldKind.Money, "For chests: smallest amount of copper inside.", "Leave both at 0 for no coins.");
+            b.F("maxgold", "Most money inside", FieldKind.Money, "For chests: largest amount of copper inside.", "Keep it in line with creatures of the same level.");
+            return e;
+        }
+
+        static EntityDef BuildNpcText()
+        {
+            var e = new EntityDef
+            {
+                Key = "npctext", Title = "NPC text", Singular = "NPC text", Table = "npc_text", KeyCol = "ID", NameCol = "text0_0",
+                ListExtra = "CONCAT(IF(COALESCE(text1_0, '') <> '' OR COALESCE(text1_1, '') <> '', 'several variants', 'one variant'), IF(BroadcastTextID0 <> 0, CONCAT(' · broadcast text ', BroadcastTextID0), ''))",
+                Tabs = new[] { "Variants 1-4", "Variants 5-8", "Used by" },
+            };
+            var b = new B(e);
+            for (int v = 0; v < 8; v++)
+            {
+                b.Tab(v < 4 ? "Variants 1-4" : "Variants 5-8").Group($"Variant {v + 1}");
+                b.F($"text{v}_0", "What the NPC says", FieldKind.LongText, "The greeting in the gossip window. When several variants are filled in, the server picks one at random using their chances. $N = player name, $C = class, $R = race, $B = new line.", "Short paragraphs read best; the window is narrow.");
+                b.F($"text{v}_1", "Female version", FieldKind.LongText, "Shown instead of the first text to female characters (e.g. 'sister' instead of 'brother'). Leave empty to show the same text to everyone.", "Only fill this in when the wording really differs.");
+                b.F($"Probability{v}", "Chance", FieldKind.Float, "How likely this variant is picked, as a weight compared with the other filled-in variants: two variants with 50 and 50 (or 1 and 1) are each picked half the time.", "Only the proportions matter; many existing texts use percentages that add up to 100.");
+                b.F($"lang{v}", "Language", FieldKind.Enum, "Language the text is spoken in. Players who don't know it see gibberish.", "Universal is right for gossip windows.", Language);
+                b.F($"BroadcastTextID{v}", "Broadcast text", FieldKind.Int, "BroadcastText ID that holds the official localized text. When set, the client may show that text instead.", "Leave 0 for your own new texts.");
+                for (int k = 0; k < 3; k++)
+                {
+                    b.F($"em{v}_{k * 2 + 1}", $"Emote {k + 1}", FieldKind.Enum, "An animation the NPC plays while the window opens.", "Talk, Bow, Wave and Point suit most greetings.", Emote);
+                    b.F($"em{v}_{k * 2}", $"Emote {k + 1} delay (ms)", FieldKind.Int, "Milliseconds to wait before playing that emote.", "Stagger several emotes by a second or two.");
+                }
+            }
+            return e;
+        }
+
+        static EntityDef BuildPageText()
+        {
+            var e = new EntityDef
+            {
+                Key = "pagetext", Title = "Page text", Singular = "page", Table = "page_text", KeyCol = "ID", NameCol = "Text",
+                ListExtra = "IF(NextPageID <> 0, CONCAT('continues on page ', NextPageID), 'last page')",
+                Tabs = new[] { "Page", "Used by" },
+            };
+            var b = new B(e);
+            b.Tab("Page").Group("Page");
+            b.F("Text", "Text on the page", FieldKind.LongText, "What the player reads on this page of a book, letter, plaque or sign. $N = player name, $B = new line.", "About 600 characters fit on one page; continue on a next page for more.");
+            b.F("NextPageID", "Next page", FieldKind.Ref, "The page shown when the player clicks the arrow. 0 = this is the last page.", "Chains of pages are how books work: page 1 → page 2 → page 3.", refKind: "pagetext");
             return e;
         }
     }

@@ -25,10 +25,22 @@ namespace AndersCraftStudio
             ["item"] = ("item_template", "entry", "name", "CONCAT('item level ', ItemLevel)"),
             ["quest"] = ("quest_template", "ID", "LogTitle", "CONCAT('level ', QuestLevel)"),
             ["gameobject"] = ("gameobject_template", "entry", "name", "CONCAT('type ', type)"),
+            ["npctext"] = ("npc_text", "ID", "text0_0", "IF(COALESCE(text1_0, '') <> '', 'several variants', '')"),
+            ["pagetext"] = ("page_text", "ID", "Text", "IF(NextPageID <> 0, CONCAT('next page ', NextPageID), 'last page')"),
         };
 
         public static bool IsDb(string kind) => DbKinds.ContainsKey(kind);
-        public static string Workspace(string kind) => kind switch { "creature" => "creatures", "item" => "items", "quest" => "quests", _ => null };
+        public static string Workspace(string kind) => kind switch { "creature" => "creatures", "item" => "items", "quest" => "quests", "gameobject" => "gameobjects", "npctext" => "npctext", "pagetext" => "pagetext", _ => null };
+
+        /// <summary>Long texts (NPC text, pages) shortened to one line for name labels and lists.</summary>
+        public static string OneLine(string s, int max = 70)
+        {
+            if (s == null) return null;
+            s = s.Replace("$B", " ").Replace("$b", " ").Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ');
+            while (s.Contains("  ")) s = s.Replace("  ", " ");
+            s = s.Trim();
+            return s.Length > max ? s.Substring(0, max - 1) + "…" : s;
+        }
 
         public static string LikeLiteral(string q) => SqlGen.Literal("%" + q.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%");
 
@@ -47,7 +59,7 @@ namespace AndersCraftStudio
                     var k = DbKinds[kind];
                     using var db = S.OpenRead(S.Profile.WorldDb);
                     var t = db.Query($"SELECT {SqlGen.Ident(k.name)} FROM {SqlGen.Ident(k.table)} WHERE {SqlGen.Ident(k.key)} = {id.ToString(CultureInfo.InvariantCulture)} LIMIT 1", 1);
-                    n = t.Rows.Count > 0 ? Convert.ToString(t.Rows[0][0]) : null;
+                    n = t.Rows.Count > 0 ? OneLine(Convert.ToString(t.Rows[0][0])) : null;
                     if (n == null) n = "(not found)";
                 }
                 else n = S.Dbc.Name(kind, id);
@@ -79,7 +91,7 @@ namespace AndersCraftStudio
                 var order = num ? $"({SqlGen.Ident(k.key)} = {id}) DESC, " : "";
                 using var db = S.OpenRead(S.Profile.WorldDb);
                 var t = db.Query($"SELECT {SqlGen.Ident(k.key)}, {SqlGen.Ident(k.name)}, {k.extra} FROM {SqlGen.Ident(k.table)} WHERE {where} ORDER BY {order}{SqlGen.Ident(k.key)} LIMIT 200", 200);
-                foreach (var r in t.Rows) res.Add((Convert.ToInt64(r[0], CultureInfo.InvariantCulture), Convert.ToString(r[1]), Convert.ToString(r[2])));
+                foreach (var r in t.Rows) res.Add((Convert.ToInt64(r[0], CultureInfo.InvariantCulture), OneLine(Convert.ToString(r[1]), 90), Convert.ToString(r[2])));
             }
             else
                 foreach (var (id, name) in S.Dbc.Search(kind, q)) res.Add((id, name, ""));

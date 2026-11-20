@@ -1,5 +1,25 @@
 # Release notes
 
+## 0.7.0 — the last parity gaps
+
+**New**
+* **Game objects** editor: chests, doors, herbs, signs, portals and every other object type. Data0–Data23 are labelled
+  for the object's type (all 36 types, with switches and name pickers where the value is a spell, quest, creature or page),
+  plus spawns (editable list), loot (chests and fishing pools, opens the Loot editor), the quests it starts and accepts,
+  faction / flags / money, and a SmartAI link.
+* **NPC text** editor: what an NPC says when its gossip window opens: 8 variants with male/female text, chance, language,
+  broadcast text and 3 emotes each, a *How it reads* preview, and who uses it. Gossip menus in World tables link to it.
+* **Page text** editor: books, letters and plaques, with next-page chaining, the whole book read in order (loops and
+  missing pages flagged), and the items and objects that show it. Items link to their page.
+* **CSV import into database tables** (SQL browser › *Import CSV…*): map the CSV's columns, choose add / update / both,
+  preview every change, then stage it — INSERTs for new rows and only the cells that changed, each with undo.
+* **Item model import** (Asset import): .m2 + skins + textures into `Item\ObjectComponents\<Slot>\` and a staged
+  ItemDisplayInfo row. It appears in the Items editor's Display picker as *icon · model*; Studio can stage it on an item.
+* Ctrl+K finds game objects, NPC texts and pages by name or ID.
+
+**Tests**: 137 automated tests (new: type-aware game object data, the new editors' fields against AzerothCore's schema,
+CSV import mapping / staging / errors, item model rows).
+
 ## 0.6.0 — first public release
 
 **New**

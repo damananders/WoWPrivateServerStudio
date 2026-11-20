@@ -213,7 +213,8 @@ namespace AndersCraftStudio
             var refresh = U.Btn("Refresh", () => LoadPage(), "BtnGhost", "Reload this page from the database.");
             var dump = U.Btn("Export SQL…", ExportTableSql, null, "Save this table as a .sql file: its CREATE TABLE and INSERTs for every row that matches the filter. Read-only.");
             var find = U.Btn("Find text…", FindText, null, "Find text in any column of this table (builds the filter for you).");
-            var rightBar = U.Row(prevBtn, pageLabel, nextBtn, find, export, dump, refresh);
+            var import = U.Btn("Import CSV…", ImportTableCsv, null, "Add or update rows of this table from a CSV file: map its columns, preview, then stage it (with undo). Nothing is written directly.");
+            var rightBar = U.Row(prevBtn, pageLabel, nextBtn, find, export, import, dump, refresh);
             rightBar.Children[rightBar.Children.Count - 1].SetValue(FrameworkElement.MarginProperty, new Thickness(0));
             DockPanel.SetDock(rightBar, Dock.Right); bar.Children.Add(rightBar);
 
@@ -660,6 +661,22 @@ namespace AndersCraftStudio
                 using var sw = new StreamWriter(file, false, new UTF8Encoding(true));
                 c.StreamCsv(sql, sw);
             }).ContinueWith(t => w.Dispatcher.Invoke(() => w.Toast(t.Exception == null ? $"Exported to {file}" : "Export failed: " + t.Exception.GetBaseException().Message, t.Exception == null ? "ok" : "bad")));
+        }
+
+        public CsvImportWindow ScreensCsvImport(string file) => table == null || data == null ? null : new CsvImportWindow(w, db, table, pk, data, file);
+
+        void ImportTableCsv()
+        {
+            if (table == null || data == null) { w.Toast("Open a table first.", "warn"); return; }
+            if (!Editable) { w.Toast("CSV import stages changes, so it works on the world and sandbox databases only.", "warn"); return; }
+            var d = new OpenFileDialog { Filter = "CSV file|*.csv|All files|*.*" };
+            if (d.ShowDialog(w) != true) return;
+            try
+            {
+                var dlg = new CsvImportWindow(w, db, table, pk, data, d.FileName);
+                if (dlg.ShowDialog() == true) OverlayStaged();
+            }
+            catch (Exception ex) { w.Toast("Can't read that CSV: " + ex.Message, "bad"); }
         }
 
         void ExportResultCsv()

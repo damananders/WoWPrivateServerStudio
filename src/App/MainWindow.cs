@@ -24,6 +24,7 @@ namespace AndersCraftStudio
     public sealed class MainWindow : Window
     {
         public static MainWindow Instance;
+        public static bool OnlyM7;
         public static bool Fresh;
         public readonly Studio S;
         readonly string screensDir;
@@ -229,6 +230,9 @@ namespace AndersCraftStudio
             Item("creatures", "", "Creatures", "NPCs and monsters: stats, spawns, equipment, vendor, loot and AI.");
             Item("items", "", "Items", "Weapons, armour and everything else in bags.");
             Item("quests", "", "Quests", "Quest text, objectives, rewards and chains.");
+            Item("gameobjects", "\uE7B8", "Game objects", "Chests, doors, herbs, signs, portals: type-aware settings, spawns and loot.");
+            Item("npctext", "\uE8BD", "NPC text", "What NPCs say when their gossip window opens: up to 8 variants with chances and emotes.");
+            Item("pagetext", "\uE736", "Page text", "Books, letters, plaques and signs: pages and how they chain.");
             Item("loot", "", "Loot", "Who drops what, how often, in which groups and shared lists, with a drop simulator.");
             Item("world", "\uE909", "World tables", "Conditions, waypoints, gossip menus, game events and area triggers.");
             Item("templates", "\uE8A5", "Templates", "Ready-made actions: clone a boss, make a vendor, new quest, scale a creature, add a combat spell.");
@@ -280,10 +284,10 @@ namespace AndersCraftStudio
             wizardHost.Visibility = Visibility.Collapsed; shell.Visibility = Visibility.Visible;
             if (!pages.TryGetValue(key, out var page))
             {
-                bool needsDb = key is "creatures" or "items" or "quests" or "loot" or "smartai" or "templates" or "world";
+                bool needsDb = key is "creatures" or "items" or "quests" or "gameobjects" or "npctext" or "pagetext" or "loot" or "smartai" or "templates" or "world";
                 if (needsDb && !S.HasReadAccount)
                 {
-                    var titles = new Dictionary<string, string> { ["creatures"] = "Creatures", ["items"] = "Items", ["quests"] = "Quests", ["loot"] = "Loot", ["smartai"] = "SmartAI", ["templates"] = "Templates", ["world"] = "World tables" };
+                    var titles = new Dictionary<string, string> { ["creatures"] = "Creatures", ["items"] = "Items", ["quests"] = "Quests", ["gameobjects"] = "Game objects", ["npctext"] = "NPC text", ["pagetext"] = "Page text", ["loot"] = "Loot", ["smartai"] = "SmartAI", ["templates"] = "Templates", ["world"] = "World tables" };
                     var np = new NotSetUpPage(this, titles[key], $"{titles[key]} reads your world database, so it needs the read-only account from setup step 3.");
                     CurrentPage = key;
                     if (nav.TryGetValue(key, out var nrb) && nrb.IsChecked != true) nrb.IsChecked = true;
@@ -301,6 +305,9 @@ namespace AndersCraftStudio
                     "creatures" => new EntityEditorPage(this, EntityDefs.Creature),
                     "items" => new EntityEditorPage(this, EntityDefs.Item),
                     "quests" => new EntityEditorPage(this, EntityDefs.Quest),
+                    "gameobjects" => new EntityEditorPage(this, EntityDefs.GameObject),
+                    "npctext" => new EntityEditorPage(this, EntityDefs.NpcText),
+                    "pagetext" => new EntityEditorPage(this, EntityDefs.PageText),
                     "patches" => new ClientPatchesPage(this),
                     "loot" => new LootPage(this),
                     "smartai" => new SmartAIPage(this),
@@ -367,7 +374,7 @@ namespace AndersCraftStudio
             var screens = new (string key, string name, string what)[]
             {
                 ("sql", "SQL browser", "Browse tables and run read-only queries"), ("changes", "Changes", "Review, apply and roll back"), ("settings", "Settings", "Profile, folders, Live switch"),
-                ("creatures", "Creatures", "Creature editor"), ("items", "Items", "Item editor"), ("quests", "Quests", "Quest editor"), ("loot", "Loot", "Loot editor and drop simulator"),
+                ("creatures", "Creatures", "Creature editor"), ("items", "Items", "Item editor"), ("quests", "Quests", "Quest editor"), ("gameobjects", "Game objects", "Chests, doors, herbs, signs"), ("npctext", "NPC text", "Gossip greetings"), ("pagetext", "Page text", "Books and letters"), ("loot", "Loot", "Loot editor and drop simulator"),
                 ("smartai", "SmartAI", "SmartAI builder"), ("spells", "Spells", "Spell editor with live tooltip"), ("dbc", "DBC tables", "All 246 client tables"), ("home", "Home", "Dashboard"), ("templates", "Templates", "Ready-made actions"), ("world", "World tables", "Conditions, waypoints, gossip, events, area triggers"), ("assets", "Asset import", "Icons, models, sounds"), ("help", "Help", "Getting started and glossary"), ("patches", "Client patches", "Build, install and inspect MPQ patches"),
             };
             foreach (var sc in screens)
@@ -414,7 +421,8 @@ namespace AndersCraftStudio
                         foreach (var r in t.Rows)
                         {
                             var eid = Convert.ToInt64(r[0]); var ws = def.Key;
-                            found.Add(new Hit { Kind = def.Singular.Substring(0, 1).ToUpperInvariant() + def.Singular.Substring(1), Title = $"{r[1]}  #{eid}", Detail = Convert.ToString(r[2]), Go = () => Navigate(ws, pg => ((EntityEditorPage)pg).Open(eid)) });
+                            var kindName = def.Key switch { "gameobjects" => "Object", "npctext" => "NPC text", "pagetext" => "Page", _ => def.Singular.Substring(0, 1).ToUpperInvariant() + def.Singular.Substring(1) };
+                            found.Add(new Hit { Kind = kindName, Title = $"{Refs.OneLine(Convert.ToString(r[1]), 60)}  #{eid}", Detail = Convert.ToString(r[2]), Go = () => Navigate(ws, pg => ((EntityEditorPage)pg).Open(eid)) });
                         }
                     }
                 }
@@ -587,7 +595,7 @@ namespace AndersCraftStudio
 
         async Task ScreensMode()
         {
-            try { if (Fresh) await Screens.RunFresh(this, screensDir); else await Screens.Run(this, screensDir); }
+            try { if (Fresh) await Screens.RunFresh(this, screensDir); else if (OnlyM7) await Screens.RunM7(this, screensDir); else await Screens.Run(this, screensDir); }
             catch (Exception ex) { File.WriteAllText(Path.Combine(screensDir, "screens_error.txt"), ex.ToString()); }
             Close();
         }

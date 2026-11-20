@@ -1,8 +1,14 @@
-AndersCraft Studio 0.6 (Milestone 6: first public release)
-==========================================================
+AndersCraft Studio 0.7 (parity follow-ups)
+===========================================
 End-user README: README.md. Licence: LICENSE (MIT). Changes: RELEASE_NOTES.md. Build: CONTRIBUTING.md.
 Feature parity with HeidiSQL / Keira3 / WDBX / MPQ tools / spell editors: PARITY_AUDIT.md.
-Distributable: dist\AndersCraftStudio-0.6.zip (self-contained) and dist\AndersCraftStudio-0.6-framework-dependent.zip.
+Distributable: dist\AndersCraftStudio-0.7.zip (self-contained) and dist\AndersCraftStudio-0.7-framework-dependent.zip.
+
+VERSION 0.7
+  - Game objects editor (type-aware Data0-23 for all 36 types, spawns, loot, quests, addon), NPC text (8 variants), Page text (chains).
+  - SQL browser: Import CSV into a table (map, preview, stage INSERT/UPDATE with undo).
+  - Asset import: item models -> Item\ObjectComponents\<Slot>\ + ItemDisplayInfo row (Display picker shows icon · model).
+  - Screens: AndersCraftStudio.exe --screens <dir> [--public] --m7 renders just the 0.7 screens.
 
 MILESTONE 6
   - Home dashboard, Help / Getting started (F1), About box, "not set up yet" pages, Settings › Switch server.

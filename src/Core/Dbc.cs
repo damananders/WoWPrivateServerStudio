@@ -181,7 +181,14 @@ namespace AndersCraftStudio.Core
                         if (File.Exists(p))
                         {
                             var t = LoadT(src.file);
-                            foreach (var r in t.Rows) { var nm = src.field < r.S.Length ? r.S[src.field] : null; if (!string.IsNullOrEmpty(nm)) d[r.V[0]] = nm; }
+                            foreach (var r in t.Rows)
+                            {
+                                var nm = src.field < r.S.Length ? r.S[src.field] : null;
+                                // item displays: "icon · model" so models (e.g. imported ones) can be found by file name too
+                                if (kind == "itemicon" && r.S.Length > 1 && !string.IsNullOrEmpty(r.S[1]))
+                                    nm = (string.IsNullOrEmpty(nm) ? "(no icon)" : nm) + " · " + Path.GetFileNameWithoutExtension(r.S[1]);
+                                if (!string.IsNullOrEmpty(nm)) d[r.V[0]] = nm;
+                            }
                         }
                     }
                 }

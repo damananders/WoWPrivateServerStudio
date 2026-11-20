@@ -133,6 +133,77 @@ namespace AndersCraftStudio
             await Milestone4(w);
             await Milestone5(w);
             await Milestone6(w);
+            await Milestone7(w);
+        }
+
+        /// <summary>--screens dir --m7: only the 0.7 screens (game objects, NPC text, page text, CSV import, item models).</summary>
+        public static async Task RunM7(MainWindow w, string dir)
+        {
+            Directory.CreateDirectory(dir);
+            await Milestone7(w);
+        }
+
+        static async Task Milestone7(MainWindow w)
+        {
+            var S = w.S;
+            string Q(string sql) { try { using var db = S.OpenRead(S.Profile.WorldDb); return db.Scalar(sql); } catch { return null; } }
+            async Task<EntityEditorPage> Open(string ws, long id, string tab)
+            {
+                EntityEditorPage pg = null;
+                w.Navigate(ws, p => pg = (EntityEditorPage)p);
+                pg.Open(id);
+                if (tab != null) pg.ShowTab(tab);
+                w.HideToast();
+                await Wait(800);
+                return pg;
+            }
+            // a chest with loot: type-aware data, then its loot
+            if (long.TryParse(Q("SELECT g.entry FROM gameobject_template g WHERE g.type = 3 AND g.Data1 > 0 AND g.name LIKE '%Chest%' AND EXISTS (SELECT 1 FROM gameobject_loot_template l WHERE l.Entry = g.Data1) ORDER BY g.entry LIMIT 1"), out var chest))
+            {
+                var go = await Open("gameobjects", chest, "Type data");
+                go.ScreensFocus("Data1"); await Wait(300);
+                await w.Snap("95_gameobject_chest_type_data.png");
+                await Open("gameobjects", chest, "Loot");
+                await w.Snap("96_gameobject_loot.png");
+                await Open("gameobjects", chest, "Basics");
+                await w.Snap("96b_gameobject_basics.png");
+            }
+            // a book: page text read as a chain
+            if (long.TryParse(Q("SELECT p.ID FROM page_text p WHERE p.NextPageID > 0 AND EXISTS (SELECT 1 FROM item_template i WHERE i.PageText = p.ID) ORDER BY p.ID LIMIT 1"), out var page))
+            {
+                await Open("pagetext", page, "Page");
+                await w.Snap("97_pagetext_book.png");
+                await Open("pagetext", page, "Used by");
+                await w.Snap("97b_pagetext_used_by.png");
+            }
+            // NPC text with several variants
+            if (long.TryParse(Q("SELECT n.ID FROM npc_text n WHERE COALESCE(n.text1_0, '') <> '' AND COALESCE(n.text2_0, '') <> '' AND EXISTS (SELECT 1 FROM gossip_menu g WHERE g.TextID = n.ID) ORDER BY n.ID LIMIT 1"), out var nt))
+            {
+                var pg = await Open("npctext", nt, "Variants 1-4");
+                pg.ScreensFocus("Probability0"); await Wait(300);
+                await w.Snap("98_npctext_variants.png");
+                await Open("npctext", nt, "Used by");
+                await w.Snap("98b_npctext_used_by.png");
+            }
+            // CSV import into item_template: two price changes and one new item, previewed (nothing staged)
+            SqlBrowserPage sb = null;
+            w.Navigate("sql", p => sb = (SqlBrowserPage)p);
+            sb.OpenTable("world", "item_template"); await Wait(700);
+            var csv = Path.Combine(Path.GetTempPath(), "studio_screens_items.csv");
+            File.WriteAllText(csv, "entry,name,BuyPrice,SellPrice\n25,Worn Shortsword,45,9\n159,Refreshing Spring Water,30,1\n" + S.Profiles.Settings.CustomIdStart + ",Studio Test Blade,5000,1000\n");
+            var dlg = sb.ScreensCsvImport(csv);
+            if (dlg != null)
+            {
+                dlg.Show(); await Wait(400);
+                dlg.ScreensPreview(); await Wait(600);
+                await w.SnapWindow(dlg, "99_sql_csv_import_preview.png");
+                dlg.Close();
+            }
+            // item model import form
+            AssetsPage ap = null;
+            w.Navigate("assets", p => ap = (AssetsPage)p);
+            ap.ScreensKind("itemmodel"); await Wait(500);
+            await w.Snap("99b_assets_item_model.png");
         }
 
         /// <summary>--screens dir --fresh: what a brand-new user sees (no profile, nothing found on the drives).</summary>
