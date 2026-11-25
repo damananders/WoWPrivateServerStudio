@@ -57,7 +57,9 @@ namespace AndersCraftStudio
             var ls = new DockPanel();
             var head = U.Stack(U.Eyebrow(rerun ? "Setup · run again" : "First-run setup"), U.T("Let's connect Studio to your server", 19, "Text", FontWeights.SemiBold, true, new Thickness(0, 0, 0, 22)));
             DockPanel.SetDock(head, Dock.Top); ls.Children.Add(head);
-            var help = U.T("You can change any of this later in Settings › Run setup again. Nothing here writes to your database.", 12.5, "Muted");
+            var guide = U.Btn("How to use this", () => GuideWindow.ShowFor(w, "wizard"), "BtnGhost", "A picture of setup with numbered steps. (Shift+F1)");
+            guide.HorizontalAlignment = HorizontalAlignment.Left; guide.Margin = new Thickness(-10, 10, 0, 0);
+            var help = U.Stack(U.T("You can change any of this later in Settings › Run setup again. Nothing here writes to your database.", 12.5, "Muted"), guide);
             DockPanel.SetDock(help, Dock.Bottom); ls.Children.Add(help);
             ls.Children.Add(rail);
             left.Child = ls;

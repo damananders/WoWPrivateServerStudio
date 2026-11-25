@@ -70,7 +70,7 @@ namespace AndersCraftStudio.Core
         public string BackupDir { get; set; }
         public bool Success { get; set; }
         public string Message { get; set; }
-        public string Kind { get; set; } = "Apply"; // "Apply" or "Rollback"
+        public string Kind { get; set; } = "Apply"; // "Apply", "Rollback", or "DBC" (client data sent out and moved to History)
     }
 
     public sealed class Changeset

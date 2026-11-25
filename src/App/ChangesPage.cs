@@ -35,6 +35,7 @@ namespace AndersCraftStudio
         string busyText;
         string lastError;
         string rollbackFor; string rollbackConfirm = "";
+        string conflictId; ConflictKind conflictKind;
 
         public ChangesPage(MainWindow w)
         {
@@ -133,6 +134,9 @@ namespace AndersCraftStudio
                 chk.Unchecked += (s, e) => { change.Selected = false; S.Changes.SavePending(); BuildApply(); };
                 var pills = U.Row(U.Pill(c.Category ?? "Database", CategoryBg(c.Category), "Text"), U.Pill(KindText(c), "Panel2", "Muted"));
                 if (!c.UndoAvailable) pills.Children.Add(U.Pill("no auto-undo", "AmberDim", "Amber", c.UndoNote));
+                if (c.Dbc?.SentToServerUtc != null) pills.Children.Add(U.Pill("server ✓", "OkBg", "Ok", "Written to the server's dbc folder " + c.Dbc.SentToServerUtc.Value.ToLocalTime().ToString("MMM d, HH:mm")));
+                if (c.Dbc?.SentToPatchUtc != null) pills.Children.Add(U.Pill("patch ✓", "OkBg", "Ok", "Written to the patch work folder " + c.Dbc.SentToPatchUtc.Value.ToLocalTime().ToString("MMM d, HH:mm")));
+                if (c.Id == conflictId) pills.Children.Add(U.Pill("needs a look", "BadBg", "Bad", "Apply stopped at this change. See the Apply card."));
                 var text = U.Stack(pills,
                     U.T(c.Summary, 13, "Text", FontWeights.SemiBold, true, new Thickness(0, 6, 0, 2)),
                     U.T(c.Table + (c.KeyText.Length > 0 ? " · " + c.KeyText : ""), 12, "Muted", null, false));
@@ -204,7 +208,9 @@ namespace AndersCraftStudio
             var p = c.Dbc;
             var note = U.Callout(c.Kind == ChangeKind.Insert ? $"Adds row {p.Key} to {p.File}." : c.Kind == ChangeKind.Delete ? $"Removes row {p.Key} from {p.File}." : $"Changes {p.Fields.Count} field(s) of {(p.ById ? "ID " : "row ")}{p.Key} in {p.File}.",
                 "info", "Client data change (no SQL)");
-            ((StackPanel)note.Child).Children.Add(U.T("DBC changes never touch the database. Send them out with the Client data card on the right: as files for a client patch, and/or as an updated server copy (backed up first). Undo: discard the change here before sending; after updating the server copy, restore the backup listed in that card. Before anything is written, every row is checked against the staged \"before\" values.", 12.5, "Muted", null, true, new Thickness(0, 6, 0, 0)));
+            ((StackPanel)note.Child).Children.Add(U.T("DBC changes never touch the database, so they don't use Apply. Send them out with the Send out DBC edits card on the right: as files for a client patch, and as an updated server copy (backed up first). Once a change has gone to both, it moves to History by itself; after just one, press Done: move to History. Undo after updating the server copy: restore the backup listed in that card.", 12.5, "Muted", null, true, new Thickness(0, 6, 0, 0)));
+            if (p.SentToServerUtc != null || p.SentToPatchUtc != null)
+                ((StackPanel)note.Child).Children.Add(U.T("Sent: " + string.Join(" · ", new[] { p.SentToServerUtc != null ? "server copy " + p.SentToServerUtc.Value.ToLocalTime().ToString("MMM d, HH:mm") : null, p.SentToPatchUtc != null ? "patch work folder " + p.SentToPatchUtc.Value.ToLocalTime().ToString("MMM d, HH:mm") : null }.Where(x => x != null)), 12.5, "Ok", FontWeights.SemiBold, true, new Thickness(0, 6, 0, 0)));
             DockPanel.SetDock(note, Dock.Top); sp.Children.Add(note);
             var open = U.Btn("Open in DBC tables", () => w.Navigate("dbc", pg => ((DbcPage)pg).OpenTable(p.File, p.ById ? p.Key : (long?)null)), null, "Show this row in the DBC tables screen.");
             open.HorizontalAlignment = HorizontalAlignment.Left; open.Margin = new Thickness(0, 0, 0, 12);
@@ -274,6 +280,14 @@ namespace AndersCraftStudio
             var tables = Backup.AffectedTables(ticked);
             sp.Children.Add(U.CheckRow(ticked.Count > 0 ? U.Check.Ok : U.Check.Info, "Ticked", $"{ticked.Count} change(s) in {tables.Count} table(s)", tables.Count > 0 ? string.Join(", ", tables) : null, 70));
             var problems = ApplyEngine.Validate(ticked, TargetDb, S.AllDatabases);
+            bool anyDbcStaged = S.Changes.Pending.Changes.Any(c => c.Dbc != null);
+            if (ticked.Count == 0)
+            {
+                problems.Remove("No changes are selected.");
+                problems.Insert(0, !HasDbChanges && anyDbcStaged
+                    ? "Nothing here is for the database: your staged changes are client data (DBC) edits. They don't use Apply; send them out with the Send out DBC edits card" + (HasDbChanges ? " below." : " above.")
+                    : "No database change is ticked. Tick at least one in the list on the left.");
+            }
             if (!S.HasWriteAccount) problems.Insert(0, "The apply account (studio_rw) isn't set up. Finish setup step 3.");
             if (w.ApplyTarget == "Sandbox" && !sandbox) problems.Insert(0, "The sandbox doesn't exist yet. Create it in setup step 5, or turn on Live in Settings › Safety.");
             if (!File.Exists(S.Profiles.Settings.MysqldumpPath)) problems.Add("mysqldump.exe wasn't found, so no backup can be taken. Set its location in Settings.");
@@ -293,13 +307,70 @@ namespace AndersCraftStudio
             Upd();
             sp.Children.Add(applyBtn);
             if (busy) sp.Children.Add(U.Callout(busyText ?? "Working…", "info"));
-            else if (lastError != null) { var e2 = U.Callout(lastError, "bad", "Apply didn't go through"); e2.Margin = new Thickness(0, 12, 0, 0); sp.Children.Add(e2); }
+            else if (lastError != null) { var e2 = U.Callout(lastError, "bad", "Apply stopped: nothing was changed"); e2.Margin = new Thickness(0, 0, 0, 14); AddConflictChoices((StackPanel)e2.Child); sp.Children.Insert(3, e2); }
             else sp.Children.Add(U.T("One transaction: either every ticked change lands, or none does.", 12, "Muted", null, true, new Thickness(0, 10, 0, 0)));
+            // The database card is always there (so Apply is never missing); when only DBC edits are staged, their card comes first.
             var outer = new StackPanel();
-            bool anyDbc = S.Changes.Pending.Changes.Any(c => c.Dbc != null);
-            if (HasDbChanges || !anyDbc) outer.Children.Add(U.Card(sp, new Thickness(18, 16, 18, 16), new Thickness(0, 0, 0, anyDbc ? 14 : 0)));
-            if (anyDbc) outer.Children.Add(U.Card(BuildDbcCard(), new Thickness(18, 16, 18, 16), new Thickness(0)));
+            var dbCard = U.Card(sp, new Thickness(18, 16, 18, 16), new Thickness(0, 0, 0, 14));
+            if (anyDbcStaged && !HasDbChanges) outer.Children.Add(U.Card(BuildDbcCard(), new Thickness(18, 16, 18, 16), new Thickness(0, 0, 0, 14)));
+            outer.Children.Add(dbCard);
+            if (anyDbcStaged && HasDbChanges) outer.Children.Add(U.Card(BuildDbcCard(), new Thickness(18, 16, 18, 16), new Thickness(0)));
             applyHost.Content = U.Scroll(outer);
+        }
+
+        /// <summary>When Apply stopped at one change, plain choices for it: refresh its starting point, skip it, or remove it.</summary>
+        void AddConflictChoices(StackPanel into)
+        {
+            var c = conflictId == null ? null : S.Changes.Pending.Changes.FirstOrDefault(x => x.Id == conflictId);
+            if (c == null) return;
+            var what = conflictKind switch
+            {
+                ConflictKind.Changed => "Your choices: refresh the starting point (Studio re-reads the row and keeps your new values, then you apply again), skip this change for now, or show it.",
+                ConflictKind.Missing => "The row is gone, so this change can't land. Skip it (untick) or discard it.",
+                ConflictKind.Exists => "A row with that key is already there (often because it was applied before). Discard this change, or skip it.",
+                ConflictKind.Several => "Skip this change, or discard it and make the edit in the SQL browser.",
+                _ => "Skip this change and apply the rest, or show it.",
+            };
+            into.Children.Add(U.T(what, 12.5, "Text", null, true, new Thickness(0, 8, 0, 6)));
+            var row = new WrapPanel();
+            Button B(string text, Action a, string style, string tip) { var b = U.Btn(text, a, style, tip); b.Margin = new Thickness(0, 0, 8, 6); return b; }
+            if (conflictKind == ConflictKind.Changed)
+            {
+                row.Children.Add(B("Refresh starting point", () => RefreshBaseline(c, false), "BtnPrimary", "Re-read the row from the database and use it as the new \"before\". Your new values stay. Then apply again."));
+                row.Children.Add(B("Refresh and apply now", () => RefreshBaseline(c, true), null, "Refresh the starting point, then run Apply straight away (the confirmation word you typed still counts)."));
+            }
+            row.Children.Add(B("Skip it (untick)", () => { c.Selected = false; ClearConflict(); S.SaveChanges(); w.Toast("Unticked. Apply again to send the rest.", "info"); }, null, "Leave this change staged but out of the next Apply."));
+            if (conflictKind is ConflictKind.Missing or ConflictKind.Exists or ConflictKind.Several)
+                row.Children.Add(B("Discard it", () => { S.Changes.Pending.Changes.Remove(c); ClearConflict(); S.SaveChanges(); w.Toast("Discarded: " + c.Summary, "info"); }, null, "Remove this change from the staged list. The database isn't touched."));
+            row.Children.Add(B("Show it", () => { selectedId = c.Id; Refresh(); }, "BtnGhost", "Select this change in the list."));
+            into.Children.Add(row);
+        }
+
+        void ClearConflict() { conflictId = null; conflictKind = ConflictKind.None; lastError = null; }
+
+        void RefreshBaseline(Change c, bool applyAfter)
+        {
+            try
+            {
+                ResultTable cur;
+                using (var db = S.OpenRead(TargetDb))
+                    cur = db.Query(SqlGen.SelectRow(c.Table, c.Key, c.Fields.Select(f => f.Name), false), 2);
+                if (!ApplyEngine.RefreshBaseline(c, cur)) { w.Toast("That row can't be read back the same way any more. Skip or discard the change instead.", "warn"); return; }
+                ClearConflict();
+                if (c.Kind == ChangeKind.Update && c.Fields.Count == 0)
+                {
+                    S.Changes.Pending.Changes.Remove(c);
+                    S.SaveChanges();
+                    w.Toast("The database already has your values for that row, so there's nothing left to apply for it. Removed it from the list.", "ok");
+                }
+                else
+                {
+                    S.SaveChanges();
+                    w.Toast("Starting point refreshed from " + TargetDb + ". Your new values are kept.", "ok");
+                }
+                if (applyAfter && Ticked().Count > 0) DoApply();
+            }
+            catch (Exception ex) { w.Toast("Couldn't read the row: " + Friendly.Text(ex), "bad"); }
         }
 
         // ================================================================== client data (DBC) outputs
@@ -320,6 +391,31 @@ namespace AndersCraftStudio
             var files = ticked.Select(c => c.Table).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             sp.Children.Add(U.T("DBC edits never go to the database and never overwrite an original. Choose one or both ways out; each checks every row first and writes nothing if anything doesn't match.", 12.5, "Muted", null, true, new Thickness(0, 0, 0, 10)));
             sp.Children.Add(U.CheckRow(ticked.Count > 0 ? U.Check.Ok : U.Check.Info, "Ticked", $"{ticked.Count} row change(s) in {files.Count} file(s)", files.Count > 0 ? string.Join(", ", files) : null, 70));
+            // where each ticked edit has been sent, and the way out of the list
+            int sentServer = ticked.Count(c => c.Dbc.SentToServerUtc != null), sentPatch = ticked.Count(c => c.Dbc.SentToPatchUtc != null);
+            if (ticked.Count > 0)
+            {
+                sp.Children.Add(U.T("Status", 14, "Text", FontWeights.SemiBold, false, new Thickness(0, 12, 0, 4)));
+                sp.Children.Add(U.CheckRow(sentServer == ticked.Count ? U.Check.Ok : U.Check.Pending, "Server copy", sentServer == ticked.Count ? "sent" : sentServer == 0 ? "not yet" : $"{sentServer} of {ticked.Count} sent", null, 110));
+                sp.Children.Add(U.CheckRow(sentPatch == ticked.Count ? U.Check.Ok : U.Check.Pending, "Patch folder", sentPatch == ticked.Count ? "written" : sentPatch == 0 ? "not yet" : $"{sentPatch} of {ticked.Count} written", null, 110));
+                var sent = ticked.Where(c => c.Dbc.SentToServerUtc != null || c.Dbc.SentToPatchUtc != null).ToList();
+                if (sent.Count > 0)
+                {
+                    var next = new List<string>();
+                    if (sentPatch > 0) next.Add("Build the patch and install it into your client on the Client patches screen, then restart WoW.");
+                    if (sentServer > 0) next.Add("Restart worldserver so it loads the new server DBCs.");
+                    var cb2 = U.Callout(string.Join("\n", next.Select(x => "• " + x)), "info", "Next");
+                    cb2.Margin = new Thickness(0, 8, 0, 8);
+                    sp.Children.Add(cb2);
+                    var row = new WrapPanel();
+                    var done = U.Btn($"Done: move {sent.Count} sent edit(s) to History", () => DbcDone(sent), "BtnPrimary", "Take the edits you've sent out of the staged list. They're kept in History. Edits that went to both places move there by themselves.");
+                    done.Margin = new Thickness(0, 0, 8, 6);
+                    row.Children.Add(done);
+                    if (sentPatch > 0) { var bp = U.Btn("Open Client patches", () => w.Navigate("patches"), null, "Build and install the client patch."); bp.Margin = new Thickness(0, 0, 8, 6); row.Children.Add(bp); }
+                    sp.Children.Add(row);
+                }
+            }
+
 
             // (a) patch work folder
             sp.Children.Add(U.T("1 · Files for a client patch", 14, "Text", FontWeights.SemiBold, false, new Thickness(0, 14, 0, 4)));
@@ -388,7 +484,12 @@ namespace AndersCraftStudio
             try { dbcLast = DbcOutputs.ToPatchFolder(ticked, read, work); }
             catch (Exception ex) { dbcLast = new DbcOutputResult(); dbcLast.Problems.Add(Friendly.Text(ex)); }
             Record("DBC → patch folder", work);
-            if (dbcLast.Success) w.Toast($"Wrote {dbcLast.Written.Count} DBC file(s) to {work}. Build the patch on Client patches.", "ok");
+            if (dbcLast.Success)
+            {
+                var moved = S.Changes.MarkDbcSent(ticked, false, work);
+                w.Toast($"Wrote {dbcLast.Written.Count} DBC file(s) to {work}. Build the patch on Client patches." + (moved != null ? $" {moved.Changes.Count} edit(s) are now in both places and moved to History." : ""), "ok");
+                if (moved != null) { S.RaiseChanges(); Refresh(); return; }
+            }
             BuildApply();
         }
 
@@ -402,8 +503,23 @@ namespace AndersCraftStudio
             catch (Exception ex) { dbcLast = new DbcOutputResult(); dbcLast.Problems.Add(Friendly.Text(ex) + " (a file may be in use)"); }
             Record("DBC → server copy", dbcLast.BackupDir);
             dbcConfirm = "";
-            if (dbcLast.Success) w.Toast($"Updated {dbcLast.Written.Count} server DBC file(s). Backup: {dbcLast.BackupDir}. Restart worldserver to load them.", "ok");
+            if (dbcLast.Success)
+            {
+                var moved = S.Changes.MarkDbcSent(ticked, true, dbcLast.BackupDir);
+                w.Toast($"Updated {dbcLast.Written.Count} server DBC file(s). Backup: {dbcLast.BackupDir}. Restart worldserver to load them." + (moved != null ? $" {moved.Changes.Count} edit(s) are now in both places and moved to History." : ""), "ok");
+                if (moved != null) { S.RaiseChanges(); Refresh(); return; }
+            }
             BuildApply();
+        }
+
+        void DbcDone(List<Change> sent)
+        {
+            var moved = S.Changes.MoveDbcToHistory(sent);
+            if (moved == null) return;
+            dbcLast = null;
+            S.RaiseChanges();
+            Refresh();
+            w.Toast($"Moved {moved.Changes.Count} sent DBC edit(s) to History.", "ok");
         }
 
         void DbcRestore(string backup)
@@ -435,7 +551,7 @@ namespace AndersCraftStudio
             if (confirmText.Trim() != ConfirmWord) return;
             var problems = ApplyEngine.Validate(ticked, dbName, S.AllDatabases);
             if (problems.Count > 0) { BuildApply(); return; }
-            busy = true; lastError = null; busyText = "Backing up " + string.Join(", ", Backup.AffectedTables(ticked)) + "…"; BuildApply();
+            busy = true; ClearConflict(); busyText = "Backing up " + string.Join(", ", Backup.AffectedTables(ticked)) + "…"; BuildApply();
             var p = S.Profile; var st = S.Profiles.Settings;
             var rwPw = S.Secrets.Unprotect(p.RwPassEnc);
             var folder = Backup.BackupFolder(st.BackupRoot, DateTime.Now);
@@ -450,12 +566,14 @@ namespace AndersCraftStudio
                 if (outcome.Success)
                 {
                     S.Changes.RecordApplied(ticked, rec);
+                    S.DatabaseWritten();
                     confirmText = "";
-                    w.Toast($"{outcome.Message} Backup: {folder}", "ok");
+                    w.Toast($"{outcome.Message} Backup: {folder}. They're in History now.", "ok");
                 }
                 else
                 {
                     lastError = outcome.Message;
+                    conflictId = outcome.ConflictChangeId; conflictKind = outcome.Conflict;
                     S.Changes.Pending.Log.Add(rec); S.Changes.SavePending();
                 }
             }
@@ -505,19 +623,30 @@ namespace AndersCraftStudio
             sp.Children.Add(U.T("Newest first. Roll back runs the undo SQL in one transaction after a fresh backup, and stops if a row was changed again since.", 13, "Muted", null, true, new Thickness(0, 0, 0, 12)));
             foreach (var cs in hist)
             {
-                var rec = cs.Log.FirstOrDefault(l => l.Kind == "Apply");
+                var rec = cs.Log.FirstOrDefault(l => l.Kind == "Apply" || l.Kind == "DBC");
+                bool dbcSent = rec?.Kind == "DBC";
                 bool rolled = cs.State == ChangesetState.RolledBack;
                 var head = new DockPanel();
-                var state = U.Pill(rolled ? "rolled back" : "applied", rolled ? "Panel2" : "OkBg", rolled ? "Muted" : "Ok");
+                var state = U.Pill(dbcSent ? "sent out" : rolled ? "rolled back" : "applied", rolled ? "Panel2" : "OkBg", rolled ? "Muted" : "Ok");
                 DockPanel.SetDock(state, Dock.Right); head.Children.Add(state);
                 head.Children.Add(U.Stack(U.T(cs.Name, 15, "Text", FontWeights.SemiBold, false),
-                    U.T($"{cs.CreatedUtc.ToLocalTime():yyyy-MM-dd HH:mm} · {cs.AppliedTarget} ({cs.AppliedDatabase}) · {cs.Changes.Count} change(s)", 12.5, "Muted", null, false, new Thickness(0, 2, 0, 0))));
+                    U.T(dbcSent ? $"{cs.CreatedUtc.ToLocalTime():yyyy-MM-dd HH:mm} · {rec.Message}" : $"{cs.CreatedUtc.ToLocalTime():yyyy-MM-dd HH:mm} · {cs.AppliedTarget} ({cs.AppliedDatabase}) · {cs.Changes.Count} change(s)", 12.5, "Muted", null, true, new Thickness(0, 2, 0, 0))));
                 var body = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
                 foreach (var c in cs.Changes.Take(8))
                     body.Children.Add(U.Row(U.Pill(c.Category, CategoryBg(c.Category), "Text"), U.T(c.Summary, 12.5, "Text", null, false)));
                 foreach (UIElement e in body.Children) e.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 0, 5));
                 if (cs.Changes.Count > 8) body.Children.Add(U.T($"…and {cs.Changes.Count - 8} more", 12, "Muted"));
-                if (rec?.BackupDir != null) body.Children.Add(U.T("Backup: " + rec.BackupDir, 12, "Muted", null, true, new Thickness(0, 6, 0, 0)));
+                if (rec?.BackupDir != null) body.Children.Add(U.T((dbcSent ? "Server DBC backup: " : "Backup: ") + rec.BackupDir, 12, "Muted", null, true, new Thickness(0, 6, 0, 0)));
+                if (dbcSent)
+                {
+                    body.Children.Add(U.T("DBC edits have no SQL to roll back. To undo the server copy, restore its backup; for the client, rebuild the patch without the edit.", 12, "Muted", null, true, new Thickness(0, 6, 0, 0)));
+                    var dRow = U.Row(U.Btn("Open backup folder", () => { if (rec?.BackupDir != null && Directory.Exists(rec.BackupDir)) Process.Start(new ProcessStartInfo("explorer.exe", "\"" + rec.BackupDir + "\"") { UseShellExecute = true }); else w.Toast("No server backup for this one (it only went to a patch folder), or the folder isn't there any more.", "warn"); }, "BtnGhost", "Show the server DBC files saved before the update."));
+                    if (rec?.BackupDir != null && Directory.Exists(rec.BackupDir)) dRow.Children.Add(U.Btn("Restore server DBC backup…", () => { DbcRestore(rec.BackupDir); BuildHistory(); }, null, "Put the server's DBC files back as they were before this update. You'll be asked to type RESTORE."));
+                    dRow.Margin = new Thickness(0, 12, 0, 0);
+                    body.Children.Add(dRow);
+                    sp.Children.Add(U.Card(U.Stack(head, body), new Thickness(20, 16, 20, 16), new Thickness(0, 0, 0, 12)));
+                    continue;
+                }
                 var btns = U.Row(
                     U.Btn("Open backup folder", () => { if (rec?.BackupDir != null && Directory.Exists(rec.BackupDir)) Process.Start(new ProcessStartInfo("explorer.exe", "\"" + rec.BackupDir + "\"") { UseShellExecute = true }); else w.Toast("That backup folder isn't there any more.", "warn"); }, "BtnGhost", "Show the mysqldump files taken before this apply."),
                     U.Btn("Copy undo SQL", () => { try { Clipboard.SetText(S.Changes.ExportSql(cs.Changes, true)); w.Toast("Undo SQL copied.", "ok"); } catch { } }, "BtnGhost", "Copy the undo SQL for this apply."));
@@ -573,7 +702,7 @@ namespace AndersCraftStudio
                 var outcome = await Task.Run(() => { using var db = S.OpenWrite(cs.AppliedDatabase); return ApplyEngine.Rollback(cs.Changes, db); });
                 rec.Success = outcome.Success; rec.Message = outcome.Message;
                 File.WriteAllLines(Path.Combine(folder, "rollback_log.sql"), outcome.Log);
-                if (outcome.Success) cs.State = ChangesetState.RolledBack;
+                if (outcome.Success) { cs.State = ChangesetState.RolledBack; S.DatabaseWritten(); }
                 w.Toast(outcome.Message, outcome.Success ? "ok" : "bad");
             }
             catch (Exception ex) { rec.Success = false; rec.Message = (ex.InnerException ?? ex).Message + " Nothing was changed."; w.Toast(rec.Message, "bad"); }
@@ -583,6 +712,7 @@ namespace AndersCraftStudio
             BuildHistory();
         }
 
+        public void ScreensConflict(string id, ConflictKind kind, string message) { conflictId = id; conflictKind = kind; lastError = message; Refresh(); }
         public void ScreensShowHistory(string rollbackId) { tabHistory.IsChecked = true; rollbackFor = rollbackId; BuildHistory(); }
         public void ScreensDetailTab(int i) { detailTab = i; ShowDetail(); }
     }

@@ -20,8 +20,30 @@
 * **Body armour textures** in Asset import: one picture per body region → Item\TextureComponents + an ItemDisplayInfo row,
   previewed on a character.
 
-**Tests**: 154 automated tests (new: M2 / .skin reading on real client models, mesh building, animation, particles and
-ribbons on the client's spell effects, dressed NPC looks, WMO groups, script-row matching, DBC tabs).
+**New: "How to use this" guides.** Every main screen has a picture of itself with numbered markers and short steps:
+Creatures, Items, Quests, Loot, SmartAI, Spells, DBC tables, Client patches, Asset import, SQL browser, Admin console,
+Changes (database changes, client data, history and roll back) and the setup wizard. Open the one for the screen you're on
+with *How to use this* in the top bar or Shift+F1 (in setup: the button under the steps); Help › How-to guides lists them
+all. It opens in its own window, so the screen you're on stays as it is.
+
+**Fixed: stage → review → apply works every time**
+* Spell and other DBC edits never left the staged list after being sent out, so Changes kept showing them with no Apply
+  button (DBC edits don't go through Apply). Now each one shows where it has been sent (server copy, patch folder); once
+  it has gone both ways it moves to History by itself, and *Done: move to History* clears one you've sent just one way.
+  Older staged files learn where their DBC edits went from the send log.
+* The database Apply card is always shown. When nothing ticked is for the database, it says why in plain words.
+* After an Apply (or Roll back) the editors, Loot, SmartAI, World tables and the SQL browser reload what's in the database.
+  Before, a second edit of the same row recorded the old value as its starting point and the next Apply stopped.
+* When a row changed since you staged an edit, Apply stops (nothing changes) and explains it in plain words, with choices:
+  *Refresh starting point* (re-reads the row and keeps your new values), *Refresh and apply now*, *Skip it (untick)*,
+  *Discard it* (for a row that's gone or already there) and *Show it*. The change is marked *needs a look* in the list.
+* Two applies within the same second no longer share (and overwrite) one History file.
+* History shows sent DBC edits with their server backup and a *Restore server DBC backup…* button.
+
+**Tests**: 163 automated tests (new: M2 / .skin reading on real client models, mesh building, animation, particles and
+ribbons on the client's spell effects, dressed NPC looks, WMO groups, script-row matching, DBC tabs; three applies in a row,
+a restart, a fourth apply and a roll back on an in-memory table; a stale edit stopped and refreshed; sent DBC edits
+leaving the staged list across restarts; an older staged file learning where its DBC edits went).
 
 ## 0.8.0 — no other tools needed
 

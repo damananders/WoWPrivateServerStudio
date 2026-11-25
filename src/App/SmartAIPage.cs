@@ -100,7 +100,12 @@ namespace AndersCraftStudio
             editorHost.Content = U.Card(U.Stack(U.H2("Open a script"), U.T("Pick a creature, game object or action list above. Each row reads as one sentence; click a row to edit it.", 13.5, "Muted")), new Thickness(28), new Thickness(0));
         }
 
-        public void OnShow() { }
+        public void OnShow()
+        {
+            // after an Apply the script shown may be out of date: reload it unless it has unstaged edits
+            if (seenVersion != S.DataVersion) { seenVersion = S.DataVersion; if (entry != 0 && S.HasReadAccount && !IsDirty()) Open(sourceType, entry, true); }
+        }
+        int seenVersion;
 
         // ================================================================== creature_text
         readonly Dictionary<(long, long), RowListEditor> textEditors = new Dictionary<(long, long), RowListEditor>();

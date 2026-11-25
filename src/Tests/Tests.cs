@@ -331,7 +331,7 @@ Rate.XP.Kill = 2  # comment after value
             var db = new FakeDb { OnQuery = _ => FakeDb.Table(new[] { "minlevel" }, new object[] { 5 }) };
             var o = ApplyEngine.Apply(new[] { c }, db);
             A.False(o.Success, "should fail");
-            A.Contains(o.Message, "Someone changed it");
+            A.Contains(o.Message, "Something changed that row");
             A.False(db.Log.Any(l => l.StartsWith("X")), "no write ran");
             A.Eq("ROLLBACK", db.Log.Last());
         }

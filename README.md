@@ -44,6 +44,9 @@ SQL and hex editors — and it is built so that **nothing reaches your database 
   The Changes screen shows everything side by side.
 * **Backup first, one transaction.** Apply takes a mysqldump backup of the affected tables, asks you to type `APPLY`,
   re-checks every row and runs everything in one transaction — any mismatch rolls it all back. Every apply can be rolled back.
+* **Apply again and again.** Applied changes move to History, editors reload what's in the database, and if a row
+  changed since you staged an edit, Apply stops and explains it in plain words with choices: refresh the starting point,
+  skip the change, or show it.
 * **Sandbox first.** Apply goes to a practice copy of your world database until you unlock Live in Settings.
 * **Originals are never overwritten.** DBC edits and imported assets leave Studio as files in its own folders; installing
   a patch backs up anything it replaces and refuses while the game is running.
@@ -75,6 +78,16 @@ the three databases and the server's account and loads AzerothCore's base tables
 (they apply the update files themselves), then run the setup wizard above.
 6. Open **Home**, read *New to this? Start here*, and try a **Template** — then look at **Changes** to see exactly what
    would happen. Press F1 any time for the Getting started guide and glossary.
+
+**How to use this.** Every main screen has a visual guide: a picture of the screen with numbered markers and short steps
+(Creatures, Items, Quests, Loot, SmartAI, Spells, DBC tables, Client patches, Asset import, SQL browser, Admin console,
+Changes and the setup wizard). Open it with *How to use this* in the top bar or **Shift+F1**; Help lists them all.
+
+![How to use this](docs/screens/how-to-guide.png)
+
+**Spell and DBC edits don't use Apply.** On Changes they go out with *Send out DBC edits*: as files for a client patch
+(then build and install it on Client patches) and as an updated server copy (then restart worldserver). Once an edit has
+gone both ways it moves to History by itself; after just one, press *Done: move to History*.
 
 Your settings and encrypted passwords live in `%APPDATA%\AndersCraftStudio`; changesets, backups, patch work folders and
 built patches in `Documents\AndersCraft Studio` (changeable in Settings).

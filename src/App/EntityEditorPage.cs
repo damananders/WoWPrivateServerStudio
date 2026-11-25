@@ -44,6 +44,7 @@ namespace AndersCraftStudio
 
         // state
         long? id;
+        int seenVersion;
         readonly Dictionary<string, DataRow> rows = new Dictionary<string, DataRow>(StringComparer.OrdinalIgnoreCase);
         /// <summary>Side tables with no row for this entity yet: a stand-in row of defaults; edits become one staged INSERT.</summary>
         readonly Dictionary<string, (List<string> cols, List<string> lits, List<string> disps)> newRows = new Dictionary<string, (List<string>, List<string>, List<string>)>(StringComparer.OrdinalIgnoreCase);
@@ -81,7 +82,7 @@ namespace AndersCraftStudio
             view.Tag = host;
 
             searchTimer.Tick += (s, e) => { searchTimer.Stop(); RunSearch(); };
-            S.ChangesChanged += () => { if (w.CurrentPage == D.Key && id != null) RefreshAllFields(); };
+            S.ChangesChanged += () => { if (w.CurrentPage == D.Key && id != null) { if (!ReloadIfApplied()) RefreshAllFields(); } };
             U.OnKey(view, Key.S, ModifierKeys.Control, StageEdits);
             U.OnKey(view, Key.F, ModifierKeys.Control, () => { searchBox.Focus(); searchBox.SelectAll(); });
             U.OnKey(view, Key.D, ModifierKeys.Control, DuplicateAsNew);
@@ -95,6 +96,36 @@ namespace AndersCraftStudio
             if (!S.HasReadAccount) { host.Content = setupNeeded; return; }
             host.Content = main;
             if (!loadedOnce) { loadedOnce = true; RunSearch(); }
+            ReloadIfApplied();
+        }
+
+        /// <summary>
+        /// After an Apply or Roll back the rows loaded here are out of date; staging from them would record the old values as
+        /// "before" and the next Apply would stop with a mismatch. Reload the open entity (and its lists without unstaged edits).
+        /// </summary>
+        bool ReloadIfApplied()
+        {
+            if (id == null || seenVersion == S.DataVersion) return false;
+            seenVersion = S.DataVersion;
+            foreach (var k in listEditors.Where(kv => !kv.Value.Dirty).Select(kv => kv.Key).ToList()) listEditors.Remove(k);
+            if (session.Count > 0) { ReloadRows(); RefreshAllFields(); return true; }
+            var keep = id.Value; id = null;
+            Open(keep);
+            return true;
+        }
+
+        void ReloadRows()
+        {
+            try
+            {
+                using var db = S.OpenRead(S.Profile.WorldDb);
+                foreach (var (table, keyCol) in AllTables())
+                {
+                    var dt = db.QueryTable($"SELECT * FROM {SqlGen.Ident(table)} WHERE {SqlGen.Ident(keyCol)} = {id.Value.ToString(CultureInfo.InvariantCulture)} LIMIT 1", 1, out _);
+                    if (dt.Rows.Count > 0) { rows[table] = dt.Rows[0]; newRows.Remove(table); }
+                }
+            }
+            catch (Exception ex) { w.Toast("Couldn't reload after Apply: " + Friendly.Text(ex), "warn"); }
         }
 
         UIElement BuildSetupNeeded()
@@ -201,7 +232,7 @@ namespace AndersCraftStudio
             if (id == newId) return;
             if (session.Count > 0 && !ConfirmLeave()) return;
             session.Clear();
-            id = newId;
+            id = newId; seenVersion = S.DataVersion;
             rows.Clear(); newRows.Clear();
             try
             {

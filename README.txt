@@ -10,6 +10,12 @@ VERSION 0.9
   - Keyless tables: RowListEditor.MatchAllColumns, SqlGen.WhereKey matches fractions with ABS(...) < 0.0005.
   - DBC tabs: Core\OpenTabs.cs, DbcPage keeps per-table state.
   - Screens: --screens <dir> [--public] --m9 renders just the 0.9 screens.
+  - Apply flow fixes: ChangesetStore.MarkDbcSent / MoveDbcToHistory / InferDbcSent (sent DBC edits leave the staged list),
+    NewHistoryId (no same-second overwrite), ApplyEngine conflicts name the change (ConflictKind) + RefreshBaseline,
+    Studio.DataVersion makes editors reload after Apply / Roll back. Tests: Tests\ApplyFlowTests.cs.
+  - "How to use this" guides: App\Guides.cs (steps + marker positions), App\GuideWindow.cs, pictures in App\Guides\*.jpg
+    made by tools\make_guides.py from a --public screenshot run (paints neutral text over private text boxes).
+  - Screens: --m10 renders the Changes fixes and every guide.
 
 VERSION 0.8
   - Admin console (AdminPage.cs, Core\Admin.cs): admin login per session, never saved; direct SQL, databases/tables/indexes/views,

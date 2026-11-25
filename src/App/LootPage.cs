@@ -98,7 +98,10 @@ namespace AndersCraftStudio
         {
             if (!S.HasReadAccount) { main.Content = U.Callout("Finish setup step 3 (the read-only account) to use the Loot editor.", "warn"); return; }
             if (results.Items.Count == 0) RunSearch();
+            // after an Apply the list shown may be out of date: reload it unless it has unstaged edits
+            if (seenVersion != S.DataVersion) { seenVersion = S.DataVersion; if (editor != null && cur != null && !editor.Dirty) Open(cur.Table, entry); }
         }
+        int seenVersion;
 
         void RunSearch()
         {

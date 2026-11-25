@@ -136,6 +136,60 @@ namespace AndersCraftStudio
             await Milestone7(w);
             await Milestone8(w);
             await Milestone9(w);
+            await Milestone10(w);
+        }
+
+        public static async Task RunM10(MainWindow w, string dir)
+        {
+            Directory.CreateDirectory(dir);
+            await Milestone10(w);
+        }
+
+        /// <summary>The Changes screen after the 0.9 fixes: a sent DBC edit with its status, and an Apply that stopped at one change.</summary>
+        static async Task Milestone10(MainWindow w)
+        {
+            var S = w.S;
+            var keep = S.Changes.Pending.Changes.ToList();
+            S.Changes.Pending.Changes.Clear();
+            // a DBC edit already written to the server copy (sample values; the throw-away changeset only)
+            var dbc = new Change
+            {
+                Kind = ChangeKind.Update, Schema = DbcStager.Schema, Table = "Spell.dbc", Category = "Client data (DBC)", Summary = "Edit Spell.dbc 900001 (Sample spell): CastingTimeIndex",
+                Key = new List<KeyPart> { new KeyPart("ID", "900001") },
+                Dbc = new DbcPatch { File = "Spell.dbc", Source = "server", Key = 900001, SentToServerUtc = DateTime.UtcNow.AddMinutes(-3), ServerBackupDir = Path.Combine(S.Profiles.Settings.BackupRoot, "dbc_(sample)"), Fields = { new DbcFieldEdit { Field = 28, Name = "CastingTimeIndex", Before = "1", After = "6" } } },
+            };
+            dbc.Fields.Add(new FieldChange { Name = "CastingTimeIndex", Before = "1", After = "6", BeforeDisplay = "1", AfterDisplay = "6" });
+            S.Changes.Pending.Changes.Add(dbc);
+            S.SaveChanges();
+            w.Navigate("changes");
+            var ch = (ChangesPage)w.GetPage("changes");
+            ch.Select(dbc.Id);
+            await Wait(700);
+            w.HideToast();
+            await w.Snap("124_changes_dbc_sent_status.png");
+            // a database edit that Apply stopped at (shown as it would be; nothing is applied)
+            S.Changes.Pending.Changes.Clear();
+            var ed = ChangeFactory.StageCellEdit(S.Changes.Pending, "quest_template", new List<KeyPart> { new KeyPart("ID", "900100") }, "LogTitle", "'A sample quest'", "A sample quest", "'A better sample quest'", "A better sample quest");
+            S.SaveChanges();
+            ch.Select(ed.Id);
+            ch.ScreensConflict(ed.Id, ConflictKind.Changed, $"\"{ed.Summary}\": in the database, LogTitle is now 'A sample quest (edited)', but when you staged this edit it was 'A sample quest'. Something changed that row since (an earlier Apply, the game server, or another tool). Nothing was changed.");
+            await Wait(600);
+            await w.Snap("125_changes_apply_stopped.png");
+            ch.ScreensConflict(null, ConflictKind.None, null);
+            S.Changes.Pending.Changes.Clear();
+            S.Changes.Pending.Changes.AddRange(keep);
+            S.SaveChanges();
+            // the "How to use this" guides, every part
+            w.Navigate("creatures"); await Wait(300);
+            foreach (var g in Guides.All)
+                for (int i = 0; i < g.Parts.Count; i++)
+                {
+                    GuideWindow.ShowFor(w, g.Key);
+                    GuideWindow.Open.ScreensPart(i);
+                    await Wait(500);
+                    await w.SnapWindow(GuideWindow.Open, $"130_guide_{g.Key}{(g.Parts.Count > 1 ? "_" + (i + 1) : "")}.png");
+                }
+            GuideWindow.Open?.Close();
         }
 
         static IEnumerable<string> WmoDisplays(Studio S)

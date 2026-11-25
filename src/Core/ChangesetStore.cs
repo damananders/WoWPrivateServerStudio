@@ -34,6 +34,7 @@ namespace AndersCraftStudio.Core
             }
             Pending ??= new Changeset { Name = "Staged changes" };
             Pending.FilePath = PendingPath;
+            InferDbcSent();
         }
 
         public string PendingPath => Path.Combine(Folder, "pending.json");
@@ -67,12 +68,21 @@ namespace AndersCraftStudio.Core
         public List<Changeset> History() =>
             Directory.GetFiles(Folder, "applied_*.json").Select(LoadFile).Where(x => x != null).OrderByDescending(x => x.CreatedUtc).ToList();
 
+        /// <summary>A history id that isn't taken yet (two applies in the same second must not overwrite each other).</summary>
+        public string NewHistoryId(DateTime? now = null)
+        {
+            var baseId = (now ?? DateTime.Now).ToString("yyyyMMdd_HHmmss");
+            var id = baseId;
+            for (int n = 2; File.Exists(Path.Combine(Folder, "applied_" + id + ".json")); n++) id = baseId + "_" + n;
+            return id;
+        }
+
         /// <summary>Moves applied changes out of pending into their own history file.</summary>
-        public Changeset RecordApplied(IList<Change> applied, ApplyRecord rec)
+        public Changeset RecordApplied(IList<Change> applied, ApplyRecord rec, DateTime? now = null)
         {
             var cs = new Changeset
             {
-                Id = DateTime.Now.ToString("yyyyMMdd_HHmmss"), Name = $"Applied to {rec.Target}", State = ChangesetState.Applied,
+                Id = NewHistoryId(now), Name = rec.Kind == "DBC" ? "Client data sent out" : $"Applied to {rec.Target}", State = ChangesetState.Applied,
                 AppliedTarget = rec.Target, AppliedDatabase = rec.Database, Changes = applied.ToList(),
             };
             cs.Log.Add(rec);
@@ -82,6 +92,60 @@ namespace AndersCraftStudio.Core
             Pending.Log.Add(rec);
             SavePending();
             return cs;
+        }
+
+        /// <summary>
+        /// Notes that DBC edits were written out (to the server's dbc folder and/or a patch work folder). DBC edits never go
+        /// through the database Apply, so this is how they leave the staged list: once an edit has gone to BOTH places it moves
+        /// to History on its own; after just one, <see cref="MoveDbcToHistory"/> moves it when you say it's done.
+        /// Returns the History entry when something moved.
+        /// </summary>
+        public Changeset MarkDbcSent(IList<Change> sent, bool toServer, string where, DateTime? now = null)
+        {
+            var t = (now ?? DateTime.Now).ToUniversalTime();
+            foreach (var c in sent.Where(c => c.Dbc != null))
+            {
+                if (toServer) { c.Dbc.SentToServerUtc = t; c.Dbc.ServerBackupDir = where; }
+                else { c.Dbc.SentToPatchUtc = t; c.Dbc.PatchFolder = where; }
+            }
+            var done = sent.Where(c => c.Dbc?.SentToServerUtc != null && c.Dbc.SentToPatchUtc != null).ToList();
+            if (done.Count == 0) { SavePending(); return null; }
+            return MoveDbcToHistory(done, now);
+        }
+
+        /// <summary>Moves sent DBC edits out of the staged list into History.</summary>
+        public Changeset MoveDbcToHistory(IList<Change> changes, DateTime? now = null)
+        {
+            var list = changes.Where(c => c.Dbc != null).ToList();
+            if (list.Count == 0) return null;
+            var where = new List<string>();
+            if (list.Any(c => c.Dbc.SentToServerUtc != null)) where.Add("server dbc folder");
+            if (list.Any(c => c.Dbc.SentToPatchUtc != null)) where.Add("patch work folder");
+            var rec = new ApplyRecord
+            {
+                Utc = (now ?? DateTime.Now).ToUniversalTime(), Target = "Client data", Database = "dbc", Kind = "DBC", Success = true,
+                BackupDir = list.Select(c => c.Dbc.ServerBackupDir).LastOrDefault(d => !string.IsNullOrEmpty(d)),
+                Message = $"{list.Count} DBC edit(s) sent to the " + (where.Count == 0 ? "(nowhere yet)" : string.Join(" and ", where)) + ".",
+            };
+            return RecordApplied(list, rec, now);
+        }
+
+        /// <summary>
+        /// Staged-changes files from before 0.9 didn't remember where DBC edits had been sent. Fill that in from the log
+        /// (a successful send recorded after the edit was staged), so the Changes screen can say what's done.
+        /// </summary>
+        public bool InferDbcSent()
+        {
+            bool any = false;
+            foreach (var c in Pending.Changes.Where(c => c.Dbc != null))
+            {
+                foreach (var l in Pending.Log.Where(l => l.Success && l.Database == "dbc" && l.Utc >= c.CreatedUtc))
+                {
+                    if (l.Kind == "DBC → server copy" && c.Dbc.SentToServerUtc == null) { c.Dbc.SentToServerUtc = l.Utc; c.Dbc.ServerBackupDir = l.BackupDir; any = true; }
+                    if (l.Kind == "DBC → patch folder" && c.Dbc.SentToPatchUtc == null) { c.Dbc.SentToPatchUtc = l.Utc; c.Dbc.PatchFolder = l.BackupDir; any = true; }
+                }
+            }
+            return any;
         }
 
         public string ExportSql(IEnumerable<Change> changes, bool undo)

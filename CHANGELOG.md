@@ -5,7 +5,10 @@ Full notes for each version are in [RELEASE_NOTES.md](RELEASE_NOTES.md).
 ## 0.9.0
 3D viewer for creatures (dressed humanoid NPCs included), game objects and WMO buildings, items and spell effects with
 particles; animations; body-armour texture import; editable event/spell scripts; DBC tabs; friendlier error messages, a
-log for problem reports, recovery of a damaged staged-changes file; MariaDB backup fix.
+log for problem reports, recovery of a damaged staged-changes file; MariaDB backup fix. Fixed: sent DBC edits stayed
+staged forever with no way out, and editors kept pre-Apply values (so a second edit of the same row stopped Apply);
+Apply is always shown, mismatches are explained with choices, two applies in one second no longer share a History file.
+New "How to use this" visual guides for every main screen (Shift+F1).
 
 ## 0.8.0
 Admin console (everything HeidiSQL does, including setting up AzerothCore's databases) and the rest of Keira3's editors.

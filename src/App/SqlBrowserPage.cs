@@ -85,8 +85,11 @@ namespace AndersCraftStudio
             if (!S.HasReadAccount) { mainHost.Content = setupNeeded; return; }
             mainHost.Content = browser;
             if (db == null) { LoadDatabases(); SelectDb("world"); }
+            else if (data != null && seenVersion != S.DataVersion) LoadPage();   // applied since: show (and stage against) what's there now
             else if (data != null) OverlayStaged();
+            seenVersion = S.DataVersion;
         }
+        int seenVersion;
 
         // ================================================================== layout
         UIElement BuildSetupNeeded()

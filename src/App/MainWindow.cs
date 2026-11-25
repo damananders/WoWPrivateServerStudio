@@ -24,7 +24,7 @@ namespace AndersCraftStudio
     public sealed class MainWindow : Window
     {
         public static MainWindow Instance;
-        public static bool OnlyM7, OnlyM8, OnlyM9;
+        public static bool OnlyM7, OnlyM8, OnlyM9, OnlyM10;
         public static bool Fresh;
         public readonly Studio S;
         readonly string screensDir;
@@ -32,6 +32,7 @@ namespace AndersCraftStudio
         readonly Grid root = new Grid();
         readonly Grid shell = new Grid();
         readonly ContentControl pageHost = new ContentControl { Focusable = false };
+        Button guideBtn;
         readonly ContentControl wizardHost = new ContentControl { Focusable = false, Visibility = Visibility.Collapsed };
         readonly Dictionary<string, IPage> pages = new Dictionary<string, IPage>();
         readonly Dictionary<string, RadioButton> nav = new Dictionary<string, RadioButton>();
@@ -143,7 +144,13 @@ namespace AndersCraftStudio
             reviewBtn.VerticalAlignment = VerticalAlignment.Center;
             reviewBtn.Content = changesBadgeText;
             WindowChrome.SetIsHitTestVisibleInChrome(reviewBtn, true);
-            var status = U.Row(connBadge, targetText, reviewBtn);
+            // "How to use this": the visual guide for the screen you're on (Shift+F1)
+            guideBtn = U.Btn("", () => GuideWindow.ShowFor(this, CurrentPage), "BtnGhost", "How to use this screen: a picture with numbered steps. (Shift+F1)");
+            guideBtn.Content = U.Row(new TextBlock { Text = "\uE897", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 14, Foreground = U.R("Amber"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) }, U.T("How to use this", 12.5, "Text", FontWeights.SemiBold, false));
+            guideBtn.VerticalAlignment = VerticalAlignment.Center; guideBtn.Margin = new Thickness(0, 0, 12, 0);
+            U.AutomationName(guideBtn, "How to use this screen");
+            WindowChrome.SetIsHitTestVisibleInChrome(guideBtn, true);
+            var status = U.Row(guideBtn, connBadge, targetText, reviewBtn);
             status.VerticalAlignment = VerticalAlignment.Center;
             Grid.SetColumn(status, 3); bar.Children.Add(status);
 
@@ -328,6 +335,7 @@ namespace AndersCraftStudio
                 pages[key] = page;
             }
             CurrentPage = key;
+            if (guideBtn != null) guideBtn.Visibility = Guides.For(key) != null ? Visibility.Visible : Visibility.Collapsed;
             if (nav.TryGetValue(key, out var rb) && rb.IsChecked != true) rb.IsChecked = true;
             pageHost.Content = page.View;
             page.OnShow();
@@ -471,6 +479,7 @@ namespace AndersCraftStudio
                 else if (m == (ModifierKeys.Control | ModifierKeys.Shift) && k == Key.R && CurrentPage != "wizard") { Navigate("changes"); e.Handled = true; }
                 else if (m == ModifierKeys.Control && k == Key.OemComma && CurrentPage != "wizard") { Navigate("settings"); e.Handled = true; }
                 else if (m == ModifierKeys.None && k == Key.F1 && CurrentPage != "wizard") { Navigate("help"); e.Handled = true; }
+                else if (m == ModifierKeys.Shift && k == Key.F1) { GuideWindow.ShowFor(this, CurrentPage); e.Handled = true; }
                 else if (m == ModifierKeys.Alt && k >= Key.D1 && k <= Key.D9 && CurrentPage != "wizard")
                 {
                     var keys = new[] { "home", "creatures", "items", "quests", "loot", "smartai", "spells", "dbc", "sql" };
@@ -606,7 +615,7 @@ namespace AndersCraftStudio
 
         async Task ScreensMode()
         {
-            try { if (Fresh) await Screens.RunFresh(this, screensDir); else if (OnlyM7) await Screens.RunM7(this, screensDir); else if (OnlyM8) await Screens.RunM8(this, screensDir); else if (OnlyM9) await Screens.RunM9(this, screensDir); else await Screens.Run(this, screensDir); }
+            try { if (Fresh) await Screens.RunFresh(this, screensDir); else if (OnlyM7) await Screens.RunM7(this, screensDir); else if (OnlyM8) await Screens.RunM8(this, screensDir); else if (OnlyM9) await Screens.RunM9(this, screensDir); else if (OnlyM10) await Screens.RunM10(this, screensDir); else await Screens.Run(this, screensDir); }
             catch (Exception ex) { File.WriteAllText(Path.Combine(screensDir, "screens_error.txt"), ex.ToString()); }
             Close();
         }

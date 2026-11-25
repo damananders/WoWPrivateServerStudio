@@ -387,7 +387,13 @@ SOFTWARE.";
             k2.KeyDown += (s, e) => { if (e.Key == Key.Enter) Load(); };
         }
 
-        public void OnShow() { if (kinds.SelectedIndex < 0) kinds.SelectedIndex = 0; }
+        public void OnShow()
+        {
+            if (kinds.SelectedIndex < 0) kinds.SelectedIndex = 0;
+            // after an Apply the lists shown may be out of date: reload them unless they have unstaged edits
+            if (seenVersion != S.DataVersion) { seenVersion = S.DataVersion; if (editors.Count > 0 && editors.All(e => !e.Dirty)) Load(); }
+        }
+        int seenVersion;
 
         static void Detach(FrameworkElement e) { if (e.Parent is Panel p) p.Children.Remove(e); }
 
@@ -675,6 +681,18 @@ SOFTWARE.";
             sp.Children.Add(Section("Set up in five minutes",
                 P("1. Start Studio. The setup wizard opens.\n2. Step 2 finds worldserver.conf (Auto-detect or Browse). Studio reads which databases the server uses; it never stores the server's own MySQL password.\n3. Step 3 makes two MySQL accounts just for Studio: one that can only read (used for all browsing), one that can only change rows in the world database (used only by Apply). Press \"Run it now as admin…\" and type your MySQL root password once (used for that run, never saved), or copy the script into any MySQL tool. Then press \"Test the accounts\".\n4. Step 4 (optional): your game client folder.\n5. Step 5 (recommended): create a sandbox, a full copy of the world database to practise on (\"Run it now as admin…\" again). Apply goes there until you unlock Live in Settings.\n\nNo server yet? Install MySQL, open Admin console › Set up AzerothCore: it creates the three databases and the server's account and loads AzerothCore's base tables. Start authserver and worldserver once, then run this wizard."),
                 U.Btn("Open the setup wizard", () => w.ShowWizard(1, true), "BtnPrimary")));
+            {
+                var wrap = new WrapPanel();
+                foreach (var g in Guides.All)
+                {
+                    var b = U.Btn(g.Title, () => GuideWindow.ShowFor(w, g.Key), null, g.Intro);
+                    b.Margin = new Thickness(0, 0, 8, 8);
+                    wrap.Children.Add(b);
+                }
+                sp.Children.Add(Section("How-to guides",
+                    P("A picture of each screen with numbered markers and short steps. Open the one for the screen you're on with How to use this in the top bar, or Shift+F1."),
+                    wrap));
+            }
             sp.Children.Add(Section("The safety model (why nothing breaks by accident)",
                 P("Every screen shows the same four steps: Edit → Stage → Review → Apply.\n• Browsing and queries use the read-only account in READ ONLY sessions, and every statement is checked again by Studio.\n• Edits are never written directly: they are staged into a changeset file with the old value, the new value and the SQL to undo it.\n• Changes shows every staged change side by side. Apply backs up the affected tables with mysqldump first, asks you to type APPLY (or APPLY LIVE), and runs everything in one transaction that is re-checked row by row. Any mismatch rolls it all back.\n• History keeps every Apply with its backup and a Roll back button.\n• Client data (DBC files, patches) never overwrites originals: edits leave as files in Studio's own folders, and installing a patch backs up anything it replaces.")));
             sp.Children.Add(Section("Admin console (instead of HeidiSQL)",

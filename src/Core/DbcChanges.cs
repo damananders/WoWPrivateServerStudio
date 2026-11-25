@@ -25,6 +25,14 @@ namespace AndersCraftStudio.Core
         public uint Key { get; set; }
         public int FieldCount { get; set; }
         public List<DbcFieldEdit> Fields { get; set; } = new List<DbcFieldEdit>();
+        /// <summary>When the edit was last written into the server's dbc folder (null = not yet).</summary>
+        public DateTime? SentToServerUtc { get; set; }
+        /// <summary>When the edit was last written into a Client patches work folder (null = not yet).</summary>
+        public DateTime? SentToPatchUtc { get; set; }
+        /// <summary>The server-copy backup taken by the last send (what "undo" restores).</summary>
+        public string ServerBackupDir { get; set; }
+        /// <summary>The work folder the last patch-folder send wrote to.</summary>
+        public string PatchFolder { get; set; }
     }
 
     public static class DbcStager

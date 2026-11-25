@@ -1,0 +1,57 @@
+"""Builds the pictures for the in-app "How to use this" guides from a screenshot run.
+
+    AndersCraftStudio.exe --screens <dir> --public        (redacted screenshots, read-only)
+    python tools/make_guides.py <dir>
+
+Writes src/App/Guides/<key>.jpg (1600x1000). The numbered markers are drawn by the app (GuideWindow), not baked in.
+"""
+import os, sys
+from PIL import Image, ImageDraw, ImageFont
+
+# Text boxes are not redacted by --public (changing them would fire edit handlers), so neutral text is painted over
+# them here: (left, top, right, bottom) of the box interior at 1600x1000, then the replacement text.
+REDACT = {
+    'wizard': [((424, 357, 888, 396), 'studio_ro'), ((972, 376, 1440, 415), 'studio_rw')],
+    'patches': [((318, 272, 1416, 311), r'C:\Games\WoW 3.3.5a'),
+                ((318, 574, 1302, 613), r'C:\Users\you\Documents\AndersCraft Studio\patch_work\patch-W')],
+}
+
+PICTURES = {
+    'wizard': '03_wizard_accounts.png',
+    'creatures': '21_creatures_basics.png',
+    'items': '28_items_basics.png',
+    'quests': '32_quests_basics.png',
+    'loot': '50_loot_creature.png',
+    'loot_sim': '51_loot_simulator.png',
+    'smartai': '55_smartai_builder.png',
+    'spells': '72_spells_overview.png',
+    'dbc': '65_dbc_unstaged_edit.png',
+    'patches': '40b_client_patches_built.png',
+    'assets': '88_assets_icon_imported.png',
+    'sql': '08_sql_browser_staged_edit.png',
+    'admin': '106_admin_login.png',
+    'changes': '16_changes_apply_panel.png',
+    'changes_dbc': '124_changes_dbc_sent_status.png',
+    'changes_history': '17_history_rollback.png',
+}
+
+def main(src):
+    out = os.path.join(os.path.dirname(__file__), '..', 'src', 'App', 'Guides')
+    os.makedirs(out, exist_ok=True)
+    for key, name in PICTURES.items():
+        p = os.path.join(src, name)
+        if not os.path.exists(p):
+            print('missing', name); continue
+        im = Image.open(p).convert('RGB').resize((1600, 1000), Image.LANCZOS)
+        if key in REDACT:
+            d = ImageDraw.Draw(im)
+            font = ImageFont.truetype(r'C:\Windows\Fonts\consola.ttf', 16)
+            for (l, t, r, b), text in REDACT[key]:
+                bg = im.getpixel((l + 3, t + 3))
+                d.rectangle((l, t, r, b), fill=bg)
+                d.text((l + 12, (t + b) // 2), text, fill=(236, 230, 222), font=font, anchor='lm')
+        im.save(os.path.join(out, key + '.jpg'), quality=84, optimize=True, progressive=True)
+        print(key, os.path.getsize(os.path.join(out, key + '.jpg')) // 1024, 'KB')
+
+if __name__ == '__main__':
+    main(sys.argv[1])

@@ -93,7 +93,8 @@ namespace AndersCraftStudio
             Log.Info($"Studio {AppInfo.Version} started" + (screens != null ? " (screenshots)" : ""));
             MainWindow.OnlyM7 = args.Contains("--m7");
             MainWindow.OnlyM8 = args.Contains("--m8");
-            MainWindow.OnlyM9 = args.Contains("--m9");      // screenshots only: just the 0.7 screens
+            MainWindow.OnlyM9 = args.Contains("--m9");
+            MainWindow.OnlyM10 = args.Contains("--m10");    // screenshots only: the Changes fixes (DBC status, a stopped Apply)      // screenshots only: just the 0.7 screens
             var w = new MainWindow(state, screens);
             var code = Current.Run(w);
             if (screens != null)
@@ -145,6 +146,9 @@ namespace AndersCraftStudio
         public bool HasReadAccount => Profile != null && (DemoConf || (!string.IsNullOrEmpty(Profile.RoUser) && !string.IsNullOrEmpty(Profile.RoPassEnc) && Profile.AccountsVerifiedUtc != null));
         public bool HasWriteAccount => Profile != null && !string.IsNullOrEmpty(Profile.RwUser) && !string.IsNullOrEmpty(Profile.RwPassEnc) && Profile.AccountsVerifiedUtc != null;
         public int StagedCount => Changes.Pending.Changes.Count;
+        /// <summary>Goes up after every successful Apply / Roll back, so editors know the rows they loaded are out of date and reload them.</summary>
+        public int DataVersion { get; private set; }
+        public void DatabaseWritten() => DataVersion++;
 
         /// <summary>Opens a read-only connection to one of the profile's databases using studio_ro.</summary>
         ModelLibrary models;

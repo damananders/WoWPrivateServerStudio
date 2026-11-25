@@ -9,7 +9,12 @@ namespace AndersCraftStudio.Core
         public bool Success;
         public string Message;
         public List<string> Log = new List<string>();
+        /// <summary>When Apply stopped because a row isn't what it was at staging time: which change, and what kind of mismatch.</summary>
+        public string ConflictChangeId;
+        public ConflictKind Conflict;
     }
+
+    public enum ConflictKind { None, Changed, Missing, Several, Exists, Other }
 
     /// <summary>
     /// Runs staged changes in ONE transaction on the write account. Before each change it re-reads the row
@@ -53,11 +58,11 @@ namespace AndersCraftStudio.Core
                         case ChangeKind.Update:
                         {
                             var cur = db.Query(SqlGen.SelectRow(c.Table, c.Key, c.Fields.Select(f => f.Name), true), 2);
-                            if (cur.Rows.Count != 1) throw new ApplyConflict($"{c.Table} ({c.KeyText}) {(cur.Rows.Count == 0 ? "no longer exists" : "matches more than one row, so Studio won't guess which to change")}.");
+                            if (cur.Rows.Count != 1) throw RowCountConflict(c, cur.Rows.Count);
                             foreach (var f in c.Fields)
                             {
                                 var now = SqlGen.Literal(cur.Rows[0][cur.ColumnIndex(f.Name)]);
-                                if (now != f.Before) throw new ApplyConflict($"{c.Table} ({c.KeyText}) {f.Name} is now {now}, not {f.Before} as when you staged it. Someone changed it; re-stage the edit.");
+                                if (now != f.Before) throw new ApplyConflict($"\"{c.Summary}\": in the database, {f.Name} is now {Show(now)}, but when you staged this edit it was {Show(f.Before)}. Something changed that row since (an earlier Apply, the game server, or another tool).", c, ConflictKind.Changed);
                             }
                             Exec(db, c.ForwardSql, 1, o);
                             break;
@@ -65,11 +70,11 @@ namespace AndersCraftStudio.Core
                         case ChangeKind.Delete:
                         {
                             var cur = db.Query(SqlGen.SelectRow(c.Table, c.Key, c.Fields.Select(f => f.Name), true), 2);
-                            if (cur.Rows.Count != 1) throw new ApplyConflict($"{c.Table} ({c.KeyText}) {(cur.Rows.Count == 0 ? "no longer exists" : "matches more than one row, so Studio won't guess which to change")}.");
+                            if (cur.Rows.Count != 1) throw RowCountConflict(c, cur.Rows.Count);
                             foreach (var f in c.Fields)
                             {
                                 var now = SqlGen.Literal(cur.Rows[0][cur.ColumnIndex(f.Name)]);
-                                if (now != f.Before) throw new ApplyConflict($"{c.Table} ({c.KeyText}) changed since you staged its removal ({f.Name}). Re-stage it.");
+                                if (now != f.Before) throw new ApplyConflict($"\"{c.Summary}\": the row changed since you staged its removal ({f.Name} is now {Show(now)}, was {Show(f.Before)}).", c, ConflictKind.Changed);
                             }
                             Exec(db, c.ForwardSql, 1, o);
                             break;
@@ -77,7 +82,7 @@ namespace AndersCraftStudio.Core
                         case ChangeKind.Insert:
                         {
                             var cur = db.Query(SqlGen.SelectRow(c.Table, c.Key, c.Key.Select(k => k.Column), true), 2);
-                            if (cur.Rows.Count != 0) throw new ApplyConflict($"{c.Table} already has a row with {c.KeyText}.");
+                            if (cur.Rows.Count != 0) throw new ApplyConflict($"\"{c.Summary}\": {c.Table} already has a row with {c.KeyText}, so this new row can't be added (maybe it was applied already).", c, ConflictKind.Exists);
                             Exec(db, c.ForwardSql, 1, o);
                             break;
                         }
@@ -105,8 +110,55 @@ namespace AndersCraftStudio.Core
                 try { db.Rollback(); o.Log.Add("ROLLBACK"); } catch (Exception rb) { o.Log.Add("ROLLBACK failed: " + rb.Message); }
                 o.Success = false;
                 o.Message = (ex is ApplyConflict ? "" : "Database error: ") + ex.Message + " Nothing was changed.";
+                if (ex is ApplyConflict ac) { o.ConflictChangeId = ac.ChangeId; o.Conflict = ac.Kind; }
             }
             return o;
+        }
+
+        static ApplyConflict RowCountConflict(Change c, int n) => n == 0
+            ? new ApplyConflict($"\"{c.Summary}\": that row isn't in the database any more ({c.Table}, {c.KeyText}).", c, ConflictKind.Missing)
+            : new ApplyConflict($"\"{c.Summary}\": {c.Table} has more than one row with {c.KeyText}, so Studio won't guess which one to change.", c, ConflictKind.Several);
+
+        static string Show(string literal) => literal == null ? "(nothing)" : literal.Length > 60 ? literal.Substring(0, 60) + "…" : literal;
+
+        /// <summary>
+        /// "Refresh baseline": makes a staged edit start from what the row holds now (<paramref name="current"/> = that row,
+        /// read again), keeping your new values. Fields that already hold your value drop out. Returns false when the change
+        /// can't be refreshed (the row is gone, or it's not an edit or removal). After an edit is refreshed it may have no
+        /// fields left (the database already has your values); then it can be discarded.
+        /// </summary>
+        public static bool RefreshBaseline(Change c, ResultTable current)
+        {
+            if (current == null || current.Rows.Count != 1) return false;
+            var row = current.Rows[0];
+            if (c.Kind == ChangeKind.Update)
+            {
+                foreach (var f in c.Fields)
+                    if (current.ColumnIndex(f.Name) < 0) return false;
+                foreach (var f in c.Fields)
+                {
+                    var v = row[current.ColumnIndex(f.Name)];
+                    f.Before = SqlGen.Literal(v); f.BeforeDisplay = SqlGen.Display(v);
+                }
+                c.Fields.RemoveAll(f => f.Before == f.After);
+                if (c.Fields.Count > 0) ChangeFactory.RebuildUpdate(c);
+                return true;
+            }
+            if (c.Kind == ChangeKind.Delete)
+            {
+                foreach (var f in c.Fields)
+                    if (current.ColumnIndex(f.Name) < 0) return false;
+                var cols = new List<string>(); var vals = new List<string>();
+                foreach (var f in c.Fields)
+                {
+                    var v = row[current.ColumnIndex(f.Name)];
+                    f.Before = SqlGen.Literal(v); f.BeforeDisplay = SqlGen.Display(v);
+                    cols.Add(f.Name); vals.Add(f.Before);
+                }
+                c.UndoSql = SqlGen.InsertRow(c.Table, cols, vals);
+                return true;
+            }
+            return false;
         }
 
         /// <summary>Runs the undo SQL of applied changes, newest first, in one transaction.</summary>
@@ -176,5 +228,10 @@ namespace AndersCraftStudio.Core
         }
     }
 
-    public sealed class ApplyConflict : Exception { public ApplyConflict(string m) : base(m) { } }
+    public sealed class ApplyConflict : Exception
+    {
+        public string ChangeId; public ConflictKind Kind = ConflictKind.Other;
+        public ApplyConflict(string m) : base(m) { }
+        public ApplyConflict(string m, Change c, ConflictKind k) : base(m) { ChangeId = c?.Id; Kind = k; }
+    }
 }

@@ -24,5 +24,6 @@
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Studio.ico" Condition="Exists('Studio.ico')" />
+    <Resource Include="Guides\*.jpg" />
   </ItemGroup>
 </Project>
