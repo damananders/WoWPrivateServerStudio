@@ -24,7 +24,7 @@ namespace AndersCraftStudio
     public sealed class MainWindow : Window
     {
         public static MainWindow Instance;
-        public static bool OnlyM7, OnlyM8, OnlyM9, OnlyM10, OnlyM11, OnlyM12;
+        public static bool OnlyM7, OnlyM8, OnlyM9, OnlyM10, OnlyM11, OnlyM12, OnlyM13;
         public static bool Fresh;
         public readonly Studio S;
         readonly string screensDir;
@@ -204,7 +204,7 @@ namespace AndersCraftStudio
             else
             {
                 connBadge.Background = U.R("OkBg"); connText.Foreground = U.R("Ok"); dot.Fill = U.R("Ok");
-                connText.Text = $"{p.WorldDb} · read-only";
+                connText.Text = U.Technical ? $"{p.WorldDb} · read-only" : "World database · read-only";
                 connBadge.ToolTip = $"Browsing uses the {p.RoUser} account on {p.Host}:{p.Port}. It can only read, so nothing you click here can change the database.";
             }
             if (ApplyTarget == "Live" && !S.Profiles.Settings.AllowLive) ApplyTarget = "Sandbox";
@@ -676,7 +676,7 @@ namespace AndersCraftStudio
 
         async Task ScreensMode()
         {
-            try { if (Fresh) await Screens.RunFresh(this, screensDir); else if (OnlyM7) await Screens.RunM7(this, screensDir); else if (OnlyM8) await Screens.RunM8(this, screensDir); else if (OnlyM9) await Screens.RunM9(this, screensDir); else if (OnlyM10) await Screens.RunM10(this, screensDir); else if (OnlyM11) await Screens.RunM11(this, screensDir); else if (OnlyM12) await Screens.RunM12(this, screensDir); else await Screens.Run(this, screensDir); }
+            try { if (Fresh) await Screens.RunFresh(this, screensDir); else if (OnlyM7) await Screens.RunM7(this, screensDir); else if (OnlyM8) await Screens.RunM8(this, screensDir); else if (OnlyM9) await Screens.RunM9(this, screensDir); else if (OnlyM10) await Screens.RunM10(this, screensDir); else if (OnlyM11) await Screens.RunM11(this, screensDir); else if (OnlyM12) await Screens.RunM12(this, screensDir); else if (OnlyM13) await Screens.RunM13(this, screensDir); else await Screens.Run(this, screensDir); }
             catch (Exception ex) { File.WriteAllText(Path.Combine(screensDir, "screens_error.txt"), ex.ToString()); }
             Close();
         }

@@ -409,7 +409,7 @@ namespace AndersCraftStudio
             if (cur != 0 && !list.Any(x => x.Value == 0)) list.Insert(0, new SpellEnum { Value = 0, Label = "None" });
             foreach (var e in list)
             {
-                var item = new ComboBoxItem { Content = $"{e.Value} · {e.Label}", Tag = e, ToolTip = string.IsNullOrEmpty(e.Desc) ? e.Name : e.Desc };
+                var item = new ComboBoxItem { Content = U.Technical ? $"{e.Value} · {e.Label}" : e.Label, Tag = e, ToolTip = string.IsNullOrEmpty(e.Desc) ? (U.Technical ? e.Name : null) : e.Desc };
                 cb.Items.Add(item);
                 if (e.Value == cur) cb.SelectedItem = item;
             }
@@ -450,7 +450,7 @@ namespace AndersCraftStudio
                     ToolTip = $"0x{bit:X8}  {b.Name}" + (string.IsNullOrEmpty(b.Desc) ? "" : "\n" + b.Desc) };
                 cb.Checked += (s, e) => { sp.Row.V[f] |= bit; Changed(); };
                 cb.Unchecked += (s, e) => { sp.Row.V[f] &= ~bit; Changed(); };
-                cb.GotKeyboardFocus += (s, e) => Focused(b.Label, (string.IsNullOrEmpty(b.Desc) ? "" : b.Desc + "\n\n") + $"Bit 0x{bit:X} of {col}.", col);
+                cb.GotKeyboardFocus += (s, e) => Focused(b.Label, (string.IsNullOrEmpty(b.Desc) ? "" : b.Desc + "\n\n") + (U.Technical ? $"Bit 0x{bit:X} of {col}." : ""), col);
                 wrap.Children.Add(cb);
             }
             var valueT = U.T("", 12, "Faint", null, false);

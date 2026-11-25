@@ -72,6 +72,14 @@ namespace AndersCraftStudio
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 16) };
             var strip = U.StepStrip(1); DockPanel.SetDock(strip, Dock.Right); strip.VerticalAlignment = VerticalAlignment.Center;
             head.Children.Add(strip);
+            // the step-by-step builders: the first, obvious way in (the form below stays for everything else)
+            if (D.Key is "quests" or "creatures")
+            {
+                var make = U.Btn(D.Key == "quests" ? "Make a quest step by step" : "Make an NPC step by step", () => OpenBuilder(0), "BtnPrimary",
+                    D.Key == "quests" ? "New, one of yours, or one of the game's: a guided, step-by-step quest maker with a live preview." : "New, one of yours, or one of the game's: a guided, step-by-step NPC maker with a 3D preview.");
+                DockPanel.SetDock(make, Dock.Right); make.VerticalAlignment = VerticalAlignment.Center; make.Margin = new Thickness(0, 0, 16, 0);
+                head.Children.Add(make);
+            }
             head.Children.Add(U.Stack(U.H1(D.Title), U.T($"Find a {D.Singular}, change it with plain fields, and stage the edits. The Guide on the right explains whatever field you're in.", 13.5, "Muted")));
             view.Children.Add(head);
 
@@ -341,6 +349,12 @@ namespace AndersCraftStudio
             BuildTab();
         }
 
+        void OpenBuilder(long openId)
+        {
+            if (D.Key == "quests") { var qw = new QuestBuildWindow(w, openId); qw.ShowDialog(); if (qw.Staged) { var keep = qw.StagedId; S.RaiseChanges(); } }
+            else { var nw = new NpcBuildWindow(w, openId); nw.ShowDialog(); }
+        }
+
         UIElement BuildHeader()
         {
             var r = rows[D.Table];
@@ -352,8 +366,13 @@ namespace AndersCraftStudio
             var sql = U.Btn("Open in SQL browser", () => w.Navigate("sql", pg => { var sp = (SqlBrowserPage)pg; sp.OpenTable("world", D.Table); sp.ScreensFilter($"{SqlGen.Ident(D.KeyCol)} = {id}"); }), "BtnGhost", "See the raw row in the SQL browser.");
             var links = CrossLinks();
             var buttons = new WrapPanel { Margin = new Thickness(0, 14, 0, 0) };
-            foreach (var b in new UIElement[] { dup, stageBtn, discardBtn, sql }.Concat(links)) { b.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 8, 6)); buttons.Children.Add(b); }
-            var title = U.Row(U.T(name, 22, "Text", FontWeights.SemiBold, false), new Border { Width = 12 }, U.Pill("#" + id, "AmberDim", "Amber", $"{D.KeyCol} = {id}"), U.Pill(D.Table, "Panel2", "Muted"));
+            var extra = new List<UIElement>();
+            if (D.Key is "quests" or "creatures") extra.Add(U.Btn("Step by step…", () => OpenBuilder(id ?? 0), null, $"Change this {D.Singular} (or copy it as a new one) with the guided builder."));
+            if (D.Key == "creatures") extra.Add(U.Btn("Make it do something…", () => { var bw = new BehaviourWindow(w, id ?? 0); bw.ShowDialog(); }, null, "Add a behaviour in plain words: say something, cast a spell at low health, call for help…"));
+            foreach (var b in new UIElement[] { dup, stageBtn, discardBtn }.Concat(extra).Append(sql).Concat(links)) { b.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 8, 6)); buttons.Children.Add(b); }
+            var title = U.Row(U.T(name, 22, "Text", FontWeights.SemiBold, false), new Border { Width = 12 }, U.Pill("#" + id, "AmberDim", "Amber", U.Technical ? $"{D.KeyCol} = {id}" : "Its number"));
+            if (U.Technical) title.Children.Add(U.Pill(D.Table, "Panel2", "Muted"));
+            if (id < S.Profiles.Settings.CustomIdStart) title.Children.Add(U.Pill("from the game", "Panel2", "Muted", "One of the game's own (Blizzard's). Changing it changes it for everyone; Duplicate as new or Step by step › copy keeps the original."));
             var card = U.Card(U.Stack(title, U.T(HeaderSubtitle(), 13, "Muted", null, true, new Thickness(0, 4, 0, 0)), buttons), new Thickness(20, 16, 20, 10), new Thickness(0, 0, 0, 12));
             DockPanel.SetDock(card, Dock.Top);
             UpdateStageButton();
@@ -520,7 +539,7 @@ namespace AndersCraftStudio
                     bool isText = ColType(f) == typeof(string);
                     var items = new List<(string val, string label)>();
                     if (isText && f.Column == "AIName") foreach (var n in EntityDefs.AiNameList) items.Add((n, n == "" ? "(none)" : n));
-                    else foreach (var kv in f.Options) items.Add((kv.Key.ToString(CultureInfo.InvariantCulture), $"{kv.Key} · {kv.Value}"));
+                    else foreach (var kv in f.Options) items.Add((kv.Key.ToString(CultureInfo.InvariantCulture), U.Technical ? $"{kv.Key} · {kv.Value}" : kv.Value));
                     bool syncing = false;
                     ui.Sync = () =>
                     {
@@ -544,7 +563,7 @@ namespace AndersCraftStudio
                     bool syncing = false;
                     foreach (var kv in f.Bits)
                     {
-                        var cb = new CheckBox { Content = U.T(kv.Value, 12.5, "Text", null, false), Margin = new Thickness(0, 0, 12, 8), Width = 214, ToolTip = $"Bit 0x{kv.Key:X} ({kv.Key})" };
+                        var cb = new CheckBox { Content = U.T(kv.Value, 12.5, "Text", null, false), Margin = new Thickness(0, 0, 12, 8), Width = 214, ToolTip = U.Technical ? $"Bit 0x{kv.Key:X} ({kv.Key})" : null };
                         var bit = kv.Key;
                         RoutedEventHandler h = (s, e) =>
                         {

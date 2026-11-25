@@ -444,6 +444,9 @@ namespace AndersCraftStudio.Core
         }
 
         /// <summary>Fills a template. resolve(kind, id) returns a name (spell, creature, quest...) or null.</summary>
+        /// <summary>Add the number after names in sentences (Settings › Show technical names).</summary>
+        public static bool ShowIds { get; set; }
+
         public static string Fill(string tpl, long[] p, SParam[] defs, Func<SP, long, string> resolve)
         {
             if (string.IsNullOrEmpty(tpl)) return "";
@@ -464,7 +467,7 @@ namespace AndersCraftStudio.Core
                         if (v == 0 && alt1 != null) return alt1;
                         var sp = kind switch { "spell" => SP.Spell, "creature" => SP.Creature, "gameobject" => SP.GameObject, "quest" => SP.Quest, "item" => SP.Item, "faction" => SP.Faction, "map" => SP.Map, "script" => SP.Script, _ => SP.Int };
                         var n = resolve?.Invoke(sp, v);
-                        return n != null ? $"{n} ({v})" : $"#{v}";
+                        return n != null ? (ShowIds ? $"{n} ({v})" : n) : $"#{v}";
                 }
             });
         }

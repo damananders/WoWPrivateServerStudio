@@ -15,6 +15,8 @@ backup). Fixed: each send to the patch work folder started over from the client'
 Server control: the AndersCraft Control Panel folded in as a second, live tab, beefed up (CPU / memory, crash watchdog,
 maintenance mode, accounts, bulk player actions, quick commands, live coloured logs, scheduled messages / restarts / backups,
 backup restore). Settings › Show technical names (off by default).
+Step-by-step builders for quests, NPCs and creature behaviours (new, yours, or the game's: copy or change), with live
+previews, all staged; plain names across the editors, lists, Changes and SmartAI (NAMING_AUDIT.md).
 
 ## 0.8.0
 Admin console (everything HeidiSQL does, including setting up AzerothCore's databases) and the rest of Keira3's editors.

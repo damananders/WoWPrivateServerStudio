@@ -60,10 +60,11 @@ namespace AndersCraftStudio
                 var n = e.PropertyName;
                 bool isName = names.Any(x => x.Header == n);
                 bool isKey = Key.Contains(n, StringComparer.OrdinalIgnoreCase);
-                var head = U.Row(); if (isKey) head.Children.Add(new Border { Background = U.R("AmberDim"), CornerRadius = new CornerRadius(4), Padding = new Thickness(4, 0, 4, 1), Margin = new Thickness(0, 0, 6, 0), Child = U.T("key", 10.5, "Amber", FontWeights.Bold, false) });
-                head.Children.Add(new TextBlock { Text = n });
+                var head = U.Row(); if (isKey) head.Children.Add(new Border { Background = U.R("AmberDim"), CornerRadius = new CornerRadius(4), Padding = new Thickness(4, 0, 4, 1), Margin = new Thickness(0, 0, 6, 0), Child = U.T("key", 10.5, "Amber", FontWeights.Bold, false), ToolTip = "Identifies the row" });
+                // plain name first; the column's own name only with Settings › Show technical names
+                head.Children.Add(new TextBlock { Text = isName ? n : PlainNames.Column(Table, n) + (U.Technical && PlainNames.Column(Table, n) != n ? $"  [{n}]" : "") });
                 var meaning = TableCatalog.FieldMeaning(Table, n);
-                head.ToolTip = isName ? "Looked up for you (read-only)." : n + (types.TryGetValue(n, out var t) ? $" ({t.Name})" : "") + (meaning.Length > 0 ? "\n" + meaning : "") + (isKey ? "\nPart of the key: changing it stages a remove + add." : "");
+                head.ToolTip = isName ? "Looked up for you (read-only)." : (U.Technical ? n + (types.TryGetValue(n, out var t) ? $" ({t.Name})" : "") : PlainNames.Column(Table, n)) + (meaning.Length > 0 ? "\n" + meaning : "") + (isKey ? "\nPart of the key: changing it stages a remove + add." : "");
                 e.Column.Header = head;
                 e.Column.MaxWidth = 340;
                 if (isName) { e.Column.IsReadOnly = true; if (e.Column is DataGridTextColumn tc) { var st = new Style(typeof(TextBlock)); st.Setters.Add(new Setter(TextBlock.ForegroundProperty, U.R("Amber"))); tc.ElementStyle = st; } }

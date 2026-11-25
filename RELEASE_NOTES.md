@@ -26,6 +26,32 @@ Changes (database changes, client data, history and roll back) and the setup wiz
 with *How to use this* in the top bar or Shift+F1 (in setup: the button under the steps); Help › How-to guides lists them
 all. It opens in its own window, so the screen you're on stays as it is.
 
+**New: step-by-step builders for quests, NPCs and behaviours**
+Linear, guided ways to make or change things, next to the full editors (which stay for everything else). Each starts from
+nothing, from one of your own, or from one of the game's (copy it as new, recommended, or change the original), shows a
+live preview, explains problems in plain words, lists what it will add or change, and stages it: Apply on Changes as usual.
+* **Make a quest** (8 steps): name, levels, kind (group, dungeon, raid, PvP) and how often (once, daily, weekly,
+  repeatable); who gives it and who takes it back (creature or object; the "!" is added when needed); what to do (kill,
+  bring items, talk to, use an object, go somewhere). Bring-items can make a new quest item and add it to a creature's
+  drops (only for players on the quest); talk-to adds a small behaviour that gives the credit. Then rewards (experience,
+  money, items, a choice of items, reputation, a spell), the texts with a parchment preview of what the player reads, and
+  who can take it (side, classes, the quest before it, the quest offered next).
+* **Make an NPC** (7 steps): what it is (friendly, vendor, trainer, quest giver, innkeeper, enemy, critter); name, title,
+  model with a 3D preview and weapons; level, side and strength (health and damage follow its level); services, what it
+  says in its chat window, what it sells and teaches (copied from another trainer); where it stands (paste the in-game
+  .gps reply), wandering and respawn time.
+* **Make it do something**: a behaviour for any creature in plain words: cast a spell in a fight or at low health, say or
+  yell a line when a fight starts, at low health or when it dies, call for reinforcements, run for help, greet players who
+  walk by, play an animation now and then, count for a quest when talked to, cast on itself when it appears. Studio writes
+  the SmartAI rows and the lines (creature_text) and shows them as sentences.
+* Verified against the real tables (read-only): every column the builders write exists, and a quest that only reads a
+  creature never changes or removes it.
+
+**Plain names everywhere** (see NAMING_AUDIT.md): column names under editor fields, numbers in dropdowns, flag bits, raw
+list headers, field names on Changes, numbers in SmartAI sentences and parameter numbers are gone unless Settings › Show
+technical names is on. List headers and the Changes screen use plain names ("Only for players on the quest", "Respawn time
+(seconds)").
+
 **New: Server control (the Control Panel, folded in and beefed up)**
 A second tab at the top, next to Studio, for running the server. It is kept clearly apart from editing: a red "Live server"
 marker on every page and in the sidebar, and a reminder that it acts on the running server right away (nothing is staged,
@@ -99,7 +125,10 @@ the raw command text in Server control only show when it's on.
 * Two applies within the same second no longer share (and overwrite) one History file.
 * History shows sent DBC edits with their server backup and a *Restore server DBC backup…* button.
 
-**Tests**: 176 automated tests (new for Server control: SOAP messages, GM command building and cleaning, passwords
+**Tests**: 183 automated tests (new: a built quest with every kind of objective, read back; editing a quest stages only what
+changed, copying adds a fresh one; a quest never removes a creature it only reads; a built NPC with look, services, place,
+weapons, wares and greeting, read back, then a one-field edit; every behaviour makes valid rows that read as sentences;
+plain names). Before that, 176 (new for Server control: SOAP messages, GM command building and cleaning, passwords
 kept out of the audit log, the schedule, the crash watchdog, importing the old Control Panel's settings, read-only queries
 with safe names, logs, audit and backups). Before that, 169 (new: a learnable spell gets a SkillLineAbility row that survives a write; the spellbook check
 names each reason and goes green when wired; class tabs come from SkillLine + SkillRaceClassInfo; the guided recipe makes a

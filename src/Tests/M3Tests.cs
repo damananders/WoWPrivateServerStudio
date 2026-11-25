@@ -132,7 +132,10 @@ namespace AndersCraftStudio.Tests
             var r = Row(0, 0, 11, 2);
             r.EventParams[0] = 0; r.EventParams[1] = 2000; r.EventParams[2] = 8000; r.EventParams[3] = 12000; r.ActionParams[0] = 133;
             string Resolve(SP k, long id) => k == SP.Spell && id == 133 ? "Fireball" : null;
-            A.Eq("When in combat, cast Fireball (133) on its victim, every 8-12s (first after 0-2s).", SmartAI.Sentence(r, Resolve));
+            A.Eq("When in combat, cast Fireball on its victim, every 8-12s (first after 0-2s).", SmartAI.Sentence(r, Resolve), "plain");
+            SmartAI.ShowIds = true;
+            try { A.Eq("When in combat, cast Fireball (133) on its victim, every 8-12s (first after 0-2s).", SmartAI.Sentence(r, Resolve), "with technical names"); }
+            finally { SmartAI.ShowIds = false; }
             var talk = Row(1, 4, 1, 1); talk.EventChance = 50;
             A.Eq("When it enters combat, say line group 0 (50% chance).", SmartAI.Sentence(talk, Resolve));
             var linked = Row(2, 61, 37, 1); linked.EventPhaseMask = 0b101;

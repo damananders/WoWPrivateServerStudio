@@ -141,6 +141,50 @@ namespace AndersCraftStudio
             await Milestone11(w);
         }
 
+        public static async Task RunM13(MainWindow w, string dir)
+        {
+            Directory.CreateDirectory(dir);
+            await Milestone13(w, dir);
+        }
+
+        /// <summary>The builders, with sample content, staged into the throw-away changeset; then every staged column is checked against the real tables (read-only).</summary>
+        static async Task Milestone13(MainWindow w, string dir)
+        {
+            var S = w.S;
+            w.Navigate("quests"); await Wait(500);
+            var qw = new QuestBuildWindow(w); qw.Show(); await Wait(500);
+            await w.SnapWindow(qw, "150_quest_builder_start.png");
+            qw.ScreensSample();
+            foreach (var (st, file) in new[] { (1, "151_quest_builder_basics.png"), (3, "152_quest_builder_objectives.png"), (4, "153_quest_builder_rewards.png"), (7, "154_quest_builder_review.png") })
+            { qw.ScreensGo(st); await Wait(800); await w.SnapWindow(qw, file); }
+            qw.ScreensStage();
+            var vw = new QuestBuildWindow(w, 7); vw.Show(); await Wait(700);
+            vw.ScreensGo(0); await Wait(500); await w.SnapWindow(vw, "155_quest_builder_from_game.png");
+            vw.ScreensGo(7); await Wait(800); await w.SnapWindow(vw, "156_quest_builder_copy_review.png");
+            vw.Close();
+            var nw = new NpcBuildWindow(w); nw.Show(); await Wait(500);
+            nw.ScreensSample();
+            foreach (var (st, file) in new[] { (1, "157_npc_builder_kind.png"), (2, "158_npc_builder_look.png"), (4, "159_npc_builder_services.png"), (5, "160_npc_builder_where.png"), (6, "161_npc_builder_review.png") })
+            { nw.ScreensGo(st); await Wait(st == 2 ? 2500 : 800); await w.SnapWindow(nw, file); }
+            nw.ScreensStage();
+            var bw = new BehaviourWindow(w); bw.Show(); await Wait(400);
+            bw.ScreensGo(1); await Wait(500); await w.SnapWindow(bw, "162_behaviour_builder_pick.png");
+            bw.ScreensSet(68, "say_aggro"); await Wait(600); await w.SnapWindow(bw, "163_behaviour_builder_details.png");
+            bw.ScreensGo(3); await Wait(700); await w.SnapWindow(bw, "164_behaviour_builder_review.png");
+            bw.ScreensStage();
+            // check: every staged column exists in its table (read-only INFORMATION_SCHEMA)
+            var lines = new List<string>();
+            using (var db = S.OpenRead(S.Profile.WorldDb))
+                foreach (var g in S.Changes.Pending.Changes.Where(c => c.Dbc == null).GroupBy(c => c.Table))
+                {
+                    var cols = new HashSet<string>(db.Query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = " + SqlGen.Literal(g.Key), 500).Rows.Select(r => Convert.ToString(r[0])), StringComparer.OrdinalIgnoreCase);
+                    var missing = g.SelectMany(c => c.Fields.Select(f => f.Name).Concat(c.Key.Select(k => k.Column))).Distinct().Where(c => !cols.Contains(c)).ToList();
+                    lines.Add($"{g.Key}: {g.Count()} change(s) [{string.Join(", ", g.Select(c => c.Kind).Distinct())}]" + (cols.Count == 0 ? " TABLE MISSING" : missing.Count > 0 ? " MISSING COLUMNS: " + string.Join(", ", missing) : " ok"));
+                    foreach (var c in g.Take(3)) lines.Add("    " + c.Summary + " | " + string.Join("; ", c.Fields.Take(12).Select(f => f.Name + "=" + (f.AfterDisplay ?? f.After))));
+                }
+            File.WriteAllLines(Path.Combine(dir, "builder_check.txt"), lines);
+        }
+
         public static async Task RunM12(MainWindow w, string dir)
         {
             Directory.CreateDirectory(dir);

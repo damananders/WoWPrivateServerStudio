@@ -139,7 +139,7 @@ namespace AndersCraftStudio
                 if (c.Id == conflictId) pills.Children.Add(U.Pill("needs a look", "BadBg", "Bad", "Apply stopped at this change. See the Apply card."));
                 var text = U.Stack(pills,
                     U.T(c.Summary, 13, "Text", FontWeights.SemiBold, true, new Thickness(0, 6, 0, 2)),
-                    U.T(c.Table + (c.KeyText.Length > 0 ? " · " + c.KeyText : ""), 12, "Muted", null, false));
+                    U.T((U.Technical ? c.Table : PlainNames.Table(c.Table)) + (c.KeyText.Length > 0 ? " · " + c.KeyText : ""), 12, "Muted", null, false));
                 var dp = new DockPanel(); DockPanel.SetDock(chk, Dock.Left); dp.Children.Add(chk); dp.Children.Add(text);
                 var li = new ListBoxItem { Content = dp, Tag = c.Id };
                 list.Items.Add(li);
@@ -182,7 +182,7 @@ namespace AndersCraftStudio
                     g.Columns.Add(Col("Before", "Before", 1, true));
                     g.Columns.Add(Col("After", "After", 1, true));
                     g.Columns.Add(Col("What it means", "Meaning", 2, false));
-                    g.ItemsSource = c.Fields.Select(f => new DiffRow { Field = f.Name, Before = f.BeforeDisplay ?? f.Before ?? "(no row)", After = f.AfterDisplay ?? f.After ?? "(removed)", Meaning = TableCatalog.FieldMeaning(c.Table, f.Name) }).ToList();
+                    g.ItemsSource = c.Fields.Select(f => new DiffRow { Field = PlainNames.Column(c.Table, f.Name) + (U.Technical ? $" [{f.Name}]" : ""), Before = f.BeforeDisplay ?? f.Before ?? "(no row)", After = f.AfterDisplay ?? f.After ?? "(removed)", Meaning = TableCatalog.FieldMeaning(c.Table, f.Name) }).ToList();
                     sp.Children.Add(g);
                 }
             }

@@ -66,7 +66,9 @@ namespace AndersCraftStudio
                 if (dlg.ShowDialog() == true && dlg.Picked != null) Open(sourceType, dlg.Picked.Value);
             }, null, "Search by name.");
             var load = U.Btn("Load", () => { if (long.TryParse(idBox.Text, out var v)) Open(sourceType, v); }, "BtnPrimary");
-            var bar = U.Row(new Border { Background = U.R("Panel"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), Child = sourceBar, Margin = new Thickness(0, 0, 12, 0) }, idBox, pick, load, entityName);
+            var easy = U.Btn("Make it do something…", () => { var bw = new BehaviourWindow(w, sourceType == 0 && entry > 0 ? entry : 0); bw.ShowDialog(); if (entry != 0) Open(sourceType, entry, true); }, "BtnPrimary", "The easy way: pick a behaviour in plain words (say something, cast at low health, call for help, count for a quest…) and Studio writes the rows.");
+            easy.Margin = new Thickness(16, 0, 0, 0);
+            var bar = U.Row(new Border { Background = U.R("Panel"), CornerRadius = new CornerRadius(10), Child = sourceBar, Margin = new Thickness(0, 0, 12, 0) }, idBox, pick, load, entityName, easy);
             pick.Margin = new Thickness(8, 0, 8, 0); entityName.VerticalAlignment = VerticalAlignment.Center;
             bar.Margin = new Thickness(0, 0, 0, 14);
             Grid.SetRow(bar, 1); view.Children.Add(bar);
@@ -367,8 +369,8 @@ namespace AndersCraftStudio
         {
             var cb = new ComboBox { MaxDropDownHeight = 420, Width = 420, HorizontalAlignment = HorizontalAlignment.Left };
             foreach (var t in types.OrderBy(t => t.Obsolete).ThenBy(t => t.Id))
-                cb.Items.Add(new ComboBoxItem { Content = $"{t.Id} · {t.Name}", Tag = t.Id, ToolTip = t.Desc, Foreground = t.Obsolete ? U.R("Faint") : U.R("Text") });
-            if (!types.Any(t => t.Id == current)) cb.Items.Insert(0, new ComboBoxItem { Content = $"{current} · (unknown type)", Tag = current });
+                cb.Items.Add(new ComboBoxItem { Content = U.Technical ? $"{t.Id} · {t.Name}" : t.Name, Tag = t.Id, ToolTip = t.Desc, Foreground = t.Obsolete ? U.R("Faint") : U.R("Text") });
+            if (!types.Any(t => t.Id == current)) cb.Items.Insert(0, new ComboBoxItem { Content = $"Unknown kind ({current})", Tag = current });
             cb.SelectedItem = cb.Items.Cast<ComboBoxItem>().First(i => (int)i.Tag == current);
             cb.SelectionChanged += (s, e) => { if (cb.SelectedItem is ComboBoxItem ci && (int)ci.Tag != current) set((int)ci.Tag); };
             var f = U.Field(label, null, cb, "Pick the type; its description and parameters appear below.");
@@ -414,7 +416,7 @@ namespace AndersCraftStudio
                     pick.Padding = new Thickness(10, 6, 10, 6); pick.Margin = new Thickness(6, 0, 0, 0);
                     ctl = U.Row(box, pick);
                 }
-                var f = U.Field(d.Label, d.Hint ?? $"Parameter {i + 1}", U.Stack(ctl, name), (d.Hint ?? d.Label) + $"\n(param {i + 1})", 220);
+                var f = U.Field(d.Label, d.Hint, U.Stack(ctl, name), (d.Hint ?? d.Label) + (U.Technical ? $"\n(param {i + 1})" : ""), 220);
                 f.Margin = new Thickness(0, 0, 14, 8);
                 wrap.Children.Add(f);
             }

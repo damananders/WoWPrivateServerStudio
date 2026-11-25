@@ -27,6 +27,10 @@ VERSION 0.9
     (8 pages + PlayerWindow), MainWindow Studio | Server control switch. Settings in %APPDATA%\AndersCraftStudio\server_control.json,
     audit in <workspace>\audit. Tests\ServerControlTests.cs. Screens: --m12 (sample data; nothing started, stopped or sent).
   - U.Technical / Settings.ShowTechnicalNames: raw names only when asked. U.Soft: the borderless card style.
+  - Builders: Core\Builders.cs (BRow rows + Rows.Stage diff, QuestBuilder), Core\NpcBuilder.cs (NpcBuilder, Spawn.Parse for .gps,
+    Behaviours), Core\PlainNames.cs; App\BuilderWindows.cs (StepWindow, QuestBuildWindow, NpcBuildWindow, BehaviourWindow).
+    Tests\BuilderTests.cs. Screens: --m13 (stages into the throw-away changeset and checks every column against the real tables).
+  - NAMING_AUDIT.md: what's plain, what stays technical by design.
 
 VERSION 0.8
   - Admin console (AdminPage.cs, Core\Admin.cs): admin login per session, never saved; direct SQL, databases/tables/indexes/views,

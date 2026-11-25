@@ -96,7 +96,8 @@ namespace AndersCraftStudio
             MainWindow.OnlyM9 = args.Contains("--m9");
             MainWindow.OnlyM10 = args.Contains("--m10");
             MainWindow.OnlyM11 = args.Contains("--m11");
-            MainWindow.OnlyM12 = args.Contains("--m12");    // screenshots only: Server control (sample data; nothing is started, stopped or sent)    // screenshots only: the spell overhaul (guided create, spellbook check, Send to game)    // screenshots only: the Changes fixes (DBC status, a stopped Apply)      // screenshots only: just the 0.7 screens
+            MainWindow.OnlyM12 = args.Contains("--m12");
+            MainWindow.OnlyM13 = args.Contains("--m13");    // screenshots only: the quest / NPC / behaviour builders (staged into the throw-away changeset)    // screenshots only: Server control (sample data; nothing is started, stopped or sent)    // screenshots only: the spell overhaul (guided create, spellbook check, Send to game)    // screenshots only: the Changes fixes (DBC status, a stopped Apply)      // screenshots only: just the 0.7 screens
             var w = new MainWindow(state, screens);
             var code = Current.Run(w);
             if (screens != null)

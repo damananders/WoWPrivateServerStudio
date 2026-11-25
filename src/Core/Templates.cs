@@ -304,7 +304,7 @@ namespace AndersCraftStudio.Core
             Inputs.Add(new TemplateInput { Key = "minlevel", Label = "Min level to take it", Kind = "int", Default = "8" });
             Inputs.Add(new TemplateInput { Key = "objectives", Label = "Objective text", Kind = "longtext", Default = "Bring me what I asked for.", Hint = "The short summary in the quest log." });
             Inputs.Add(new TemplateInput { Key = "details", Label = "Quest text", Kind = "longtext", Default = "Hello, $N. I have a task for you.", Hint = "What the giver says. $N = player name, $C = class, $R = race." });
-            Inputs.Add(new TemplateInput { Key = "money", Label = "Money reward (copper)", Kind = "int", Default = "500", Hint = "100 copper = 1 silver, 10000 = 1 gold." });
+            Inputs.Add(new TemplateInput { Key = "money", Label = "Money reward, in copper", Kind = "int", Default = "500", Hint = "100 copper = 1 silver, 10000 = 1 gold." });
             Inputs.Add(new TemplateInput { Key = "giver", Label = "Quest giver", Kind = "creature", Hint = "Creature entry that offers the quest." });
             Inputs.Add(new TemplateInput { Key = "ender", Label = "Turned in to", Kind = "creature", Optional = true, Hint = "Leave empty to use the giver." });
         }
@@ -360,8 +360,8 @@ namespace AndersCraftStudio.Core
             Explain = "Adds one smart_scripts row (event: in combat, first after 2–4 s, then repeating; action: cast the spell; target: its victim or itself) with the next free row id for that creature, and sets AIName to SmartAI if it isn't yet. If the creature has a C++ ScriptName, SmartAI won't run: the template tells you. Open the result in SmartAI to fine-tune it.";
             Inputs.Add(new TemplateInput { Key = "creature", Label = "Creature", Kind = "creature" });
             Inputs.Add(new TemplateInput { Key = "spell", Label = "Spell", Kind = "spell", Default = "133", Hint = "Spell ID (e.g. 133 Fireball)." });
-            Inputs.Add(new TemplateInput { Key = "min", Label = "Every (min ms)", Kind = "int", Default = "8000" });
-            Inputs.Add(new TemplateInput { Key = "max", Label = "Every (max ms)", Kind = "int", Default = "12000" });
+            Inputs.Add(new TemplateInput { Key = "min", Label = "Every, at the soonest (thousandths of a second)", Kind = "int", Default = "8000", Hint = "1000 = 1 second." });
+            Inputs.Add(new TemplateInput { Key = "max", Label = "Every, at the latest (thousandths of a second)", Kind = "int", Default = "12000", Hint = "1000 = 1 second." });
             Inputs.Add(new TemplateInput { Key = "target", Label = "Cast on", Kind = "choice", Choices = new[] { "its target", "itself" }, Default = "its target" });
         }
 

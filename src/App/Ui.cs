@@ -39,7 +39,8 @@ namespace AndersCraftStudio
                 Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 22, ShadowDepth = 3, Opacity = 0.28, Color = Colors.Black } };
 
         /// <summary>Show raw engine names (tables, columns, IDs, commands) as well as the plain ones. Settings › Show technical names.</summary>
-        public static bool Technical { get; set; }
+        public static bool Technical { get => technical; set { technical = value; Core.SmartAI.ShowIds = value; } }
+        static bool technical;
 
         public static Border Card(UIElement child, Thickness? pad = null, Thickness? margin = null, string bg = "Panel")
             => new Border { Background = R(bg), BorderBrush = R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14), Padding = pad ?? new Thickness(20), Margin = margin ?? new Thickness(0, 0, 0, 16), Child = child };

@@ -85,6 +85,15 @@ Changes and the setup wizard). Open it with *How to use this* in the top bar or 
 
 ![How to use this](docs/screens/how-to-guide.png)
 
+**Step-by-step builders.** For quests, NPCs and creature behaviours there's a guided, linear way in, next to the full
+editors: **Make a quest** (the basics, who gives it, what to do: kill / bring items / talk to / use an object / go
+somewhere, rewards, texts, who can take it and the chain, then review), **Make an NPC** (what it is, name and look with a 3D
+preview, level and strength, what it offers, where it stands via the in-game .gps command) and **Make it do something**
+(cast in a fight or at low health, lines when a fight starts or it dies, call for help, greet players, animations, quest
+credit). Each can start from nothing, from one of yours, or from one of the game's own (copied as new, or changed in
+place), shows a live preview, and stages everything for review: nothing reaches the server before Apply. Find them on Home,
+at the top of Creatures and Quests, on every quest and creature (*Step by step…*, *Make it do something…*) and on SmartAI.
+
 **Server control (live).** The second tab at the top. Where Studio's editing is staged and applied after review, Server
 control runs your server right now: a live dashboard (login server and each realm: ready or not, uptime, CPU and memory,
 players and bots online, the last log line), start / stop / restart with a graceful save first and a backup offered, a crash

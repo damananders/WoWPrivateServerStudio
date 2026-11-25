@@ -85,6 +85,17 @@ SOFTWARE.";
             start.Children.Add(U.H2("Four steps, always the same"));
             start.Children.Add(U.T("1  Edit something (a creature, a loot table, a spell…).\n2  Stage it: it goes into your changeset, not the database.\n3  Review it on Changes: before, after, and how to undo it.\n4  Apply it to the practice sandbox (and later Live), with a backup first.", 13.5, "Text", null, true, new Thickness(0, 0, 0, 12)));
             start.Children.Add(U.Row(U.Btn("Getting started guide", () => w.Navigate("help"), "BtnPrimary"), U.Btn("Try a template", () => w.Navigate("templates"))));
+            var make = new WrapPanel { Margin = new Thickness(0, 12, 0, 0) };
+            foreach (var (t, a, tip) in new (string, Action, string)[]
+            {
+                ("Make a quest", () => new QuestBuildWindow(w).ShowDialog(), "Step by step: new, yours, or a copy of a game quest."),
+                ("Make an NPC", () => new NpcBuildWindow(w).ShowDialog(), "Step by step: what it is, its look, what it offers, where it stands."),
+                ("Make it do something", () => new BehaviourWindow(w).ShowDialog(), "A behaviour for a creature, in plain words."),
+                ("Make a spell", () => w.Navigate("spells", p => ((SpellEditorPage)p).CreateGuided()), "Damage, heal, buff or passive, straight into the spellbook."),
+            })
+            { var b = U.Btn(t, a, null, tip); b.Margin = new Thickness(0, 0, 8, 6); make.Children.Add(b); }
+            start.Children.Add(U.T("Or make something step by step:", 12.5, "Muted", null, false, new Thickness(0, 12, 0, 0)));
+            start.Children.Add(make);
             left.Children.Add(U.Card(start, new Thickness(20, 16, 20, 16)));
 
             // server summary
@@ -380,7 +391,7 @@ SOFTWARE.";
             g.Children.Add(U.Card(U.Stack(U.Eyebrow("Table"), kinds), new Thickness(10, 12, 6, 8), new Thickness(0)));
             var bs = U.Scroll(body); Grid.SetColumn(bs, 2); g.Children.Add(bs);
             Grid.SetColumn(side, 4); g.Children.Add(side);
-            foreach (var e in SpellCatalog.Of("condsource")) condSource.Items.Add(new ComboBoxItem { Content = $"{e.Value} · {e.Label}", Tag = e.Value });
+            foreach (var e in SpellCatalog.Of("condsource")) condSource.Items.Add(new ComboBoxItem { Content = U.Technical ? $"{e.Value} · {e.Label}" : e.Label, Tag = e.Value });
             condSource.SelectedIndex = Math.Min(1, condSource.Items.Count - 1);
             k1.Width = 140; k2.Width = 140;
             k1.KeyDown += (s, e) => { if (e.Key == Key.Enter) Load(); };
@@ -698,6 +709,9 @@ SOFTWARE.";
             sp.Children.Add(Section("Admin console (instead of HeidiSQL)",
                 P("For MySQL administration the editors deliberately leave out: run any SQL directly, databases, tables, columns, indexes and views, users and permissions, connections, server status, importing .sql files or whole folders, exporting databases, and setting up AzerothCore's databases from scratch.\n• It needs an admin login (usually root) that you type each time; Studio keeps it in memory only and forgets it when you disconnect or close Studio.\n• Statements there run straight away. Anything that deletes asks you to type the object's name; account, permission and connection changes are marked as permanent; a copy of a table is offered before risky changes.\n• For content, keep using the editors: they stage, preview and back up every change."),
                 U.Btn("Open the Admin console", () => w.Navigate("admin"))));
+            sp.Children.Add(Section("Step-by-step builders",
+                P("A guided, linear way to make or change quests, NPCs and creature behaviours, next to the full editors. Start from nothing, from one of yours, or from one of the game's own (copy it as new, or change it in place). Each step asks a few plain questions, the preview shows the result as you go, and the last step lists everything it will add or change before staging it. Nothing reaches your server before Apply."),
+                U.Row(U.Btn("Make a quest", () => new QuestBuildWindow(w).ShowDialog(), "BtnPrimary"), new Border { Width = 8 }, U.Btn("Make an NPC", () => new NpcBuildWindow(w).ShowDialog()), new Border { Width = 8 }, U.Btn("Make it do something", () => new BehaviourWindow(w).ShowDialog()))));
             sp.Children.Add(Section("Server control (live)",
                 P("The second tab at the top, next to Studio. Studio is for editing: everything is staged and only reaches your server after review and Apply. Server control is for running the server: start, stop and restart it, see who's online, manage players and accounts, message everyone, schedule restarts and backups, read the logs live. It acts on your running server right away, and every action is written to an audit log.\n• Commands go to the realm's command port (SOAP) as a GM login you save in Server control › Settings (encrypted for your Windows user). Without it, or while a realm's command port is down, those buttons stay greyed.\n• Risky actions ask first and offer a backup; a realm that won't close is only forced after a second confirmation.\n• Settings › Import from the old Control Panel brings its realms, ports, folders and GM login over (its own files aren't changed; it keeps working)."),
                 U.Btn("Open Server control", () => w.Navigate("sc_dash"))));
