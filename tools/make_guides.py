@@ -24,7 +24,10 @@ PICTURES = {
     'loot': '50_loot_creature.png',
     'loot_sim': '51_loot_simulator.png',
     'smartai': '55_smartai_builder.png',
-    'spells': '72_spells_overview.png',
+    'spells': '127_spells_spellbook_check.png',
+    'spells_create': '126_spells_create_guided.png',
+    'spells_problems': '128_spells_spellbook_problems.png',
+    'spells_send': '129_spells_send_to_game.png',
     'dbc': '65_dbc_unstaged_edit.png',
     'patches': '40b_client_patches_built.png',
     'assets': '88_assets_icon_imported.png',
@@ -42,7 +45,16 @@ def main(src):
         p = os.path.join(src, name)
         if not os.path.exists(p):
             print('missing', name); continue
-        im = Image.open(p).convert('RGB').resize((1600, 1000), Image.LANCZOS)
+        im = Image.open(p).convert('RGB')
+        if abs(im.width / im.height - 1.6) > 0.02:
+            # a window picture: fit it inside 1600x1000 on its own background instead of stretching it
+            sc = min(1600 / im.width, 1000 / im.height)
+            small = im.resize((round(im.width * sc), round(im.height * sc)), Image.LANCZOS)
+            canvas = Image.new('RGB', (1600, 1000), im.getpixel((6, 6)))
+            canvas.paste(small, ((1600 - small.width) // 2, (1000 - small.height) // 2))
+            im = canvas
+        else:
+            im = im.resize((1600, 1000), Image.LANCZOS)
         if key in REDACT:
             d = ImageDraw.Draw(im)
             font = ImageFont.truetype(r'C:\Windows\Fonts\consola.ttf', 16)

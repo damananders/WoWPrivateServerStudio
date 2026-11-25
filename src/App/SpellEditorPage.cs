@@ -17,7 +17,7 @@ namespace AndersCraftStudio
     /// Spell editor: Spell.dbc as a tabbed form with a live tooltip preview, related-DBC pickers (range, cast time,
     /// duration, radius, icon, visual) with "new row", and the server-side spell_dbc row. Everything is staged.
     /// </summary>
-    public sealed class SpellEditorPage : IPage
+    public sealed partial class SpellEditorPage : IPage
     {
         readonly MainWindow w;
         Studio S => w.S;
@@ -97,9 +97,12 @@ namespace AndersCraftStudio
             g.Children.Add(U.Card(left, new Thickness(10, 12, 6, 8), new Thickness(0)));
 
             Grid.SetColumn(editor, 2); g.Children.Add(editor);
-            editor.Content = U.Card(U.Stack(U.H2("Pick a spell"), U.T("Search by name or ID on the left. Ctrl+K also finds DBC tables; Spell.dbc itself is on DBC tables as a raw grid.", 13.5, "Muted")), new Thickness(28), new Thickness(0));
+            var createBtn = U.Btn("Create a spell…", CreateGuided, "BtnPrimary", "Guided: pick damage, heal, buff or passive, fill in plain fields, and Studio builds the spell and puts it in the spellbook.");
+            createBtn.HorizontalAlignment = HorizontalAlignment.Left; createBtn.Margin = new Thickness(0, 14, 0, 0);
+            editor.Content = U.Card(U.Stack(U.H2("Pick a spell, or make a new one"), U.T("Search by name or ID on the left to edit a spell. To make a new one step by step, use Create a spell. Ctrl+K also finds DBC tables; Spell.dbc itself is on DBC tables as a raw grid.", 13.5, "Muted"), createBtn), new Thickness(28), new Thickness(0));
 
             var right = new StackPanel();
+            right.Children.Add(U.Card(bookCheck, new Thickness(16, 14, 16, 14), new Thickness(0, 0, 0, 12)));
             right.Children.Add(U.Card(U.Stack(U.Eyebrow("In-game tooltip (preview)"), new Border { Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0B, 0x18)), BorderBrush = new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x6E)), BorderThickness = new Thickness(1.5), CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 10, 12, 10), Child = tooltip }), new Thickness(16, 14, 16, 14), new Thickness(0, 0, 0, 12)));
             right.Children.Add(U.Card(U.Stack(U.Eyebrow("What it does"), effectsList), new Thickness(16, 14, 16, 14), new Thickness(0, 0, 0, 12)));
             right.Children.Add(U.Card(guide, new Thickness(16, 14, 16, 14), new Thickness(0)));
@@ -283,6 +286,7 @@ namespace AndersCraftStudio
             if (staged > 0) titleRow.Children.Add(U.Pill("staged", "Amber", "AmberInk", "This spell has staged changes (shown here)."));
             var desc = U.T(SpellCatalog.Schools(sp.U("SchoolMask")) is string sc && sc.Length > 0 ? sc + " spell" : "Spell", 12.5, "Muted", null, false, new Thickness(0, 4, 0, 0));
             var buttons = new WrapPanel { Margin = new Thickness(0, 12, 0, 0) };
+            buttons.Children.Add(U.Btn("Create a spell…", CreateGuided, null, "Guided: a new damage, heal, buff or passive spell from plain choices, already in the spellbook."));
             buttons.Children.Add(U.Btn("Duplicate as new", Duplicate, null, $"Copy this spell to the first free ID at or above {S.Profiles.Settings.CustomIdStart} (Settings > Custom ID range). Ctrl+D"));
             buttons.Children.Add(U.Btn("Stage", Stage, "BtnPrimary", "Write your edits (and any new related rows) into the changeset. Ctrl+S"));
             buttons.Children.Add(U.Btn("Discard", () => Open(id, force: true), null, "Drop edits that aren't staged yet."));
@@ -297,9 +301,9 @@ namespace AndersCraftStudio
             if (isNew || id >= S.Profiles.Settings.CustomIdStart)
             {
                 var stagedServer = S.Changes.Pending.Changes.Any(c => c.Table == SpellServerRow.Table && c.Kind == ChangeKind.Insert && c.Key.Count > 0 && c.Key[0].Value == id.ToString(CultureInfo.InvariantCulture));
-                var call = U.Callout(stagedServer ? "A matching spell_dbc row is staged, so the server will know this spell too." : "This is a custom spell ID. The server only knows spells from its Spell.dbc or the world database's spell_dbc table. Stage a spell_dbc row so it can be cast on the server (Server side tab).",
-                    stagedServer ? "ok" : "warn", "Server side");
-                if (!stagedServer) { var bt = U.Btn("Stage spell_dbc row", StageServerRow, "BtnAmber"); bt.HorizontalAlignment = HorizontalAlignment.Left; bt.Margin = new Thickness(0, 8, 0, 0); ((StackPanel)call.Child).Children.Add(bt); }
+                var call = U.Callout(stagedServer ? "A matching spell_dbc row is staged, so the server will know this spell from the database too." : "The server knows a custom spell from its own Spell.dbc (Send to game, or Changes › Update server DBC copy, puts it there; restart worldserver after) or from the world database's spell_dbc table. One of the two is enough; spell_dbc is optional.",
+                    stagedServer ? "ok" : "info", "Server side");
+                if (!stagedServer) { var bt = U.Btn("Stage spell_dbc row (optional)", StageServerRow, null); bt.HorizontalAlignment = HorizontalAlignment.Left; bt.Margin = new Thickness(0, 8, 0, 0); ((StackPanel)call.Child).Children.Add(bt); }
                 call.Margin = new Thickness(0, 10, 0, 0);
                 headStack.Children.Add(call);
             }
@@ -864,6 +868,7 @@ namespace AndersCraftStudio
             if (tip.Effects.Count == 0) effectsList.Children.Add(U.T("No effects.", 12.5, "Muted"));
             foreach (var e in tip.Effects) effectsList.Children.Add(U.T("• " + e, 13, "Text", null, true, new Thickness(0, 0, 0, 4)));
             if (!string.IsNullOrEmpty(tip.AuraText)) effectsList.Children.Add(U.T("Buff text: " + tip.AuraText, 12, "Muted", null, true, new Thickness(0, 6, 0, 0)));
+            RefreshBook();
         }
 
         void RefreshMarks()
@@ -1005,7 +1010,7 @@ namespace AndersCraftStudio
             Dialog.Show(w, $"Spell {id}: compared with the original", body);
         }
 
-        sealed class Wait : IDisposable
+        internal sealed class Wait : IDisposable
         {
             readonly Cursor prev;
             public Wait() { prev = Mouse.OverrideCursor; Mouse.OverrideCursor = Cursors.Wait; }

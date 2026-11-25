@@ -24,7 +24,7 @@ namespace AndersCraftStudio
     public sealed class MainWindow : Window
     {
         public static MainWindow Instance;
-        public static bool OnlyM7, OnlyM8, OnlyM9, OnlyM10;
+        public static bool OnlyM7, OnlyM8, OnlyM9, OnlyM10, OnlyM11;
         public static bool Fresh;
         public readonly Studio S;
         readonly string screensDir;
@@ -615,7 +615,7 @@ namespace AndersCraftStudio
 
         async Task ScreensMode()
         {
-            try { if (Fresh) await Screens.RunFresh(this, screensDir); else if (OnlyM7) await Screens.RunM7(this, screensDir); else if (OnlyM8) await Screens.RunM8(this, screensDir); else if (OnlyM9) await Screens.RunM9(this, screensDir); else if (OnlyM10) await Screens.RunM10(this, screensDir); else await Screens.Run(this, screensDir); }
+            try { if (Fresh) await Screens.RunFresh(this, screensDir); else if (OnlyM7) await Screens.RunM7(this, screensDir); else if (OnlyM8) await Screens.RunM8(this, screensDir); else if (OnlyM9) await Screens.RunM9(this, screensDir); else if (OnlyM10) await Screens.RunM10(this, screensDir); else if (OnlyM11) await Screens.RunM11(this, screensDir); else await Screens.Run(this, screensDir); }
             catch (Exception ex) { File.WriteAllText(Path.Combine(screensDir, "screens_error.txt"), ex.ToString()); }
             Close();
         }

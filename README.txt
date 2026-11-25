@@ -16,6 +16,11 @@ VERSION 0.9
   - "How to use this" guides: App\Guides.cs (steps + marker positions), App\GuideWindow.cs, pictures in App\Guides\*.jpg
     made by tools\make_guides.py from a --public screenshot run (paints neutral text over private text boxes).
   - Screens: --m10 renders the Changes fixes and every guide.
+  - Spells: Core\SpellLearn.cs (SpellBook: SkillLineAbility links, class tabs, the spellbook check; GameShip: Send to game plan,
+    patch naming incl. Data\<locale>\patch-<locale>-X), Core\SpellRecipe.cs (guided create), App\SpellBookUi.cs (check card,
+    TabPickWindow, CreateSpellWindow, GameShipWindow). PatchInstaller installs into the locale folder too.
+    Tests\SpellBookTests.cs; Tests --learn-probe <spellId> [workFolder] [changesetsDir] (read-only look at a spell everywhere).
+  - Screens: --m11 renders the spell overhaul.
 
 VERSION 0.8
   - Admin console (AdminPage.cs, Core\Admin.cs): admin login per session, never saved; direct SQL, databases/tables/indexes/views,

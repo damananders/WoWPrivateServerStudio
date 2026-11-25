@@ -32,6 +32,7 @@ namespace AndersCraftStudio.Tests
             if (args.Length >= 1 && args[0] == "--probe-fx") return FxProbe.Run(args[1]);
             if (args.Length >= 1 && args[0] == "--dbc-roundtrip") return DbcRoundTrip.Run(args.Length > 1 ? args[1] : DbcRoundTrip.DefaultDir);
             if (args.Length >= 1 && args[0] == "--icons") return IconProbe.Run(args.Length > 1 ? args[1] : DevPaths.ClientData);
+            if (args.Length >= 1 && args[0] == "--learn-probe") return LearnProbe.Run(args.Skip(1).ToArray());
             if (args.Length >= 1 && args[0] == "--spell-tip") return SpellProbe.Run(args.Skip(1).ToArray());
             int pass = 0, fail = 0;
             var tests = typeof(Program).Assembly.GetTypes()

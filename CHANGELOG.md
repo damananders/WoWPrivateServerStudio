@@ -9,6 +9,9 @@ log for problem reports, recovery of a damaged staged-changes file; MariaDB back
 staged forever with no way out, and editors kept pre-Apply values (so a second edit of the same row stopped Apply);
 Apply is always shown, mismatches are explained with choices, two applies in one second no longer share a History file.
 New "How to use this" visual guides for every main screen (Shift+F1).
+Spells: guided Create a spell, a "Will it show in the spellbook?" check with fixes (SkillLineAbility link, hidden/passive
+flags, client out of date), and Send to game (one patch that wins over the client's other patches, installed with a
+backup). Fixed: each send to the patch work folder started over from the client's copy and dropped earlier edits.
 
 ## 0.8.0
 Admin console (everything HeidiSQL does, including setting up AzerothCore's databases) and the rest of Keira3's editors.

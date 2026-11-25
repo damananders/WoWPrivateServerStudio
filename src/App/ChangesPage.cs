@@ -420,7 +420,7 @@ namespace AndersCraftStudio
             // (a) patch work folder
             sp.Children.Add(U.T("1 · Files for a client patch", 14, "Text", FontWeights.SemiBold, false, new Thickness(0, 14, 0, 4)));
             bool client = ClientData != null && Directory.Exists(ClientData);
-            sp.Children.Add(U.T($"Writes the patched DBCs into a Client patches work folder (DBFilesClient\\…), starting from {(client ? "the copy the client sees today" : "the server's copy (no client folder set)")}. Then build and install the patch on the Client patches screen.", 12, "Muted", null, true, new Thickness(0, 0, 0, 6)));
+            sp.Children.Add(U.T($"Writes the patched DBCs into a Client patches work folder (DBFilesClient\\…), adding to what you sent there before (the first time it starts from {(client ? "the copy the client sees today" : "the server's copy, as no client folder is set")}). Then use Send to game on the Spells screen, or build and install the patch on Client patches.", 12, "Muted", null, true, new Thickness(0, 0, 0, 6)));
             var nameBox = U.Box(dbcWorkName, true);
             nameBox.TextChanged += (s, e) => dbcWorkName = nameBox.Text.Trim();
             var nf = U.Field("Work folder name", "Under " + Path.Combine(StudioRoot, "patch_work"), nameBox);
@@ -479,7 +479,10 @@ namespace AndersCraftStudio
             ClientDbcSource client = null;
             try { if (ClientData != null && Directory.Exists(ClientData)) client = new ClientDbcSource(ClientData, Path.Combine(ProfileStore.DefaultRoot, "name_cache")); } catch { }
             var server = ServerDbcDir;
-            Func<string, byte[]> read = f => client?.Read(f) ?? (server != null && File.Exists(Path.Combine(server, f)) ? File.ReadAllBytes(Path.Combine(server, f)) : null);
+            // start from what this work folder already holds (earlier sends), so each send adds to it instead of starting over
+            var inWork = Path.Combine(work, "DBFilesClient");
+            Func<string, byte[]> read = f => (File.Exists(Path.Combine(inWork, f)) ? File.ReadAllBytes(Path.Combine(inWork, f)) : null)
+                ?? client?.Read(f) ?? (server != null && File.Exists(Path.Combine(server, f)) ? File.ReadAllBytes(Path.Combine(server, f)) : null);
             dbcLastWhat = "Write to patch work folder";
             try { dbcLast = DbcOutputs.ToPatchFolder(ticked, read, work); }
             catch (Exception ex) { dbcLast = new DbcOutputResult(); dbcLast.Problems.Add(Friendly.Text(ex)); }

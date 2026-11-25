@@ -543,6 +543,16 @@ namespace AndersCraftStudio.Core
             return false;
         }
 
+        /// <summary>Locale-folder patches (Data\enUS\patch-enUS-2 … -Z.MPQ). Each loads right after the base patch of the same letter.</summary>
+        public static bool IsLocaleLoadable(string fileName, string locale, out string why)
+        {
+            why = null;
+            var n = fileName.ToLowerInvariant(); var pre = "patch-" + (locale ?? "").ToLowerInvariant() + "-";
+            if (n.EndsWith(".mpq") && n.StartsWith(pre) && n.Length == pre.Length + 5 && char.IsLetterOrDigit(n[pre.Length]) && n[pre.Length] != '0' && n[pre.Length] != '1') return true;
+            why = $"In the {locale} folder the client loads patch-{locale}-2 … patch-{locale}-Z.MPQ.";
+            return false;
+        }
+
         /// <summary>Load order rank: later (higher) wins when two patches contain the same file.</summary>
         public static int Rank(string fileName)
         {

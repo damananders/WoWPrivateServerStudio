@@ -94,7 +94,8 @@ namespace AndersCraftStudio
             MainWindow.OnlyM7 = args.Contains("--m7");
             MainWindow.OnlyM8 = args.Contains("--m8");
             MainWindow.OnlyM9 = args.Contains("--m9");
-            MainWindow.OnlyM10 = args.Contains("--m10");    // screenshots only: the Changes fixes (DBC status, a stopped Apply)      // screenshots only: just the 0.7 screens
+            MainWindow.OnlyM10 = args.Contains("--m10");
+            MainWindow.OnlyM11 = args.Contains("--m11");    // screenshots only: the spell overhaul (guided create, spellbook check, Send to game)    // screenshots only: the Changes fixes (DBC status, a stopped Apply)      // screenshots only: just the 0.7 screens
             var w = new MainWindow(state, screens);
             var code = Current.Run(w);
             if (screens != null)

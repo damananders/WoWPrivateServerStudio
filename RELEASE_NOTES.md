@@ -26,6 +26,35 @@ Changes (database changes, client data, history and roll back) and the setup wiz
 with *How to use this* in the top bar or Shift+F1 (in setup: the button under the steps); Help › How-to guides lists them
 all. It opens in its own window, so the screen you're on stays as it is.
 
+**Spells: made to show up in the spellbook**
+* **Why a learned custom spell never appeared in the spellbook.** Three things have to hold, and none did for a spell made
+  in earlier versions:
+  1. The game client must have the same Spell.dbc row as the server. The client decides what the book shows from its own
+     copy, and the patch with the edits was never in the game. Also, each *Write to patch work folder* started again
+     from the client's copy and kept only the edits still staged, so edits sent earlier (like un-hiding the spell) were
+     dropped from the patch folder.
+  2. The spell must not be marked "Do not display" (Attributes 0x80). The client's copy still had that flag, plus Passive.
+  3. The spell needs a SkillLineAbility.dbc row linking it to a spellbook tab the character has. Studio never added one.
+* **Create a spell…** (guided): damage, heal, buff or passive from a few plain fields, with the tooltip live as you type.
+  Studio starts from a real spell of the same kind (Fireball, Lesser Heal, Power Word: Fortitude), clears what you didn't
+  ask for, sets the numbers, text, icon, cost, cast time, cooldown, range and duration, and links it to the class and
+  spellbook tab you pick (or every class).
+* **Will it show in the spellbook?** A card on every spell lists each reason it won't, in plain words, each with a fix:
+  * *Show it* (unticks "Do not display"), *Make it a button* (unticks Passive), *Clear it* (a spell that triggers itself).
+  * *Add to a spellbook tab…* (picks the class and tab and adds the SkillLineAbility row).
+  * *Send to game…* when the client's copy is older or missing.
+  It also checks the class you'll test with, the icon and the visual. When everything is right, it turns green and names
+  the tab.
+* **Send to game**: one client patch with every DBC edit in History plus the staged ones, and the files from your patch
+  work folder (icons, models). Spells you edited get the server's exact row, with their spellbook links and icon.
+  * The patch is named to load after every patch already holding those tables. A Data\enUS\patch-enUS-X patch loads right
+    after patch-X, so patch-enUS-Z wins even over a patch-Z.
+  * Staged edits also go to the server's copy (backed up). The patch is checked and installed with a backup, and
+    *Remove … from the game* undoes it.
+* *Write to patch work folder* now adds to what that folder already holds instead of starting over.
+* The "Server side" note on custom spells now says plainly that the server's own Spell.dbc (sent from Studio) is enough;
+  a spell_dbc row is optional.
+
 **Fixed: stage → review → apply works every time**
 * Spell and other DBC edits never left the staged list after being sent out, so Changes kept showing them with no Apply
   button (DBC edits don't go through Apply). Now each one shows where it has been sent (server copy, patch folder); once
@@ -40,7 +69,10 @@ all. It opens in its own window, so the screen you're on stays as it is.
 * Two applies within the same second no longer share (and overwrite) one History file.
 * History shows sent DBC edits with their server backup and a *Restore server DBC backup…* button.
 
-**Tests**: 163 automated tests (new: M2 / .skin reading on real client models, mesh building, animation, particles and
+**Tests**: 169 automated tests (new: a learnable spell gets a SkillLineAbility row that survives a write; the spellbook check
+names each reason and goes green when wired; class tabs come from SkillLine + SkillRaceClassInfo; the guided recipe makes a
+visible, linked spell of every kind, read back from bytes; Send to game picks a name that wins and replays sent edits
+safely). Before that, 163 (new: M2 / .skin reading on real client models, mesh building, animation, particles and
 ribbons on the client's spell effects, dressed NPC looks, WMO groups, script-row matching, DBC tabs; three applies in a row,
 a restart, a fourth apply and a roll back on an in-memory table; a stale edit stopped and refreshed; sent DBC edits
 leaving the staged list across restarts; an older staged file learning where its DBC edits went).

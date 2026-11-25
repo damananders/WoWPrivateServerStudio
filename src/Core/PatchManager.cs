@@ -119,13 +119,15 @@ namespace AndersCraftStudio.Core
         public static string Sha256Of(string path) { using var s = File.OpenRead(path); return Convert.ToHexString(SHA256.HashData(s)); }
 
         /// <summary>Copies a built patch into Data\, backing up any file of the same name first. Refuses while the game runs.</summary>
-        public Record Install(string builtMpq, string clientDir, string name)
+        public Record Install(string builtMpq, string clientDir, string name, string localeFolder = null)
         {
-            if (!PatchNames.IsLoadable(name, out var why)) throw new InvalidOperationException(why);
+            string why = null;
+            if (localeFolder == null ? !PatchNames.IsLoadable(name, out why) : !PatchNames.IsLocaleLoadable(name, localeFolder, out why)) throw new InvalidOperationException(why);
             var running = this.running(clientDir);
             if (running.Count > 0) throw new InvalidOperationException("Close the game first: " + string.Join(", ", running) + " is running and has the patches open.");
             var data = Path.Combine(clientDir, "Data");
             if (!Directory.Exists(data)) throw new DirectoryNotFoundException("No Data folder in " + clientDir);
+            if (localeFolder != null) { data = Path.Combine(data, localeFolder); if (!Directory.Exists(data)) throw new DirectoryNotFoundException("No " + localeFolder + " folder in " + Path.Combine(clientDir, "Data")); }
             var problems = MpqWriter.Verify(builtMpq, new List<(string, byte[])>());
             var target = Path.Combine(data, name);
             var existing = Directory.GetFiles(data, "*.mpq").FirstOrDefault(f => string.Equals(Path.GetFileName(f), name, StringComparison.OrdinalIgnoreCase));
@@ -153,9 +155,10 @@ namespace AndersCraftStudio.Core
             if (running.Count > 0) throw new InvalidOperationException("Close the game first: " + string.Join(", ", running) + " is running.");
             var data = Path.Combine(clientDir, "Data");
             var all = Records();
-            var rec = all.FirstOrDefault(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase) && string.Equals(r.DataDir, data, StringComparison.OrdinalIgnoreCase))
+            var rec = all.FirstOrDefault(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase) && r.DataDir != null &&
+                                              (string.Equals(r.DataDir, data, StringComparison.OrdinalIgnoreCase) || string.Equals(Path.GetDirectoryName(r.DataDir), data, StringComparison.OrdinalIgnoreCase)))
                       ?? throw new InvalidOperationException($"{name} wasn't installed by Studio, so Studio won't remove it.");
-            var path = Path.Combine(data, rec.Name);
+            var path = Path.Combine(rec.DataDir, rec.Name);
             if (File.Exists(path) && Sha256Of(path) != rec.Sha256) throw new InvalidOperationException($"{rec.Name} has changed since Studio installed it; remove it by hand if you're sure.");
             // keep a copy of what we remove, too
             if (File.Exists(path))

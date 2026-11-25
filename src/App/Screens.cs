@@ -137,6 +137,43 @@ namespace AndersCraftStudio
             await Milestone8(w);
             await Milestone9(w);
             await Milestone10(w);
+            await Milestone11(w);
+        }
+
+        public static async Task RunM11(MainWindow w, string dir)
+        {
+            Directory.CreateDirectory(dir);
+            await Milestone11(w);
+        }
+
+        /// <summary>The spell overhaul: guided Create a spell, the spellbook check, and Send to game (plan only, nothing installed).</summary>
+        static async Task Milestone11(MainWindow w)
+        {
+            SpellEditorPage se = null;
+            w.Navigate("spells", p => se = (SpellEditorPage)p);
+            await Wait(600);
+            var tabs = SpellBook.ClassTabs(se.WorkTable("SkillLine.dbc"), se.WorkTable("SkillRaceClassInfo.dbc"));
+            var dlg = new CreateSpellWindow(w, se, tabs);
+            dlg.ScreensSet(SpellRecipe.Kind.Damage, "Ember Lance", 180);
+            dlg.Show(); await Wait(900);
+            await w.SnapWindow(dlg, "126_spells_create_guided.png");
+            dlg.Close();
+            // the same spell made for real (throw-away changeset), shown in the editor with its spellbook check
+            se.ScreensCreate(new SpellRecipe.Recipe { Kind = SpellRecipe.Kind.Damage, Name = "Ember Lance", Amount = 180, CastMs = 1500, CooldownSec = 6, RangeYards = 30, School = 4 }, tabs.FirstOrDefault(t => t.SkillLine == 8));
+            await Wait(900); w.HideToast();
+            await w.Snap("127_spells_spellbook_check.png");
+            // a spell like the one in the bug report: hidden + passive, no spellbook link
+            se.ScreensSet("Attributes", "0x1C0");
+            se.ScreensUnlink();
+            await Wait(600);
+            await w.Snap("128_spells_spellbook_problems.png");
+            se.ScreensSet("Attributes", "0x0");
+            se.ScreensRelink(tabs.FirstOrDefault(t => t.SkillLine == 8));
+            se.ScreensStage(); await Wait(600); w.HideToast();
+            var ship = new GameShipWindow(w);
+            ship.Show(); await Wait(800);
+            await w.SnapWindow(ship, "129_spells_send_to_game.png");
+            ship.Close();
         }
 
         public static async Task RunM10(MainWindow w, string dir)

@@ -85,6 +85,13 @@ Changes and the setup wizard). Open it with *How to use this* in the top bar or 
 
 ![How to use this](docs/screens/how-to-guide.png)
 
+**Making a spell.** Spells › *Create a spell…*: pick damage, heal, buff or passive, fill in the plain fields (amount,
+school or what it raises, cast time, cooldown, cost, range, icon, spellbook tab) and watch the tooltip as you type. Studio
+builds the whole spell from a real one of the same kind and links it to the spellbook tab you picked. The card *Will it
+show in the spellbook?* checks every spell (hidden or passive flags, the spellbook link, the class you test with, and
+whether the game client has the same version) with a one-click fix for each problem. *Send to game* puts every spell and
+DBC edit into one client patch that wins over your other patches, installs it with a backup, and updates the server's copy.
+
 **Spell and DBC edits don't use Apply.** On Changes they go out with *Send out DBC edits*: as files for a client patch
 (then build and install it on Client patches) and as an updated server copy (then restart worldserver). Once an edit has
 gone both ways it moves to History by itself; after just one, press *Done: move to History*.
