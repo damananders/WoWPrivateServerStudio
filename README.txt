@@ -21,6 +21,12 @@ VERSION 0.9
     TabPickWindow, CreateSpellWindow, GameShipWindow). PatchInstaller installs into the locale folder too.
     Tests\SpellBookTests.cs; Tests --learn-probe <spellId> [workFolder] [changesetsDir] (read-only look at a spell everywhere).
   - Screens: --m11 renders the spell overhaul.
+  - Server control (the old ControlPanel folded in; ControlPanel\ itself untouched): Core\ServerControl.cs (namespace Core.Live:
+    settings + import, SOAP, Gm command builders, CommandPalette, Audit, Logs, Schedule, Watchdog, LiveData queries, Procs,
+    CpuSampler, BackupList), App\ServerHub.cs (status, start/stop, backups/restore, tasks, watchdog), App\ServerControlPages.cs
+    (8 pages + PlayerWindow), MainWindow Studio | Server control switch. Settings in %APPDATA%\AndersCraftStudio\server_control.json,
+    audit in <workspace>\audit. Tests\ServerControlTests.cs. Screens: --m12 (sample data; nothing started, stopped or sent).
+  - U.Technical / Settings.ShowTechnicalNames: raw names only when asked. U.Soft: the borderless card style.
 
 VERSION 0.8
   - Admin console (AdminPage.cs, Core\Admin.cs): admin login per session, never saved; direct SQL, databases/tables/indexes/views,

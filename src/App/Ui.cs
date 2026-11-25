@@ -33,6 +33,14 @@ namespace AndersCraftStudio
             return b;
         }
 
+        /// <summary>The softer card (no outline): a tinted, rounded surface with a faint shadow; grouping by space, not ruled boxes.</summary>
+        public static Border Soft(UIElement child, Thickness? pad = null, Thickness? margin = null, string bg = "Panel")
+            => new Border { Background = R(bg), CornerRadius = new CornerRadius(18), Padding = pad ?? new Thickness(22), Margin = margin ?? new Thickness(0, 0, 0, 18), Child = child,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 22, ShadowDepth = 3, Opacity = 0.28, Color = Colors.Black } };
+
+        /// <summary>Show raw engine names (tables, columns, IDs, commands) as well as the plain ones. Settings › Show technical names.</summary>
+        public static bool Technical { get; set; }
+
         public static Border Card(UIElement child, Thickness? pad = null, Thickness? margin = null, string bg = "Panel")
             => new Border { Background = R(bg), BorderBrush = R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14), Padding = pad ?? new Thickness(20), Margin = margin ?? new Thickness(0, 0, 0, 16), Child = child };
 

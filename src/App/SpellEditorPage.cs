@@ -362,7 +362,7 @@ namespace AndersCraftStudio
             guide.Children.Add(U.Eyebrow("Guide"));
             guide.Children.Add(U.T(title, 15, "Text", FontWeights.SemiBold, true, new Thickness(0, 0, 0, 6)));
             guide.Children.Add(U.T(text ?? "", 13, "Muted", null, true));
-            if (column != null) guide.Children.Add(U.T("Column: " + column, 12, "Faint", null, true, new Thickness(0, 8, 0, 0)));
+            if (column != null && U.Technical) guide.Children.Add(U.T("Column: " + column, 12, "Faint", null, true, new Thickness(0, 8, 0, 0)));
         }
 
         /// <summary>A text box bound to one Spell.dbc field (by layout field name).</summary>

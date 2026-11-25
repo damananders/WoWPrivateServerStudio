@@ -435,12 +435,13 @@ namespace AndersCraftStudio
             ui.Error = U.T("", 12, "Bad", null, true, new Thickness(2, 4, 0, 0)); ui.Error.Visibility = Visibility.Collapsed;
             var hint = U.T(f.Hint, 11.5, "Faint", null, false, new Thickness(2, 5, 0, 0));
             hint.FontFamily = U.Mono;
+            if (!U.Technical) hint.Visibility = Visibility.Collapsed;   // the column name only when asked for (Settings › Show technical names)
             FrameworkElement control = exists ? BuildControl(f, ui) : U.T("Not in your database (column missing or no row).", 12.5, "Faint", null, true);
             var stack = U.Stack(top, control, ui.Error, hint);
             ui.Box = new Border { Child = stack, Width = wide ? 476 : 232, Margin = new Thickness(0, 0, 12, 12), Padding = new Thickness(12, 10, 12, 10), CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1.5), BorderBrush = Brushes.Transparent, Background = U.R("Panel2") };
             ui.Box.IsKeyboardFocusWithinChanged += (s, e) => { if (ui.Box.IsKeyboardFocusWithin) ShowGuide(f); };
             ui.Box.MouseLeftButtonDown += (s, e) => ShowGuide(f);
-            ui.Box.ToolTip = f.Guide + "\n\nTip: " + f.Tip + "\n" + f.Hint;
+            ui.Box.ToolTip = f.Guide + "\n\nTip: " + f.Tip + (U.Technical ? "\n" + f.Hint : "");
             ToolTipService.SetInitialShowDelay(ui.Box, 900);
             U.AutomationName(control, f.Label);
             fieldUis.Add(ui);
@@ -648,7 +649,7 @@ namespace AndersCraftStudio
             sp.Children.Add(U.Eyebrow("Guide · " + tab));
             sp.Children.Add(U.H2(f.Label));
             var colPill = U.Pill(f.Hint.Replace("Column: ", ""), "Panel2", "Muted"); colPill.HorizontalAlignment = HorizontalAlignment.Left; colPill.Margin = new Thickness(0, 0, 0, 12);
-            sp.Children.Add(colPill);
+            if (U.Technical) sp.Children.Add(colPill);
             sp.Children.Add(U.T(f.Guide, 13.5, "Text", null, true, new Thickness(0, 0, 0, 12)));
             sp.Children.Add(U.Callout(f.Tip, "warn", "Tip"));
             if (id != null && Exists(f))

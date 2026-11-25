@@ -122,6 +122,18 @@ namespace AndersCraftStudio
             safety.Children.Add(U.T("Always on. If the backup fails, nothing is applied.", 12.5, "Muted", null, true, new Thickness(27, 4, 0, 0)));
             sp.Children.Add(U.Card(safety));
 
+            // ---- names
+            var namesCard = new StackPanel();
+            namesCard.Children.Add(U.H2("Names"));
+            var tech = new CheckBox { IsChecked = st.ShowTechnicalNames, Margin = new Thickness(0, 6, 0, 4), Content = U.T("Show technical names", 14, "Text", FontWeights.SemiBold, false),
+                ToolTip = "Also show the database column, table, DBC field and command behind each plain name." };
+            U.AutomationName(tech, "Show technical names");
+            tech.Checked += (s, e) => { st.ShowTechnicalNames = U.Technical = true; S.Profiles.SaveSettings(); w.Toast("Technical names are shown. Screens you open next show them.", "info"); };
+            tech.Unchecked += (s, e) => { st.ShowTechnicalNames = U.Technical = false; S.Profiles.SaveSettings(); w.Toast("Only plain names are shown.", "info"); };
+            namesCard.Children.Add(tech);
+            namesCard.Children.Add(U.T("Off by default: every field has a plain name and a short description. Turn this on to also see the column (e.g. creature_template.minlevel), the DBC field, or the server command behind it.", 12.5, "Muted", null, true, new Thickness(27, 0, 0, 0)));
+            sp.Children.Add(U.Card(namesCard));
+
             // ---- folders
             var fold = new StackPanel();
             fold.Children.Add(U.H2("Folders and tools"));

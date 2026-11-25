@@ -24,7 +24,7 @@ namespace AndersCraftStudio
     public sealed class MainWindow : Window
     {
         public static MainWindow Instance;
-        public static bool OnlyM7, OnlyM8, OnlyM9, OnlyM10, OnlyM11;
+        public static bool OnlyM7, OnlyM8, OnlyM9, OnlyM10, OnlyM11, OnlyM12;
         public static bool Fresh;
         public readonly Studio S;
         readonly string screensDir;
@@ -49,12 +49,21 @@ namespace AndersCraftStudio
         Button reviewBtn;
         Border changesNavBadge;
         public string CurrentPage { get; private set; }
+        /// <summary>The Server control tab's shared state (live status, GM login, schedule).</summary>
+        public ServerHub Hub => hub ??= new ServerHub(this);
+        ServerHub hub;
+        /// <summary>True while the Server control tab (live operations) is showing; false on the Studio (staged editing) side.</summary>
+        public bool ServerMode { get; private set; }
+        StackPanel studioNav, serverNav;
+        RadioButton modeStudio, modeServer;
+        string lastStudioPage = "home", lastServerPage = "sc_dash";
         /// <summary>"Sandbox" or "Live". Chosen on the Changes screen; Live needs Settings › Safety.</summary>
         public string ApplyTarget { get; set; } = "Sandbox";
 
         public MainWindow(Studio s, string screens)
         {
             Instance = this; S = s; screensDir = screens;
+            U.Technical = s.Profiles.Settings.ShowTechnicalNames;
             Title = "AndersCraft Studio";
             Background = U.R("Bg");
             FontFamily = U.Font;
@@ -96,6 +105,8 @@ namespace AndersCraftStudio
                 if (S.Changes.RecoveryNote != null) { Log.Write("warn", S.Changes.RecoveryNote); Toast(S.Changes.RecoveryNote, "warn"); }
                 RefreshChrome();
                 if (S.Profile == null || !S.Profile.SetupComplete) ShowWizard(1); else Navigate("home");
+                // scheduled server tasks and the crash watchdog run whenever Studio is open, not only on the Server control tab
+                if (screensDir == null && File.Exists(Path.Combine(S.Profiles.Root, "server_control.json")) && (Hub.Cfg.Tasks.Any(t => t.Enabled) || Hub.Cfg.Realms.Any(r => r.AutoRestart))) Hub.Start();
                 if (screensDir != null) await ScreensMode();
             };
         }
@@ -127,7 +138,15 @@ namespace AndersCraftStudio
             sg.Children.Add(new Border { HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center, Background = U.R("Panel2"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(6, 1, 6, 2), IsHitTestVisible = false,
                 Child = U.T("Ctrl K", 11.5, "Muted", null, false) });
             WindowChrome.SetIsHitTestVisibleInChrome(sg, true);
-            Grid.SetColumn(sg, 1); bar.Children.Add(sg);
+            // Studio (staged, safe editing) | Server control (live operations): two clearly separate tabs
+            modeStudio = new RadioButton { Style = U.S("SegBtn"), Content = "Studio", GroupName = "mode", IsChecked = true, ToolTip = "Editing: everything is staged and reviewed before it reaches your server." };
+            modeServer = new RadioButton { Style = U.S("SegBtn"), GroupName = "mode", ToolTip = "Server control: start, stop, players, accounts, messages. Acts on your running server right away.",
+                Content = U.Row(new System.Windows.Shapes.Ellipse { Width = 7, Height = 7, Fill = U.R("Bad"), Margin = new Thickness(0, 0, 7, 0), VerticalAlignment = VerticalAlignment.Center }, new TextBlock { Text = "Server control" }) };
+            modeStudio.Checked += (a, b) => SetMode(false); modeServer.Checked += (a, b) => SetMode(true);
+            var modes = new Border { Background = U.R("Bg"), CornerRadius = new CornerRadius(10), Padding = new Thickness(2), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), Child = U.Row(modeStudio, modeServer) };
+            WindowChrome.SetIsHitTestVisibleInChrome(modes, true);
+            var midRow = U.Row(modes, sg); midRow.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(midRow, 1); bar.Children.Add(midRow);
             BuildSearchPopup(sg);
 
             // status cluster
@@ -211,8 +230,10 @@ namespace AndersCraftStudio
             var side = new DockPanel { Background = U.R("Panel"), LastChildFill = false };
             var sideBorder = new Border { BorderBrush = U.R("Line"), BorderThickness = new Thickness(0, 0, 1, 0), Child = side };
             shell.Children.Add(sideBorder);
-            var list = new StackPanel { Margin = new Thickness(12, 14, 12, 0) };
-            var listScroll = new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
+            var list = studioNav = new StackPanel { Margin = new Thickness(12, 14, 12, 0) };
+            serverNav = new StackPanel { Margin = new Thickness(12, 14, 12, 0), Visibility = Visibility.Collapsed };
+            var lists = new Grid(); lists.Children.Add(list); lists.Children.Add(serverNav);
+            var listScroll = new ScrollViewer { Content = lists, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
             DockPanel.SetDock(listScroll, Dock.Top);
             side.Children.Add(listScroll);
 
@@ -261,6 +282,22 @@ namespace AndersCraftStudio
             changesNavBadge = new Border { Background = U.R("Amber"), CornerRadius = new CornerRadius(10), Padding = new Thickness(7, 1, 7, 1), Visibility = Visibility.Collapsed,
                 Child = new TextBlock { Foreground = U.R("AmberInk"), FontSize = 11.5, FontWeight = FontWeights.Bold } };
             Item("changes", "", "Changes", "Everything you've staged: review it, apply it to the sandbox or live, and roll back past applies.", changesNavBadge);
+
+
+            // ---- Server control (live)
+            list = serverNav;
+            var live = new Border { Background = U.R("BadBg"), CornerRadius = new CornerRadius(10), Padding = new Thickness(12, 8, 12, 8), Margin = new Thickness(0, 0, 0, 10),
+                Child = U.Stack(U.T("LIVE SERVER CONTROL", 11, "Bad", FontWeights.Bold, false), U.T("Acts on your running server right away. Nothing here is staged.", 11.5, "Muted", null, true, new Thickness(0, 3, 0, 0))) };
+            list.Children.Add(live);
+            Item("sc_dash", "\uE7F4", "Dashboard", "What's running, who's online; start, stop and restart.");
+            Item("sc_players", "\uE716", "Players", "Every character: kick, mute, ban, teleport, level, mail gold and items, one or many at once.");
+            Item("sc_accounts", "\uE77B", "Accounts", "Make logins, change passwords, staff rank and expansion, bans.");
+            Item("sc_console", "\uE756", "Console", "Type any server command, or pick a quick command.");
+            Item("sc_logs", "\uE81C", "Logs", "Live server logs with problems in colour, and the audit log.");
+            Item("sc_schedule", "\uE823", "Messages & schedule", "Message everyone, shutdown countdowns, repeating messages, daily restarts and backups.");
+            Item("sc_backups", "\uE8F1", "Backups", "Back up now, see every backup, put a database back.");
+            Item("sc_settings", "\uE713", "Settings", "GM login, folders, ports and realms; import from the old Control Panel.");
+            list = studioNav;
 
             var bottom = new StackPanel { Margin = new Thickness(12, 0, 12, 14) };
             DockPanel.SetDock(bottom, Dock.Bottom);
@@ -330,16 +367,40 @@ namespace AndersCraftStudio
                     "spells" => new SpellEditorPage(this),
                     "changes" => new ChangesPage(this),
                     "settings" => new SettingsPage(this),
+                    "sc_dash" => new ScDashboardPage(this),
+                    "sc_players" => new ScPlayersPage(this),
+                    "sc_accounts" => new ScAccountsPage(this),
+                    "sc_console" => new ScConsolePage(this),
+                    "sc_logs" => new ScLogsPage(this),
+                    "sc_schedule" => new ScSchedulePage(this),
+                    "sc_backups" => new ScBackupsPage(this),
+                    "sc_settings" => new ScSettingsPage(this),
                     _ => new ComingSoonPage(this, key),
                 };
                 pages[key] = page;
             }
             CurrentPage = key;
+            bool sc = key.StartsWith("sc_");
+            if (sc != ServerMode) { ServerMode = sc; (sc ? modeServer : modeStudio).IsChecked = true; studioNav.Visibility = sc ? Visibility.Collapsed : Visibility.Visible; serverNav.Visibility = sc ? Visibility.Visible : Visibility.Collapsed; }
+            if (sc) lastServerPage = key; else if (key != "wizard") lastStudioPage = key;
             if (guideBtn != null) guideBtn.Visibility = Guides.For(key) != null ? Visibility.Visible : Visibility.Collapsed;
             if (nav.TryGetValue(key, out var rb) && rb.IsChecked != true) rb.IsChecked = true;
             pageHost.Content = page.View;
             page.OnShow();
             then?.Invoke(page);
+        }
+
+        void SetMode(bool server)
+        {
+            if (server == ServerMode && CurrentPage != null) return;
+            Navigate(server ? lastServerPage : lastStudioPage);
+        }
+
+        /// <summary>Rebuilds the Server control pages (after its settings changed).</summary>
+        public void ReloadServerControl()
+        {
+            foreach (var k in pages.Keys.Where(k => k.StartsWith("sc_")).ToList()) pages.Remove(k);
+            if (ServerMode) Navigate(CurrentPage);
         }
 
         public void ShowWizard(int step, bool rerun = false)
@@ -615,7 +676,7 @@ namespace AndersCraftStudio
 
         async Task ScreensMode()
         {
-            try { if (Fresh) await Screens.RunFresh(this, screensDir); else if (OnlyM7) await Screens.RunM7(this, screensDir); else if (OnlyM8) await Screens.RunM8(this, screensDir); else if (OnlyM9) await Screens.RunM9(this, screensDir); else if (OnlyM10) await Screens.RunM10(this, screensDir); else if (OnlyM11) await Screens.RunM11(this, screensDir); else await Screens.Run(this, screensDir); }
+            try { if (Fresh) await Screens.RunFresh(this, screensDir); else if (OnlyM7) await Screens.RunM7(this, screensDir); else if (OnlyM8) await Screens.RunM8(this, screensDir); else if (OnlyM9) await Screens.RunM9(this, screensDir); else if (OnlyM10) await Screens.RunM10(this, screensDir); else if (OnlyM11) await Screens.RunM11(this, screensDir); else if (OnlyM12) await Screens.RunM12(this, screensDir); else await Screens.Run(this, screensDir); }
             catch (Exception ex) { File.WriteAllText(Path.Combine(screensDir, "screens_error.txt"), ex.ToString()); }
             Close();
         }

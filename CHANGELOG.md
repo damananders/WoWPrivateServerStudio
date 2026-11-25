@@ -12,6 +12,9 @@ New "How to use this" visual guides for every main screen (Shift+F1).
 Spells: guided Create a spell, a "Will it show in the spellbook?" check with fixes (SkillLineAbility link, hidden/passive
 flags, client out of date), and Send to game (one patch that wins over the client's other patches, installed with a
 backup). Fixed: each send to the patch work folder started over from the client's copy and dropped earlier edits.
+Server control: the AndersCraft Control Panel folded in as a second, live tab, beefed up (CPU / memory, crash watchdog,
+maintenance mode, accounts, bulk player actions, quick commands, live coloured logs, scheduled messages / restarts / backups,
+backup restore). Settings › Show technical names (off by default).
 
 ## 0.8.0
 Admin console (everything HeidiSQL does, including setting up AzerothCore's databases) and the rest of Keira3's editors.

@@ -85,6 +85,17 @@ Changes and the setup wizard). Open it with *How to use this* in the top bar or 
 
 ![How to use this](docs/screens/how-to-guide.png)
 
+**Server control (live).** The second tab at the top. Where Studio's editing is staged and applied after review, Server
+control runs your server right now: a live dashboard (login server and each realm: ready or not, uptime, CPU and memory,
+players and bots online, the last log line), start / stop / restart with a graceful save first and a backup offered, a crash
+watchdog, maintenance mode, players (one or many: kick, mute, ban, teleport, level, mail gold and items), accounts (create,
+password, staff rank, expansion, bans), a console with quick commands, live logs with problems in colour, messages, a
+shutdown countdown, scheduled messages / restarts / backups, backups you can open or put back, and an audit log of every
+action. It replaces the separate AndersCraft Control Panel (import its settings in one click; the old program keeps working).
+Settings › *Show technical names* shows column, field and command names next to the plain ones (off by default).
+
+![Server control](docs/screens/server-control.png)
+
 **Making a spell.** Spells › *Create a spell…*: pick damage, heal, buff or passive, fill in the plain fields (amount,
 school or what it raises, cast time, cooldown, cost, range, icon, spellbook tab) and watch the tooltip as you type. Studio
 builds the whole spell from a real one of the same kind and links it to the spellbook tab you picked. The card *Will it

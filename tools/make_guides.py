@@ -34,6 +34,11 @@ PICTURES = {
     'sql': '08_sql_browser_staged_edit.png',
     'admin': '106_admin_login.png',
     'changes': '16_changes_apply_panel.png',
+    'server_dash': '140_server_dashboard.png',
+    'server_players': '141_server_players.png',
+    'server_player': '142_server_player_window.png',
+    'server_console': '144_server_console.png',
+    'server_schedule': '146_server_schedule.png',
     'changes_dbc': '124_changes_dbc_sent_status.png',
     'changes_history': '17_history_rollback.png',
 }

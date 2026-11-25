@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using AndersCraftStudio.Core;
+using AndersCraftStudio.Core.Live;
 
 namespace AndersCraftStudio
 {
@@ -138,6 +139,39 @@ namespace AndersCraftStudio
             await Milestone9(w);
             await Milestone10(w);
             await Milestone11(w);
+        }
+
+        public static async Task RunM12(MainWindow w, string dir)
+        {
+            Directory.CreateDirectory(dir);
+            await Milestone12(w);
+        }
+
+        /// <summary>Server control with sample settings, characters and accounts (nothing is started, stopped or sent).</summary>
+        static async Task Milestone12(MainWindow w)
+        {
+            w.Hub.ScreensSample(Path.Combine(Path.GetTempPath(), "studio_screens_server"));
+            w.Navigate("sc_dash"); await w.Hub.Refresh(true); await Wait(900); w.HideToast();
+            await w.Snap("140_server_dashboard.png");
+            var realms = w.Hub.Cfg.Realms;
+            var races = new[] { "Human", "Orc", "Dwarf", "Night Elf", "Undead", "Tauren", "Gnome", "Troll", "Goblin", "Blood Elf", "Draenei" };
+            var classes = new[] { "Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Death Knight", "Shaman", "Mage", "Warlock", "Druid", "Druid" };
+            var zones = new[] { "Dalaran", "Icecrown", "Stormwind City", "Orgrimmar", "Sholazar Basin", "Elwynn Forest", "Wintergrasp", "The Storm Peaks" };
+            var names = new[] { "Aldren", "Brisa", "Corvin", "Dagny", "Ebbe", "Fenna", "Gorm", "Hilde" };
+            var rows = names.Select((n, i) => new CharRow { Guid = (uint)(100 + i), Name = n, Level = new[] { 80, 72, 80, 64, 80, 23, 80, 58 }[i], Race = races[(i * 3) % 11], Class = classes[(i * 5) % 11],
+                Realm = realms[i % 2], Account = "PLAYER" + (i + 1), Online = i % 3 != 2, Zone = zones[i], Money = (i + 1) * 1234567L, TotalTime = (i + 2) * 86000L, LogoutUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - i * 7200 }).ToList();
+            ScPlayersPage pl = null; w.Navigate("sc_players", p => pl = (ScPlayersPage)p); pl.ScreensData(rows); await Wait(600);
+            await w.Snap("141_server_players.png");
+            var pw = new PlayerWindow(w, rows[0]); pw.Show(); await Wait(700);
+            await w.SnapWindow(pw, "142_server_player_window.png"); pw.Close();
+            ScAccountsPage ac = null; w.Navigate("sc_accounts", p => ac = (ScAccountsPage)p);
+            ac.ScreensData(Enumerable.Range(1, 8).Select(i => new AccountRow { Id = (uint)i, Name = "PLAYER" + i, Rank = i == 1 ? 3 : i == 2 ? 1 : 0, Expansion = 2, Online = i % 3 != 0, Characters = 1 + i % 3, LastLogin = DateTime.Now.AddHours(-i * 5).ToString("yyyy-MM-dd HH:mm"), Banned = i == 7, Muted = i == 5 }).ToList());
+            await Wait(500); await w.Snap("143_server_accounts.png");
+            w.Navigate("sc_console"); await Wait(500); await w.Snap("144_server_console.png");
+            w.Navigate("sc_logs"); await Wait(700); await w.Snap("145_server_logs.png");
+            w.Navigate("sc_schedule"); await Wait(500); await w.Snap("146_server_schedule.png");
+            w.Navigate("sc_backups"); await Wait(500); await w.Snap("147_server_backups.png");
+            w.Navigate("sc_settings"); await Wait(500); await w.Snap("148_server_settings.png");
         }
 
         public static async Task RunM11(MainWindow w, string dir)

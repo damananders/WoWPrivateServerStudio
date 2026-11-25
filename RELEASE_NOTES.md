@@ -26,6 +26,36 @@ Changes (database changes, client data, history and roll back) and the setup wiz
 with *How to use this* in the top bar or Shift+F1 (in setup: the button under the steps); Help › How-to guides lists them
 all. It opens in its own window, so the screen you're on stays as it is.
 
+**New: Server control (the Control Panel, folded in and beefed up)**
+A second tab at the top, next to Studio, for running the server. It is kept clearly apart from editing: a red "Live server"
+marker on every page and in the sidebar, and a reminder that it acts on the running server right away (nothing is staged,
+Apply isn't involved). Every action goes to an audit log.
+* **Dashboard**: login server, each realm (ready, uptime, CPU, memory, players and bots online, last log line), the sign-up
+  website and tunnel, the daily backup script; start / stop / restart each, or everything. Stops save everyone and shut
+  down gracefully over the command port, offer a backup first, and only force a realm after a second confirmation.
+* **Crash watchdog** (per realm, opt-in): starts a realm again when it stops on its own, at most a few times an hour.
+* **Maintenance mode** per realm: only staff can log in.
+* **Players**: every character on every realm with search and filters (realm, online, real players / bots); one
+  character's window (kick, revive, mute, bans for a time, teleport, home, level, rename / looks / race / faction at next
+  login, reset talents / spells, delete with the name typed, mail with gold or items); **several at once** (kick, revive,
+  send home, mail items or gold).
+* **Accounts**: create, new password, staff rank, expansion, ban and lift bans (passwords never reach the audit log).
+* **Console** with **quick commands**: common commands with plain names (status, who's online, save everyone, messages,
+  maintenance, shutdown countdown, reloads, message of the day, ban lists).
+* **Logs**: each realm's logs followed live, problems in colour, "problems only", and the audit log (Studio's and the old
+  Control Panel's).
+* **Messages & schedule**: message everyone (chat and screen), a shutdown countdown, and scheduled repeating messages,
+  daily restarts (with warnings at 15 / 10 / 5 / 1 minutes) and daily backups, run while Studio is open.
+* **Backups**: every backup (Server control's, Studio's and the old Control Panel's), back up chosen databases now, open
+  one, or put a database back (typed confirmation, a fresh safety backup first).
+* **Settings**: GM login (encrypted per Windows user), folders, ports and realms; **Import from the old Control Panel**
+  (its settings file is only read; the old program keeps working).
+* The login and character databases are read with Studio's read-only account, falling back to the server's own login
+  from worldserver.conf in a read-only session for a realm the read-only account can't see.
+
+**Plain names first**: Settings › *Show technical names* (off by default). The "Column: …" lines under editor fields and
+the raw command text in Server control only show when it's on.
+
 **Spells: made to show up in the spellbook**
 * **Why a learned custom spell never appeared in the spellbook.** Three things have to hold, and none did for a spell made
   in earlier versions:
@@ -69,7 +99,9 @@ all. It opens in its own window, so the screen you're on stays as it is.
 * Two applies within the same second no longer share (and overwrite) one History file.
 * History shows sent DBC edits with their server backup and a *Restore server DBC backup…* button.
 
-**Tests**: 169 automated tests (new: a learnable spell gets a SkillLineAbility row that survives a write; the spellbook check
+**Tests**: 176 automated tests (new for Server control: SOAP messages, GM command building and cleaning, passwords
+kept out of the audit log, the schedule, the crash watchdog, importing the old Control Panel's settings, read-only queries
+with safe names, logs, audit and backups). Before that, 169 (new: a learnable spell gets a SkillLineAbility row that survives a write; the spellbook check
 names each reason and goes green when wired; class tabs come from SkillLine + SkillRaceClassInfo; the guided recipe makes a
 visible, linked spell of every kind, read back from bytes; Send to game picks a name that wins and replays sent edits
 safely). Before that, 163 (new: M2 / .skin reading on real client models, mesh building, animation, particles and
