@@ -46,7 +46,7 @@ namespace AndersCraftStudio
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
             var strip = U.StepStrip(1); DockPanel.SetDock(strip, Dock.Right); strip.VerticalAlignment = VerticalAlignment.Center; head.Children.Add(strip);
             head.Children.Add(U.Stack(U.H1("SmartAI"), U.T("Build behaviour as plain sentences: when something happens, do something, to someone. Changes are staged with undo.", 13.5, "Muted")));
-            view.Children.Add(head);
+            view.Children.Add(U.Hero(head));
 
             // ---- which script
             foreach (var kv in new[] { (0, "Creature"), (1, "Game object"), (9, "Action list") })
@@ -400,7 +400,7 @@ namespace AndersCraftStudio
                 }
                 box.TextChanged += (s, e) =>
                 {
-                    if (long.TryParse(box.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v)) { values[k] = v; box.BorderBrush = U.R("Line"); Upd(); Changed(); }
+                    if (long.TryParse(box.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v)) { values[k] = v; box.ClearValue(Control.BorderBrushProperty); Upd(); Changed(); }
                     else box.BorderBrush = U.R("Bad");
                 };
                 Upd();

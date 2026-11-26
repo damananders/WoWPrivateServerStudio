@@ -151,7 +151,7 @@ namespace AndersCraftStudio
             DockPanel.SetDock(btns, Dock.Bottom); dp.Children.Add(btns);
             list.Margin = new Thickness(0, 10, 0, 0);
             dp.Children.Add(list);
-            Content = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Child = dp };
+            Content = U.Frame(new Border { Child = dp });
             Loaded += (s, e) => { box.Focus(); box.SelectAll(); Run(); };
         }
     }

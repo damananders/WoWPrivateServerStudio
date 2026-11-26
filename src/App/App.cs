@@ -46,6 +46,22 @@ namespace AndersCraftStudio
             return r;
         }
 
+        /// <summary>
+        /// Gives a dialog window the design system's magic layer (a softer aurora behind its content), the way the main window
+        /// has it. Still with reduced motion; windows that already carry one (the main window, StudioDialog) are left alone.
+        /// </summary>
+        static void Dress(Window w)
+        {
+            if (w == null || w is MainWindow) return;
+            if (w.WindowStyle == WindowStyle.None && w.ResizeMode is ResizeMode.CanResize or ResizeMode.CanResizeWithGrip && w.Tag as string != "fit")
+            { w.Tag ??= "fit"; WindowFit.Apply(w); }   // borderless dialogs maximize to the work area too
+            if (w.Content is not UIElement c) return;
+            if (c is System.Windows.Controls.Grid g && g.Children.Count > 0 && g.Children[0] is global::Studio.DesignSystem.AuroraBackdrop) return;
+            var aurora = new global::Studio.DesignSystem.AuroraBackdrop(global::Studio.DesignSystem.Glow.MaroonColor, global::Studio.DesignSystem.Glow.AmberColor, global::Studio.DesignSystem.Glow.PlumColor) { Opacity = 0.55 };
+            w.Content = null;
+            w.Content = new System.Windows.Controls.Grid { Children = { aurora, c } };
+        }
+
         [STAThread]
         public static int Main(string[] args)
         {
@@ -57,7 +73,8 @@ namespace AndersCraftStudio
             string makeIcon = Arg(args, "--make-icon");
 
             Current = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
-            Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/AndersCraftStudio;component/Theme.xaml") });
+            global::Studio.DesignSystem.StudioLook.Apply(Current);   // the shared Studio design system (src/DesignSystem), the whole look; reduced motion honoured
+            EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent, new RoutedEventHandler((o, e) => Dress(o as Window)));   // every dialog gets the magic layer
             if (makeIcon != null) { IconMaker.Write(makeIcon); return 0; }
             try { Icon = BitmapFrame.Create(new Uri("pack://application:,,,/AndersCraftStudio;component/Studio.ico")); } catch { }
 
@@ -97,6 +114,7 @@ namespace AndersCraftStudio
             MainWindow.OnlyM10 = args.Contains("--m10");
             MainWindow.OnlyM11 = args.Contains("--m11");
             MainWindow.OnlyM12 = args.Contains("--m12");
+            MainWindow.OnlyM14 = args.Contains("--m14");    // screenshots only: the facelift before / after (Home and a creature)
             MainWindow.OnlyM13 = args.Contains("--m13");    // screenshots only: the quest / NPC / behaviour builders (staged into the throw-away changeset)    // screenshots only: Server control (sample data; nothing is started, stopped or sent)    // screenshots only: the spell overhaul (guided create, spellbook check, Send to game)    // screenshots only: the Changes fixes (DBC status, a stopped Apply)      // screenshots only: just the 0.7 screens
             var w = new MainWindow(state, screens);
             var code = Current.Run(w);

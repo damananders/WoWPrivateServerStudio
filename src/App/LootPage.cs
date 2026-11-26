@@ -67,7 +67,7 @@ namespace AndersCraftStudio
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 16) };
             var strip = U.StepStrip(1); DockPanel.SetDock(strip, Dock.Right); strip.VerticalAlignment = VerticalAlignment.Center; head.Children.Add(strip);
             head.Children.Add(U.Stack(U.H1("Loot"), U.T("Who drops what, how often, in which groups and shared lists, and what a typical kill really gives. Edits are staged with undo.", 13.5, "Muted")));
-            view.Children.Add(head);
+            view.Children.Add(U.Hero(head));
 
             var g = new Grid();
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(270) });

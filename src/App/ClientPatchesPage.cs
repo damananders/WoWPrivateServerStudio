@@ -48,12 +48,12 @@ namespace AndersCraftStudio
             view.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             view.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             view.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            view.Children.Add(U.Stack(U.H1("Client patches"), U.T("Pack client-side changes (DBC tables, icons, interface files) into a patch-X.MPQ the 3.3.5a client loads, check it, install it with a backup, and share it with players.", 13.5, "Muted", null, true, new Thickness(0, 0, 0, 14))));
+            view.Children.Add(U.Hero(U.Stack(U.H1("Client patches"), U.T("Pack client-side changes (DBC tables, icons, interface files) into a patch-X.MPQ the 3.3.5a client loads, check it, install it with a backup, and share it with players.", 13.5, "Muted", null, true, new Thickness(0, 0, 0, 14)))));
             tBuild = Seg("Build a patch", "Collect files and build a patch MPQ.");
             tInstalled = Seg("Installed patches", "What's in your client's Data folder, which patch wins for each file, and uninstall.");
             tBrowse = Seg("Browse an MPQ", "Look inside any MPQ and extract files (read-only).");
             tBuild.IsChecked = true;
-            var tabs = new Border { Background = U.R("Panel"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 14), Child = U.Row(tBuild, tInstalled, tBrowse) };
+            var tabs = new Border { Background = Brushes.Transparent, Padding = new Thickness(3), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 14), Child = U.Row(tBuild, tInstalled, tBrowse) };
             Grid.SetRow(tabs, 1); view.Children.Add(tabs);
             Grid.SetRow(body, 2); view.Children.Add(body);
         }
@@ -498,7 +498,7 @@ namespace AndersCraftStudio
             var ok = U.Btn("OK", () => { result = box.Text; Close(); }, "BtnPrimary"); ok.IsDefault = true;
             var cancel = U.Btn("Cancel", () => Close(), "BtnGhost"); cancel.IsCancel = true;
             var row = U.Row(ok, cancel); row.Margin = new Thickness(0, 16, 0, 0);
-            Content = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Padding = new Thickness(22, 18, 22, 18), Child = U.Stack(U.H2(title), U.T(text, 13, "Muted"), box, row) };
+            Content = U.Frame(new Border { Padding = new Thickness(22, 18, 22, 18), Child = U.Stack(U.H2(title), U.T(text, 13, "Muted"), box, row) });
             Loaded += (s, e) => { box.Focus(); box.SelectAll(); };
         }
     }

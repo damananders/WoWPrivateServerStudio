@@ -71,16 +71,44 @@ namespace AndersCraftStudio.Core
             return sla.Rows.Where(r => r.V[sp] == spell).ToList();
         }
 
-        /// <summary>
-        /// Adds a SkillLineAbility row linking <paramref name="spell"/> to <paramref name="skillLine"/> for <paramref name="classMask"/>
-        /// (learned from a trainer or a command, not automatically at level-up). Returns the new row (already in the table).
-        /// </summary>
-        public static DbcRow AddLink(DbcTable sla, uint spell, uint skillLine, uint classMask, uint idStart = 20000)
+        /// <summary>SkillLineAbility AcquireMethod: 1 = the server teaches it to every character with the skill line (at login and
+        /// whenever the skill changes; AzerothCore Player::learnSkillRewardedSpells). 0 = only a trainer, a quest or .learn teaches it.</summary>
+        public const uint LearnedOnSkillValue = 1;
+
+        /// <summary>True when every linked character gets the spell by itself (at least one link teaches it automatically).</summary>
+        public static bool AutoLearned(DbcTable sla, uint spell)
         {
+            if (sla == null) return false;
+            int am = sla.Layout.FieldByName("AcquireMethod");
+            return am >= 0 && Links(sla, spell).Any(r => r.V[am] == LearnedOnSkillValue || r.V[am] == 2);
+        }
+
+        /// <summary>Makes every link of <paramref name="spell"/> teach it automatically (or not). Returns how many rows changed.</summary>
+        public static int SetAutoLearn(DbcTable sla, uint spell, bool on)
+        {
+            int am = sla.Layout.FieldByName("AcquireMethod"), n = 0;
+            if (am < 0) return 0;
+            foreach (var r in Links(sla, spell))
+            {
+                uint want = on ? LearnedOnSkillValue : 0;
+                if (r.V[am] != want) { r.V[am] = want; n++; }
+            }
+            return n;
+        }
+
+        /// <summary>
+        /// Adds a SkillLineAbility row linking <paramref name="spell"/> to <paramref name="skillLine"/> for <paramref name="classMask"/>.
+        /// With <paramref name="autoLearn"/> every character of that class learns it by itself the next time they log in;
+        /// without it a trainer, a quest or .learn has to teach it. Returns the row (already in the table).
+        /// </summary>
+        public static DbcRow AddLink(DbcTable sla, uint spell, uint skillLine, uint classMask, uint idStart = 20000, bool autoLearn = false)
+        {
+            int am = sla.Layout.FieldByName("AcquireMethod");
             var existing = Links(sla, spell).FirstOrDefault(r => r.V[sla.Layout.FieldByName("SkillLine")] == skillLine);
             if (existing != null)
             {
                 existing.V[sla.Layout.FieldByName("ClassMask")] |= classMask;
+                if (autoLearn && am >= 0) existing.V[am] = LearnedOnSkillValue;
                 return existing;
             }
             var row = new DbcRow { V = new uint[sla.Layout.FieldCount], S = new string[sla.Layout.FieldCount] };
@@ -88,6 +116,7 @@ namespace AndersCraftStudio.Core
             row.V[sla.Layout.FieldByName("SkillLine")] = skillLine;
             row.V[sla.Layout.FieldByName("Spell")] = spell;
             row.V[sla.Layout.FieldByName("ClassMask")] = classMask;
+            if (autoLearn && am >= 0) row.V[am] = LearnedOnSkillValue;
             sla.Rows.Add(row); sla.InvalidateIndex();
             return row;
         }
@@ -142,6 +171,8 @@ namespace AndersCraftStudio.Core
                 uint mask = links.Aggregate(0u, (m, l) => m | (l.V[cmf] == 0 ? AllClasses : l.V[cmf]));
                 if (x.ClassMask != 0 && (mask & x.ClassMask) == 0)
                     Add("bad", $"It's linked for {ClassNames(mask)} only, not for {ClassNames(x.ClassMask)}.", "link", "Add that class…");
+                if (!AutoLearned(x.Links, id))
+                    Add("warn", $"Nobody gets it by themselves: until a character learns it (a trainer, a quest, or the GM command .learn {id} on that character), it isn't in their spellbook and /cast can't find it. Let every {ClassNames(mask)} character learn it automatically the next time they log in?", "autolearn", "Everyone learns it automatically");
             }
 
             for (int i = 1; i <= 3; i++)
@@ -169,13 +200,18 @@ namespace AndersCraftStudio.Core
                         Add("bad", "The game client still has an older version of this spell: " + string.Join("; ", diffs) + ". Send it to the game so both match.", "ship", "Send to game…");
                     if (links.Count > 0 && Links(x.ClientLinks, id).Count == 0)
                         Add("bad", "The game client has no spellbook link for it yet (its SkillLineAbility.dbc is older). Send it to the game.", "ship", "Send to game…");
+                    else if (links.Count > 0 && AutoLearned(x.Links, id) != AutoLearned(x.ClientLinks, id))
+                        Add("bad", "The game's copy still says who learns it the old way. Send it to the game so the server teaches it.", "ship", "Send to game…");
                 }
             }
 
             if (!res.Any(r => r.Level == "bad"))
             {
                 var where = links.Count == 0 ? "" : " Tab: " + string.Join(", ", links.Select(l => TabName(x, l))) + ".";
-                res.Insert(0, new Issue { Level = "ok", Text = "Will show in the spellbook once learned." + where + (x.ClientKnown ? " The game client has the same version." : " (No client folder set, so the client's copy wasn't checked.)") });
+                var who = links.Count > 0 && AutoLearned(x.Links, id)
+                    ? " Every character of those classes learns it by itself when they next log in (after the server has restarted with it)."
+                    : " It shows once a character has learned it.";
+                res.Insert(0, new Issue { Level = "ok", Text = "Will show in the spellbook." + who + where + (x.ClientKnown ? " The game client has the same version." : " (No client folder set, so the client's copy wasn't checked.)") });
             }
             return res;
         }
@@ -208,6 +244,11 @@ namespace AndersCraftStudio.Core
         public sealed class Plan
         {
             public string PatchName, TargetDir, Locale, Why;
+            /// <summary>True when no new patch can load after the one that holds these tables: Studio puts its files into that
+            /// patch instead (backed up first). <see cref="PatchName"/> / <see cref="TargetDir"/> then name that patch.</summary>
+            public bool InPlace;
+            /// <summary>Patches Studio installed before that no longer win (they can be removed).</summary>
+            public readonly List<string> Outranked = new List<string>();
             public readonly Dictionary<string, byte[]> Files = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
             public readonly List<string> Problems = new List<string>(), Notes = new List<string>();
             public bool Ok => Problems.Count == 0 && PatchName != null && Files.Count > 0;
@@ -335,9 +376,10 @@ namespace AndersCraftStudio.Core
         }
 
         /// <summary>
-        /// Picks the patch name: a patch Studio installed before if it still loads after every other archive holding these
-        /// tables (it's replaced), else the first free name that does. Locale-folder patches (patch-enUS-Z) load right after
-        /// the base patch of the same letter, so they can win even over a patch-Z.
+        /// Picks where the files go: a patch Studio installed before if it still loads after every other archive holding these
+        /// tables (it's replaced), else the first free name that does. The client ranks every Data\patch-X.MPQ above every
+        /// Data\enUS\patch-enUS-X.MPQ (see <see cref="ClientDbcSource.Rank"/>). When the patch that holds these tables already
+        /// loads last (someone's patch-Z.MPQ), no new name can win, so Studio updates that patch in place.
         /// </summary>
         public static void PickName(Plan plan, IEnumerable<(string name, int rank, bool holds)> archives, IEnumerable<string> studioInstalled)
         {
@@ -356,13 +398,21 @@ namespace AndersCraftStudio.Core
             var pick = candidates.Where(c => c.rank > top && mine.Contains(c.name)).OrderBy(c => c.rank).FirstOrDefault();
             if (pick.name == null) pick = candidates.Where(c => c.rank > top && !taken.Contains(c.rank)).OrderBy(c => c.rank).FirstOrDefault();
             var topName = holders.OrderByDescending(a => a.rank).FirstOrDefault().name;
+            foreach (var m in archives.Where(a => mine.Contains(Path.GetFileName(a.name)) && a.rank < top)) plan.Outranked.Add(m.name);
             if (pick.name == null)
-                plan.Problems.Add($"{topName} already loads last and holds these tables, so no new patch can win over it. Rebuild that patch instead: Client patches › Start from an installed patch.");
+            {
+                // nothing can load after it: put the files into it
+                plan.InPlace = true;
+                plan.PatchName = Path.GetFileName(topName); plan.TargetDir = Path.GetDirectoryName(topName) is string d && d.Length > 0 ? d : null;
+                plan.Why = $"{topName} loads after every name a new patch could have and holds older copies of these tables, so Studio puts your versions into it (it's backed up first; Uninstall puts it back).";
+            }
             else
             {
                 plan.PatchName = pick.name; plan.TargetDir = pick.dir;
                 plan.Why = topName == null ? "No other patch holds these tables." : $"It loads after {topName}, the last patch that holds these tables today, so your version wins.";
             }
+            if (plan.Outranked.Count > 0)
+                plan.Notes.Add("No longer used: " + string.Join(", ", plan.Outranked) + " (sent before by Studio) loads below " + topName + ", so the game never read it. You can remove it under Client patches › Installed.");
         }
     }
 }

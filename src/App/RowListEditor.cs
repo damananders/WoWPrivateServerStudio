@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using AndersCraftStudio.Core;
+using DS = global::Studio.DesignSystem;
 
 namespace AndersCraftStudio
 {
@@ -205,7 +206,7 @@ namespace AndersCraftStudio
             if (p == page) return;
             if (Dirty)
             {
-                var r = MessageBox.Show(w, "This page has edits that aren't staged yet. Stage them before changing page?\n\nYes = stage, No = drop them, Cancel = stay here.", title, MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+                var r = DS.StudioDialog.Show(w, "This page has edits that aren't staged yet. Stage them before changing page?\n\nYes = stage, No = drop them, Cancel = stay here.", title, MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
                 if (r == MessageBoxResult.Cancel) return;
                 if (r == MessageBoxResult.Yes) { if (!TryStage()) return; }
             }

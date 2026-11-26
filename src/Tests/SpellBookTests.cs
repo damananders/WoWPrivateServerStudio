@@ -121,26 +121,164 @@ namespace AndersCraftStudio.Tests
             }
         }
 
-        [Test] static void Send_to_game_beats_the_last_patch_and_reuses_its_own()
+        [Test] static void Auto_learn_makes_the_server_teach_it_and_the_check_says_so()
         {
+            var sla = EmptySla();
+            int am = sla.Layout.FieldByName("AcquireMethod");
+            A.True(am >= 0, "AcquireMethod field");
+            SpellBook.AddLink(sla, 900600, 26, 1);                          // trainer / .learn only
+            A.False(SpellBook.AutoLearned(sla, 900600), "not automatic by default");
+            A.Eq(1, SpellBook.SetAutoLearn(sla, 900600, true), "one row switched");
+            A.True(SpellBook.AutoLearned(sla, 900600), "automatic");
+            var back = DbcTable.Read("SkillLineAbility.dbc", sla.Write());
+            A.Eq(SpellBook.LearnedOnSkillValue, SpellBook.Links(back, 900600)[0].V[am], "AcquireMethod 1 survives a write");
+            SpellBook.AddLink(sla, 900601, 8, 128, autoLearn: true);
+            A.True(SpellBook.AutoLearned(sla, 900601), "AddLink(autoLearn)");
+
+            var spells = Server("Spell.dbc");
+            if (spells == null) return;
+            var t = spells.Clone(); var copy = t.Find(1243).Clone(); copy.V[0] = 900600; t.Rows.Add(copy); t.InvalidateIndex();
+            var sp = new SpellData(t, copy); sp.Set("Attributes", "0x0", out _);
+            var manual = EmptySla(); SpellBook.AddLink(manual, 900600, 26, 1);
+            var x = new SpellBook.Input { Spell = sp, Links = manual, SkillLine = Server("SkillLine.dbc") };
+            var issues = SpellBook.Check(x);
+            A.True(issues.Any(i => i.Fix == "autolearn" && i.Text.Contains(".learn 900600")), "nobody learns it by themselves: " + string.Join(" | ", issues));
+            SpellBook.SetAutoLearn(manual, 900600, true);
+            issues = SpellBook.Check(x);
+            A.False(issues.Any(i => i.Fix == "autolearn"), "fixed");
+            A.Contains(issues[0].Text, "learns it by itself");
+            // the game's copy still teaches it the old way: ship again
+            var oldClient = EmptySla(); SpellBook.AddLink(oldClient, 900600, 26, 1);
+            x.ClientKnown = true; x.ClientSpell = new SpellData(t, copy); x.ClientLinks = oldClient;
+            A.True(SpellBook.Check(x).Any(i => i.Fix == "ship" && i.Text.Contains("learns it the old way")), "client copy out of date");
+        }
+
+        /// <summary>The 3.3.5a client's own rule (read from WoW.exe): "?" patches sorted by their path under Data, highest first.</summary>
+        [Test] static void Load_order_matches_the_real_client()
+        {
+            int R(string n) => ClientDbcSource.Rank(n, false);
+            int L(string n) => ClientDbcSource.Rank(n, true);
+            A.True(R("patch-Z.MPQ") > L("patch-enUS-Z.MPQ"), "Data\\patch-Z beats Data\\enUS\\patch-enUS-Z (\"patch\" sorts above \"enUS\\\\patch\")");
+            A.True(R("patch-2.MPQ") > L("patch-enUS-Z.MPQ"), "any base ? patch beats every enUS one");
+            A.True(R("patch-Z.MPQ") > R("patch-A.MPQ") && R("patch-A.MPQ") > R("patch-9.MPQ") && R("PATCH-D.MPQ") == R("patch-d.mpq"), "letters above digits, case doesn't matter");
+            A.True(L("patch-enUS-Z.MPQ") > L("patch-enUS-4.MPQ"), "within the locale folder, later letters win");
+            A.True(L("patch-enUS-2.MPQ") > R("patch.MPQ") && R("patch.MPQ") > L("patch-enUS.MPQ") && L("patch-enUS.MPQ") > L("locale-enUS.MPQ"), "patch.MPQ, then patch-enUS.MPQ, then the base archives");
+            A.True(L("patch-ruRU-2.MPQ") > R("patch-Z.MPQ"), "ruRU sorts above \"patch-\", so its locale patches come first");
+            A.Eq(-1, L("base-enUS.MPQ"), "launcher archive");
+        }
+
+        [Test] static void Send_to_game_picks_a_winning_name_or_updates_the_patch_that_loads_last()
+        {
+            (string, int, bool) Root(string n, bool holds = true) => (n, ClientDbcSource.Rank(n, false), holds);
+            (string, int, bool) Loc(string n, bool holds = true) => (@"enUS\" + n, ClientDbcSource.Rank(n, true), holds);
+            // the director's install: someone's patch-Z (and a copy as patch-enUS-4) hold Spell.dbc; Studio's own patch-enUS-Z is below them
             var plan = new GameShip.Plan { Locale = "enUS" };
-            var arch = new List<(string, int, bool)> { ("patch-3.MPQ", ClientDbcSource.Rank("patch-3.MPQ", false), true), ("patch-Z.MPQ", ClientDbcSource.Rank("patch-Z.MPQ", false), true), (@"enUS\patch-enUS-3.MPQ", ClientDbcSource.Rank("patch-enUS-3.MPQ", true), true) };
-            GameShip.PickName(plan, arch, null);
-            A.Eq("patch-enUS-Z.MPQ", plan.PatchName, "beats patch-Z from the locale folder");
-            A.Eq("enUS", plan.TargetDir); A.Contains(plan.Why, "patch-Z.MPQ");
-            // a patch Studio installed before is replaced, not stacked
+            GameShip.PickName(plan, new[] { Root("patch-3.MPQ"), Root("PATCH-Y.MPQ", false), Root("patch-Z.MPQ"), Loc("patch-enUS-4.MPQ"), Loc("patch-enUS-Z.MPQ") }, new[] { "patch-enUS-Z.MPQ" });
+            A.True(plan.InPlace, "nothing can load after patch-Z: update it in place");
+            A.Eq("patch-Z.MPQ", plan.PatchName); A.Eq(null, plan.TargetDir);
+            A.True(plan.Outranked.Contains(@"enUS\patch-enUS-Z.MPQ"), "Studio's old locale patch is reported as unused");
+            // only base patches up to M: the next base letter wins
             var p2 = new GameShip.Plan { Locale = "enUS" };
-            GameShip.PickName(p2, arch.Append((@"enUS\patch-enUS-Z.MPQ", ClientDbcSource.Rank("patch-enUS-Z.MPQ", true), true)), new[] { "patch-enUS-Z.MPQ" });
-            A.Eq("patch-enUS-Z.MPQ", p2.PatchName, "reuse own");
-            // only base patches up to M: the next letter wins
-            var p3 = new GameShip.Plan();
-            GameShip.PickName(p3, new[] { ("patch-M.MPQ", ClientDbcSource.Rank("patch-M.MPQ", false), true) }, null);
-            A.Eq("patch-N.MPQ", p3.PatchName);
-            // someone else's locale Z already holds them: nothing can win
+            GameShip.PickName(p2, new[] { Root("patch-M.MPQ"), Loc("patch-enUS-3.MPQ") }, null);
+            A.Eq("patch-N.MPQ", p2.PatchName); A.Eq(null, p2.TargetDir); A.False(p2.InPlace, "new patch");
+            // only locale patches hold them: a base patch-2 already wins
+            var p3 = new GameShip.Plan { Locale = "enUS" };
+            GameShip.PickName(p3, new[] { Loc("patch-enUS-Z.MPQ") }, null);
+            A.Eq("patch-2.MPQ", p3.PatchName);
+            // Studio's own base patch that still wins is reused
             var p4 = new GameShip.Plan { Locale = "enUS" };
-            GameShip.PickName(p4, new[] { (@"enUS\patch-enUS-Z.MPQ", ClientDbcSource.Rank("patch-enUS-Z.MPQ", true), true) }, null);
-            A.True(p4.PatchName == null && p4.Problems.Count == 1, "blocked");
-            A.True(PatchNames.IsLocaleLoadable("patch-enUS-Z.MPQ", "enUS", out _) && !PatchNames.IsLocaleLoadable("patch-Z.MPQ", "enUS", out _), "locale names");
+            GameShip.PickName(p4, new[] { Root("patch-M.MPQ"), Root("patch-T.MPQ") }, new[] { "patch-T.MPQ" });
+            A.Eq("patch-T.MPQ", p4.PatchName, "reuse own");
+            A.True(PatchNames.IsLoadable("patch-Z.MPQ", out _) && PatchNames.IsLocaleLoadable("patch-enUS-Z.MPQ", "enUS", out _), "names");
+        }
+
+        [Test] static void Replacing_files_in_an_archive_keeps_everything_else()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "studio_test_inplace_" + Guid.NewGuid().ToString("N") + ".MPQ");
+            try
+            {
+                var big = new byte[50000]; new Random(3).NextBytes(big);
+                using (var fs = File.Create(path)) MpqWriter.Write(fs, new[] { (@"DBFilesClient\Spell.dbc", new byte[] { 1, 2, 3 }), (@"Item\Sword.blp", big), (@"Sound\Hit.wav", new byte[] { 9, 9 }) });
+                var spell = new byte[20000]; new Random(5).NextBytes(spell);
+                MpqWriter.ReplaceFiles(path, new[] { (@"DBFilesClient\Spell.dbc", spell), (@"DBFilesClient\SkillLineAbility.dbc", new byte[] { 7, 7, 7 }) });
+                using var r = new MpqReader(path);
+                A.True(r.Read(@"DBFilesClient\Spell.dbc").AsSpan().SequenceEqual(spell), "replaced");
+                A.True(r.Read(@"DBFilesClient\SkillLineAbility.dbc").AsSpan().SequenceEqual(new byte[] { 7, 7, 7 }), "added");
+                A.True(r.Read(@"Item\Sword.blp").AsSpan().SequenceEqual(big), "untouched file intact");
+                A.True(r.Read(@"Sound\Hit.wav").AsSpan().SequenceEqual(new byte[] { 9, 9 }), "untouched small file intact");
+                var list = System.Text.Encoding.UTF8.GetString(r.Read("(listfile)"));
+                A.Contains(list, @"DBFilesClient\SkillLineAbility.dbc"); A.Contains(list, @"Item\Sword.blp");
+                A.Eq(0, MpqWriter.Verify(path, new[] { (@"DBFilesClient\Spell.dbc", spell) }).Count, "verifies");
+            }
+            finally { try { File.Delete(path); } catch { } }
+        }
+
+        /// <summary>The director's second failure: Studio itself keeps the client's archives open, and Windows won't rename over an open file.</summary>
+        [Test] static void Updating_a_patch_in_place_works_while_Studio_has_it_open()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "studio_test_open_" + Guid.NewGuid().ToString("N"));
+            var data = Path.Combine(root, "Data"); Directory.CreateDirectory(data);
+            try
+            {
+                var target = Path.Combine(data, "patch-Z.MPQ");
+                var other = new byte[5000]; new Random(2).NextBytes(other);
+                using (var fs = File.Create(target)) MpqWriter.Write(fs, new[] { (@"DBFilesClient\Spell.dbc", new byte[] { 1 }), (@"Character\Other.m2", other) });
+                using var held = new MpqReader(target);                       // like Studio's own client reader
+                var inst = new PatchInstaller(Path.Combine(root, "state.json"), Path.Combine(root, "backups"), _ => new List<string>());
+                var rec = inst.UpdateInPlace(root, "patch-Z.MPQ", new[] { (@"DBFilesClient\Spell.dbc", new byte[] { 4, 5, 6 }) });
+                A.True(rec.InPlace && File.Exists(rec.BackupOfPrevious), "recorded with a backup");
+                using var r = new MpqReader(target);
+                A.True(r.Read(@"DBFilesClient\Spell.dbc").AsSpan().SequenceEqual(new byte[] { 4, 5, 6 }), "updated");
+                A.True(r.Read(@"Character\Other.m2").AsSpan().SequenceEqual(other), "rest intact");
+                A.False(File.Exists(target + ".studio-new"), "temp file removed");
+            }
+            finally { try { Directory.Delete(root, true); } catch { } }
+        }
+
+        /// <summary>The director's failure: Studio's patch in Data\enUS lost to an older Data\patch-Z with the hidden row. Updating patch-Z in place wins.</summary>
+        [Test] static void A_spell_sent_into_the_patch_that_loads_last_is_what_the_client_reads()
+        {
+            var spells = Server("Spell.dbc");
+            if (spells == null) return;
+            var dir = Path.Combine(Path.GetTempPath(), "studio_test_chain_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path.Combine(dir, "enUS"));
+            try
+            {
+                var copy = spells.Find(1243).Clone(); copy.V[0] = 900700;
+                var older = spells.Clone(); var hidden = copy.Clone(); older.Rows.Add(hidden); older.InvalidateIndex();
+                new SpellData(older, hidden).Set("Attributes", "0x1C0", out _);
+                var other = new byte[3000]; new Random(1).NextBytes(other);
+                using (var fs = File.Create(Path.Combine(dir, "patch-Z.MPQ"))) MpqWriter.Write(fs, new[] { (@"DBFilesClient\Spell.dbc", older.Write()), (@"Character\Other.m2", other) });
+                // what an older Studio sent: the visible row, but in Data\enUS\patch-enUS-Z.MPQ
+                var mine = spells.Clone(); var vis = copy.Clone(); mine.Rows.Add(vis); mine.InvalidateIndex();
+                new SpellData(mine, vis).Set("Attributes", "0x0", out _);
+                var sla = EmptySla(); SpellBook.AddLink(sla, 900700, 26, 1, autoLearn: true);
+                using (var fs = File.Create(Path.Combine(dir, "enUS", "patch-enUS-Z.MPQ"))) MpqWriter.Write(fs, new[] { (@"DBFilesClient\Spell.dbc", mine.Write()) });
+                using (var c = new ClientFiles(dir))
+                {
+                    var t = DbcTable.Read("Spell.dbc", c.Read(@"DBFilesClient\Spell.dbc", out var from));
+                    A.Eq("patch-Z.MPQ", from, "the client reads patch-Z, not the locale patch");
+                    A.Eq(0x1C0u, new SpellData(t, t.Find(900700)).U("Attributes"), "so it sees the hidden row: known but not in the book, /cast can't find it");
+                }
+                // Send to game now: the plan updates patch-Z in place
+                var src = new ClientDbcSource(dir, null);
+                var plan = new GameShip.Plan { Locale = "enUS" };
+                GameShip.PickName(plan, src.Archives.Select(a => (a.Name, a.Rank, a.Dbcs.Contains("Spell.dbc"))), new[] { "patch-enUS-Z.MPQ" });
+                A.True(plan.InPlace && plan.PatchName == "patch-Z.MPQ", "in place: " + plan.PatchName);
+                MpqWriter.ReplaceFiles(Path.Combine(dir, "patch-Z.MPQ"), new[] { (@"DBFilesClient\Spell.dbc", mine.Write()), (@"DBFilesClient\SkillLineAbility.dbc", sla.Write()) });
+                using (var c = new ClientFiles(dir))
+                {
+                    var t = DbcTable.Read("Spell.dbc", c.Read(@"DBFilesClient\Spell.dbc", out var from));
+                    A.Eq("patch-Z.MPQ", from);
+                    var sd = new SpellData(t, t.Find(900700));
+                    A.Eq(0u, sd.U("Attributes") & (SpellBook.AttrDoNotDisplay | SpellBook.AttrPassive), "visible now");
+                    A.Eq(new SpellData(mine, vis).Name, sd.Name, "named as on the server");
+                    var slaWon = DbcTable.Read("SkillLineAbility.dbc", c.Read(@"DBFilesClient\SkillLineAbility.dbc", out _));
+                    A.True(SpellBook.AutoLearned(slaWon, 900700), "linked and learned automatically");
+                    A.True(c.Read(@"Character\Other.m2", out _).AsSpan().SequenceEqual(other), "the rest of patch-Z is untouched");
+                }
+            }
+            finally { try { Directory.Delete(dir, true); } catch { } }
         }
 
         [Test] static void Send_to_game_replays_sent_edits_on_the_work_copy()

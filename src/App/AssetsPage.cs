@@ -42,7 +42,7 @@ namespace AndersCraftStudio
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 16) };
             var strip = U.StepStrip(1); DockPanel.SetDock(strip, Dock.Right); strip.VerticalAlignment = VerticalAlignment.Center; head.Children.Add(strip);
             head.Children.Add(U.Stack(U.H1("Asset import"), U.T("Bring your own icons, creature and item models, sounds and other files into a patch. Studio converts them, puts them at the right path in a Client patches work folder, and stages the DBC rows that make the game use them.", 13.5, "Muted")));
-            view.Children.Add(head);
+            view.Children.Add(U.Hero(head));
             var g = new Grid();
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(250) });
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });

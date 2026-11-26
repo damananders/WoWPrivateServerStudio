@@ -88,7 +88,7 @@ namespace AndersCraftStudio
             body.Children.Add(modeField);
             body.Children.Add(result);
             dp.Children.Add(U.Scroll(body));
-            Content = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Child = dp };
+            Content = U.Frame(new Border { Child = dp });
             if (pk.Count == 0) result.Content = U.Callout($"{table} has no primary key, so CSV rows can't be matched to its rows. Use Stage .sql script for this table instead.", "bad");
         }
 

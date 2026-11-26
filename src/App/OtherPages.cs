@@ -61,8 +61,8 @@ namespace AndersCraftStudio
             var st = S.Profiles.Settings;
             var p = S.Profile;
             var sp = new StackPanel { MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left };
-            sp.Children.Add(U.H1("Settings"));
-            sp.Children.Add(U.Sub("Everything is saved in %APPDATA%\\AndersCraftStudio. Passwords are encrypted for your Windows user."));
+            sp.Children.Add(U.Hero(U.Stack(U.H1("Settings"), U.T("Everything is saved in %APPDATA%\\AndersCraftStudio. Passwords are encrypted for your Windows user.", 13.5, "Muted"))));
+
 
             // ---- profile
             var prof = new StackPanel();

@@ -12,6 +12,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shell;
 using System.Windows.Threading;
 using AndersCraftStudio.Core;
+using DS = global::Studio.DesignSystem;
 
 namespace AndersCraftStudio
 {
@@ -24,7 +25,7 @@ namespace AndersCraftStudio
     public sealed class MainWindow : Window
     {
         public static MainWindow Instance;
-        public static bool OnlyM7, OnlyM8, OnlyM9, OnlyM10, OnlyM11, OnlyM12, OnlyM13;
+        public static bool OnlyM7, OnlyM8, OnlyM9, OnlyM10, OnlyM11, OnlyM12, OnlyM13, OnlyM14;
         public static bool Fresh;
         public readonly Studio S;
         readonly string screensDir;
@@ -72,7 +73,8 @@ namespace AndersCraftStudio
             WindowStyle = WindowStyle.None;
             ResizeMode = ResizeMode.CanResize;
             if (App.Icon != null) Icon = App.Icon;
-            WindowChrome.SetWindowChrome(this, new WindowChrome { CaptionHeight = 56, ResizeBorderThickness = new Thickness(6), GlassFrameThickness = new Thickness(0), CornerRadius = new CornerRadius(0), UseAeroCaptionButtons = false });
+            bool micaOs = Environment.OSVersion.Version.Build >= 22621 && !SystemParameters.HighContrast;
+            WindowChrome.SetWindowChrome(this, new WindowChrome { CaptionHeight = 56, ResizeBorderThickness = new Thickness(6), GlassFrameThickness = new Thickness(micaOs ? -1 : 0), CornerRadius = new CornerRadius(0), UseAeroCaptionButtons = false });
 
             if (screens != null)
             {
@@ -84,8 +86,7 @@ namespace AndersCraftStudio
                 WindowStartupLocation = WindowStartupLocation.CenterScreen;
                 WindowState = WindowState.Maximized; // borderless, windowed full-screen
             }
-            StateChanged += (a, b) => root.Margin = WindowState == WindowState.Maximized ? new Thickness(7) : new Thickness(0);
-            if (WindowState == WindowState.Maximized) root.Margin = new Thickness(7);
+            WindowFit.Apply(this);   // maximized = the monitor's work area, never under the taskbar
 
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(56) });
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -94,7 +95,11 @@ namespace AndersCraftStudio
             Grid.SetRow(wizardHost, 1); root.Children.Add(wizardHost);
             BuildShell();
             BuildToast();
-            Content = root;
+            // the magic layer behind everything: aurora, motes and sheen (still with reduced motion, paused when minimized or unfocused)
+            var aurora = new DS.AuroraBackdrop(DS.Glow.MaroonColor, DS.Glow.AmberColor, DS.Glow.PlumColor);
+            DS.StudioLook.Running += on => aurora.SetRunning(on);
+            Content = new Grid { Children = { aurora, root } };
+            if (screens == null) DS.StudioLook.Window(this, ((SolidColorBrush)U.R("Bg")).Color);   // matching title bar + Mica on Windows 11
 
             S.ChangesChanged += RefreshChrome;
             S.ProfileChanged += RefreshChrome;
@@ -114,14 +119,12 @@ namespace AndersCraftStudio
         // ================================================================== top bar
         UIElement BuildTopBar()
         {
-            var bar = new Grid { Background = U.R("Panel") };
+            var bar = new Grid { Background = Brushes.Transparent };
             bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(232) });
+            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });   // mode switch + search: gives way first
+            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
             bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var line = new Border { BorderBrush = U.R("Line"), BorderThickness = new Thickness(0, 0, 0, 1) };
-            Grid.SetColumnSpan(line, 5); bar.Children.Add(line);
 
             var brandName = U.T("AndersCraft", 15, "Text", FontWeights.Bold, false, new Thickness(10, 0, 0, 0)); brandName.Tag = "brand";
             var brand = U.Row(U.Crest(30), brandName, U.T(" Studio", 15, "Amber", FontWeights.Bold, false));
@@ -129,13 +132,13 @@ namespace AndersCraftStudio
             bar.Children.Add(brand);
 
             // global search
-            search = new TextBox { Width = 400, Height = 36, Padding = new Thickness(34, 0, 60, 0) };
+            search = new TextBox { MinWidth = 150, MaxWidth = 400, Height = 36, Padding = new Thickness(34, 0, 60, 0) };
             U.AutomationName(search, "Search");
             search.ToolTip = "Search screens, database tables and staged changes. Press Ctrl+K from anywhere, arrow keys to pick, Enter to open.";
             var sg = new Grid { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
-            sg.Children.Add(U.WithPlaceholder(search, "Search tables, screens, changes…"));
+            sg.Children.Add(U.WithPlaceholder(search, "Search everything…"));
             sg.Children.Add(new TextBlock { Text = "", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 13, Foreground = U.R("Muted"), Margin = new Thickness(13, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false });
-            sg.Children.Add(new Border { HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center, Background = U.R("Panel2"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(6, 1, 6, 2), IsHitTestVisible = false,
+            sg.Children.Add(new Border { HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center, Background = U.R("Layer10"), CornerRadius = (CornerRadius)Application.Current.Resources["Radius.Tag"], Padding = new Thickness(7, 2, 7, 3), IsHitTestVisible = false,
                 Child = U.T("Ctrl K", 11.5, "Muted", null, false) });
             WindowChrome.SetIsHitTestVisibleInChrome(sg, true);
             // Studio (staged, safe editing) | Server control (live operations): two clearly separate tabs
@@ -143,9 +146,12 @@ namespace AndersCraftStudio
             modeServer = new RadioButton { Style = U.S("SegBtn"), GroupName = "mode", ToolTip = "Server control: start, stop, players, accounts, messages. Acts on your running server right away.",
                 Content = U.Row(new System.Windows.Shapes.Ellipse { Width = 7, Height = 7, Fill = U.R("Bad"), Margin = new Thickness(0, 0, 7, 0), VerticalAlignment = VerticalAlignment.Center }, new TextBlock { Text = "Server control" }) };
             modeStudio.Checked += (a, b) => SetMode(false); modeServer.Checked += (a, b) => SetMode(true);
-            var modes = new Border { Background = U.R("Bg"), CornerRadius = new CornerRadius(10), Padding = new Thickness(2), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), Child = U.Row(modeStudio, modeServer) };
+            var modes = new Border { Background = Brushes.Transparent, Padding = new Thickness(3), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), Child = U.Row(modeStudio, modeServer) };
             WindowChrome.SetIsHitTestVisibleInChrome(modes, true);
-            var midRow = U.Row(modes, sg); midRow.VerticalAlignment = VerticalAlignment.Center;
+            var midRow = new Grid { VerticalAlignment = VerticalAlignment.Center };
+            midRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            midRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 408 });   // the search box takes what's left, up to 408
+            midRow.Children.Add(modes); Grid.SetColumn(sg, 1); midRow.Children.Add(sg);
             Grid.SetColumn(midRow, 1); bar.Children.Add(midRow);
             BuildSearchPopup(sg);
 
@@ -170,6 +176,16 @@ namespace AndersCraftStudio
             U.AutomationName(guideBtn, "How to use this screen");
             WindowChrome.SetIsHitTestVisibleInChrome(guideBtn, true);
             var status = U.Row(guideBtn, connBadge, targetText, reviewBtn);
+            // narrower windows: the labels step back so the window buttons always stay on screen
+            var guideLabel = ((StackPanel)guideBtn.Content).Children[1];
+            bar.SizeChanged += (s, e) =>
+            {
+                double wdt = e.NewSize.Width;
+                guideLabel.Visibility = wdt < 1560 ? Visibility.Collapsed : Visibility.Visible;
+                ((StackPanel)guideBtn.Content).Children[0].SetValue(MarginProperty, wdt < 1560 ? new Thickness(0) : new Thickness(0, 0, 8, 0));
+                targetText.Visibility = wdt < 1420 ? Visibility.Collapsed : Visibility.Visible;
+                connText.Visibility = wdt < 1240 ? Visibility.Collapsed : Visibility.Visible;
+            };
             status.VerticalAlignment = VerticalAlignment.Center;
             Grid.SetColumn(status, 3); bar.Children.Add(status);
 
@@ -227,8 +243,8 @@ namespace AndersCraftStudio
         {
             shell.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(232) });
             shell.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            var side = new DockPanel { Background = U.R("Panel"), LastChildFill = false };
-            var sideBorder = new Border { BorderBrush = U.R("Line"), BorderThickness = new Thickness(0, 0, 1, 0), Child = side };
+            var side = new DockPanel { Background = Brushes.Transparent, LastChildFill = false };
+            var sideBorder = new Border { Child = side };   // no rule: the rail sits on the backdrop, the page floats beside it
             shell.Children.Add(sideBorder);
             var list = studioNav = new StackPanel { Margin = new Thickness(12, 14, 12, 0) };
             serverNav = new StackPanel { Margin = new Thickness(12, 14, 12, 0), Visibility = Visibility.Collapsed };
@@ -249,7 +265,7 @@ namespace AndersCraftStudio
                 var t = new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center }; Grid.SetColumn(t, 1); g.Children.Add(t);
                 if (extra != null) { Grid.SetColumn(extra, 2); g.Children.Add(extra); }
                 int sc = shortcut++;
-                var rb = new RadioButton { Style = U.S("NavBtn"), Content = g, GroupName = "nav", ToolTip = tip + (sc <= 9 ? $"  (Alt+{sc})" : "") };
+                var rb = new RadioButton { Style = U.S("NavBtn.Dense"), Content = g, GroupName = "nav", ToolTip = tip + (sc <= 9 ? $"  (Alt+{sc})" : "") };
                 U.AutomationName(rb, text);
                 rb.Checked += (s, e) => { if (CurrentPage != key) Navigate(key); };
                 nav[key] = rb;
@@ -307,7 +323,7 @@ namespace AndersCraftStudio
             setG.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             setG.Children.Add(new TextBlock { Text = "", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 14, VerticalAlignment = VerticalAlignment.Center });
             var st = new TextBlock { Text = "Settings", VerticalAlignment = VerticalAlignment.Center }; Grid.SetColumn(st, 1); setG.Children.Add(st);
-            var setRb = new RadioButton { Style = U.S("NavBtn"), Content = setG, GroupName = "nav", ToolTip = "Server profile, folders, the Live safety switch, and the setup wizard.  (Ctrl+,)" };
+            var setRb = new RadioButton { Style = U.S("NavBtn.Dense"), Content = setG, GroupName = "nav", ToolTip = "Server profile, folders, the Live safety switch, and the setup wizard.  (Ctrl+,)" };
             setRb.Checked += (s, e) => { if (CurrentPage != "settings") Navigate("settings"); };
             nav["settings"] = setRb;
             var helpG = new Grid();
@@ -315,7 +331,7 @@ namespace AndersCraftStudio
             helpG.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             helpG.Children.Add(new TextBlock { Text = "\uE897", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 14, VerticalAlignment = VerticalAlignment.Center });
             var ht = new TextBlock { Text = "Help", VerticalAlignment = VerticalAlignment.Center }; Grid.SetColumn(ht, 1); helpG.Children.Add(ht);
-            var helpRb = new RadioButton { Style = U.S("NavBtn"), Content = helpG, GroupName = "nav", ToolTip = "Getting started, the safety model, a glossary and the keys.  (F1)" };
+            var helpRb = new RadioButton { Style = U.S("NavBtn.Dense"), Content = helpG, GroupName = "nav", ToolTip = "Getting started, the safety model, a glossary and the keys.  (F1)" };
             helpRb.Checked += (s, e) => { if (CurrentPage != "help") Navigate("help"); };
             nav["help"] = helpRb;
             bottom.Children.Add(helpRb);
@@ -425,7 +441,7 @@ namespace AndersCraftStudio
         {
             searchList = new ListBox { MaxHeight = 420, Width = 520 };
             searchPopup = new Popup { PlacementTarget = anchor, Placement = PlacementMode.Bottom, StaysOpen = false, AllowsTransparency = true, VerticalOffset = 6,
-                Child = new Border { Background = U.R("Panel2"), BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12), Padding = new Thickness(6), Child = searchList,
+                Child = new Border { Background = U.R("Panel2"), CornerRadius = new CornerRadius(16), Padding = new Thickness(6), Child = searchList,
                     Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 24, ShadowDepth = 4, Opacity = 0.5 } } };
             searchDebounce.Tick += (s, e) => { searchDebounce.Stop(); UpdateSearch(); };
             search.TextChanged += (s, e) => { searchDebounce.Stop(); searchDebounce.Start(); };
@@ -554,9 +570,8 @@ namespace AndersCraftStudio
         {
             toastText.TextWrapping = TextWrapping.Wrap; toastText.FontSize = 13.5; toastText.MaxWidth = 460;
             toast.Child = toastText;
-            toast.CornerRadius = new CornerRadius(12); toast.Padding = new Thickness(16, 12, 16, 12);
+            toast.CornerRadius = new CornerRadius(16); toast.Padding = new Thickness(16, 12, 16, 12);
             toast.HorizontalAlignment = HorizontalAlignment.Right; toast.VerticalAlignment = VerticalAlignment.Bottom; toast.Margin = new Thickness(0, 0, 24, 24);
-            toast.BorderThickness = new Thickness(1);
             toast.Visibility = Visibility.Collapsed;
             toast.Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 24, ShadowDepth = 4, Opacity = 0.5 };
             toast.MouseLeftButtonUp += (s, e) => toast.Visibility = Visibility.Collapsed;
@@ -575,7 +590,6 @@ namespace AndersCraftStudio
             LogToast(text, kind);
             toastText.Text = text;
             toast.Background = U.R(kind == "bad" ? "BadBg" : kind == "ok" ? "OkBg" : kind == "warn" ? "AmberDim" : "Panel2");
-            toast.BorderBrush = U.R(kind == "bad" ? "Bad" : kind == "ok" ? "Ok" : kind == "warn" ? "Amber" : "LineHi");
             toastText.Foreground = U.R("Text");
             toast.Visibility = Visibility.Visible;
             toastTimer.Stop(); toastTimer.Interval = TimeSpan.FromSeconds(kind == "bad" ? 10 : 6); toastTimer.Start();
@@ -629,7 +643,7 @@ namespace AndersCraftStudio
             using (var dc = dv.RenderOpen())
             {
                 dc.DrawRectangle(U.R("Bg"), null, new Rect(0, 0, w, h));
-                dc.DrawRectangle(new VisualBrush(el), null, new Rect(0, 0, w, h));
+                dc.DrawRectangle(Exact(el, w, h), null, new Rect(0, 0, w, h));
                 if (overlay != null) dc.DrawRectangle(new VisualBrush(overlay), null, new Rect(overlayAt, overlay.RenderSize));
             }
             rtb.Render(dv);
@@ -637,6 +651,9 @@ namespace AndersCraftStudio
             using var fs = File.Create(Path.Combine(screensDir, file));
             enc.Save(fs);
         }
+
+        /// <summary>A brush of exactly the element's own box (glows that spill past its edges don't shrink the picture).</summary>
+        static VisualBrush Exact(Visual el, double w, double h) => new VisualBrush(el) { Stretch = Stretch.None, ViewboxUnits = BrushMappingMode.Absolute, Viewbox = new Rect(0, 0, w, h), ViewportUnits = BrushMappingMode.Absolute, Viewport = new Rect(0, 0, w, h), AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top };
 
         /// <summary>Screenshot of the search dropdown. The popup is drawn in place instead of opened, so nothing appears on the real screen.</summary>
         public async Task SnapSearch(string file, string text)
@@ -667,7 +684,7 @@ namespace AndersCraftStudio
             int w = (int)el.ActualWidth, h = (int)el.ActualHeight;
             var rtb = new RenderTargetBitmap(w * 2, h * 2, 192, 192, PixelFormats.Pbgra32);
             var dv = new DrawingVisual();
-            using (var dc = dv.RenderOpen()) { dc.DrawRectangle(U.R("Panel"), null, new Rect(0, 0, w, h)); dc.DrawRectangle(new VisualBrush(el), null, new Rect(0, 0, w, h)); }
+            using (var dc = dv.RenderOpen()) { dc.DrawRectangle(U.R("Panel"), null, new Rect(0, 0, w, h)); dc.DrawRectangle(Exact(el, w, h), null, new Rect(0, 0, w, h)); }
             rtb.Render(dv);
             var enc = new PngBitmapEncoder(); enc.Frames.Add(BitmapFrame.Create(rtb));
             using var fs = File.Create(Path.Combine(screensDir, file));
@@ -676,7 +693,7 @@ namespace AndersCraftStudio
 
         async Task ScreensMode()
         {
-            try { if (Fresh) await Screens.RunFresh(this, screensDir); else if (OnlyM7) await Screens.RunM7(this, screensDir); else if (OnlyM8) await Screens.RunM8(this, screensDir); else if (OnlyM9) await Screens.RunM9(this, screensDir); else if (OnlyM10) await Screens.RunM10(this, screensDir); else if (OnlyM11) await Screens.RunM11(this, screensDir); else if (OnlyM12) await Screens.RunM12(this, screensDir); else if (OnlyM13) await Screens.RunM13(this, screensDir); else await Screens.Run(this, screensDir); }
+            try { if (Fresh) await Screens.RunFresh(this, screensDir); else if (OnlyM7) await Screens.RunM7(this, screensDir); else if (OnlyM8) await Screens.RunM8(this, screensDir); else if (OnlyM9) await Screens.RunM9(this, screensDir); else if (OnlyM10) await Screens.RunM10(this, screensDir); else if (OnlyM11) await Screens.RunM11(this, screensDir); else if (OnlyM12) await Screens.RunM12(this, screensDir); else if (OnlyM13) await Screens.RunM13(this, screensDir); else if (OnlyM14) await Screens.RunM14(this, screensDir); else await Screens.Run(this, screensDir); }
             catch (Exception ex) { File.WriteAllText(Path.Combine(screensDir, "screens_error.txt"), ex.ToString()); }
             Close();
         }

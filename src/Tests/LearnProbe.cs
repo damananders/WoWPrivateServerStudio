@@ -32,6 +32,14 @@ namespace AndersCraftStudio.Tests
             var server = DevPaths.ServerDbc;
             byte[] R(string dir, string f) { var p = Path.Combine(dir, f); return File.Exists(p) ? File.ReadAllBytes(p) : null; }
             Show("server copy " + server, R(server, "Spell.dbc"), R(server, "SkillLineAbility.dbc"));
+            {
+                var chain = new ClientDbcSource(DevPaths.ClientData, null);
+                var plan = new GameShip.Plan { Locale = GameShip.Locale(DevPaths.ClientData) };
+                var files = new[] { "Spell.dbc", "SkillLineAbility.dbc", "SpellIcon.dbc" };
+                GameShip.PickName(plan, chain.Archives.Select(x => (x.Name, x.Rank, x.Dbcs.Any(d => files.Contains(d, StringComparer.OrdinalIgnoreCase)))), new[] { "patch-enUS-Z.MPQ" });
+                Console.WriteLine($"== Send to game would {(plan.InPlace ? "update in place" : "install")}: {plan.PatchName} in Data {plan.TargetDir} — {plan.Why}");
+                foreach (var n in plan.Notes) Console.WriteLine("   " + n);
+            }
             using (var c = new ClientFiles(DevPaths.ClientData))
             {
                 var sp = c.Read(@"DBFilesClient\Spell.dbc", out var from1);

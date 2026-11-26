@@ -103,8 +103,15 @@ the raw command text in Server control only show when it's on.
   the tab.
 * **Send to game**: one client patch with every DBC edit in History plus the staged ones, and the files from your patch
   work folder (icons, models). Spells you edited get the server's exact row, with their spellbook links and icon.
-  * The patch is named to load after every patch already holding those tables. A Data\enUS\patch-enUS-X patch loads right
-    after patch-X, so patch-enUS-Z wins even over a patch-Z.
+  * The patch goes where the game really reads it. The 3.3.5a client sorts Data\patch-X.MPQ and Data\enUS\patch-enUS-X.MPQ
+    by their path and reads the highest first, so every Data\patch-X beats every enUS patch (read from WoW.exe itself).
+    Studio picks a Data\patch-X name that loads after every patch holding those tables; when one already loads last (a
+    patch-Z of your own), Studio puts its tables into that patch instead, backed up first, leaving the rest untouched.
+  * Fixed: earlier sends went to Data\enUS\patch-enUS-Z.MPQ, which a Data\patch-Z.MPQ outranks, so the game kept an older
+    copy of the spell (known on the server, but hidden in the spellbook and not castable by name). Send it again.
+  * Spellbook links can make every character of the class learn the spell by themselves at their next login (the server
+    does it: SkillLineAbility AcquireMethod 1). On by default in Create a spell and Add to a spellbook tab; the check warns
+    when nobody would learn it and fixes it in one click.
   * Staged edits also go to the server's copy (backed up). The patch is checked and installed with a backup, and
     *Remove … from the game* undoes it.
 * *Write to patch work folder* now adds to what that folder already holds instead of starting over.
@@ -125,7 +132,19 @@ the raw command text in Server control only show when it's on.
 * Two applies within the same second no longer share (and overwrite) one History file.
 * History shows sent DBC edits with their server backup and a *Restore server DBC backup…* button.
 
-**Tests**: 183 automated tests (new: a built quest with every kind of objective, read back; editing a quest stages only what
+**New look**: the whole app uses the studio suite's design (its token file, with AndersCraft's dark maroon and amber):
+glass cards with a warm sheen and halo, glowing page titles with their underline, selections and hovers that glow and fade
+instead of boxes, no outlines anywhere, pill buttons with a light sweep, a double keyboard focus ring, four drifting
+glows and rising motes behind everything (still with Windows' reduced-motion setting, paused when minimized). Raw data
+tables stay plain and readable. The design system lives in src/DesignSystem (a copy, so this repository builds on its own)
+and DesignRulesTests keep screens from drawing outlines or their own colours.
+
+**Fixed**: the 3D viewer's mouse wheel zooms without scrolling the page; a maximized window fills the screen above the
+taskbar (any monitor, any taskbar side); the top bar keeps the window buttons on screen at narrower widths.
+
+**Tests**: 192 automated tests (new: the client's real patch order; Send to game picking a name or updating the patch that
+loads last; replacing files inside an archive keeps the rest byte for byte; a hidden copy in Data\patch-Z beating a visible
+one in Data\enUS until Studio updates patch-Z; learned-automatically links; the design rules and tokens). Before that, 183 (new: a built quest with every kind of objective, read back; editing a quest stages only what
 changed, copying adds a fresh one; a quest never removes a creature it only reads; a built NPC with look, services, place,
 weapons, wares and greeting, read back, then a one-field edit; every behaviour makes valid rows that read as sentences;
 plain names). Before that, 176 (new for Server control: SOAP messages, GM command building and cleaning, passwords

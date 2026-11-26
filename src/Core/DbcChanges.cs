@@ -353,14 +353,23 @@ namespace AndersCraftStudio.Core
             foreach (var a in Archives) foreach (var d in a.Dbcs) winner[d] = a;
         }
 
-        /// <summary>Load rank; higher wins. -1 for archives the client doesn't load as game data.</summary>
+        /// <summary>
+        /// Load rank; higher wins. -1 for archives the client doesn't load as game data.
+        /// <para>This is what the 3.3.5a (12340) client really does (WoW.exe, WowServices/PatchFiles.h, read from the binary):
+        /// it collects Data\patch-?.MPQ and Data\&lt;locale&gt;\patch-&lt;locale&gt;-?.MPQ, sorts the full paths
+        /// ("Data\patch-Z.MPQ", "Data\enUS\patch-enUS-Z.MPQ") with a case-insensitive compare, highest first, and gives
+        /// the first one the highest priority. Then Data\patch.MPQ and Data\&lt;locale&gt;\patch-&lt;locale&gt;.MPQ, below
+        /// all of those; then the base archives. So for enUS, enGB, deDE, esES, esMX, frFR and koKR ("e…", "d…", "f…", "k…"
+        /// sort below "patch-") every Data\patch-X.MPQ beats every locale patch, whatever the letters; for ruRU, zhCN and
+        /// zhTW the locale patches come first.</para>
+        /// </summary>
         public static int Rank(string name, bool inLocaleFolder)
         {
             var n = System.IO.Path.GetFileNameWithoutExtension(name).ToLowerInvariant();
             if (!inLocaleFolder)
             {
-                switch (n) { case "common": return 1; case "common-2": return 2; case "expansion": return 3; case "lichking": return 4; }
-                if (PatchNames.IsLoadable(name, out _)) return 100 + 2 * PatchNames.Rank(name);
+                switch (n) { case "common": return 1; case "common-2": return 2; case "expansion": return 3; case "lichking": return 4; case "patch": return 21; }
+                if (PatchNames.IsLoadable(name, out _)) return WildcardRank("patch-", n[6]);
                 return -1;
             }
             if (n.StartsWith("locale-") || n.StartsWith("speech-")) return 10;
@@ -369,10 +378,24 @@ namespace AndersCraftStudio.Core
             if (n.StartsWith("patch-"))
             {
                 var parts = n.Split('-');           // patch, enus[, N]
-                if (parts.Length == 2) return 100 + 2 * 1 + 1;
-                if (parts.Length == 3 && parts[2].Length == 1) return 100 + 2 * PatchNames.Rank("patch-" + parts[2] + ".mpq") + 1;
+                if (parts.Length == 2) return 20;   // patch-enUS.MPQ: the lowest patch
+                if (parts.Length == 3 && parts[2].Length == 1 && PatchNames.Rank("patch-" + parts[2] + ".mpq") > 1)
+                    return WildcardRank(parts[1] + "\\patch-" + parts[1] + "-", parts[2][0]);
             }
             return -1; // base-xx / backup-xx are launcher archives
+        }
+
+        /// <summary>
+        /// Rank of a "?" patch from its path under Data: the client sorts those paths highest first. All base patches share
+        /// "patch-", all locale patches "&lt;loc&gt;\patch-&lt;loc&gt;-", so the two families are ordered by those prefixes,
+        /// then by the patch's own character.
+        /// </summary>
+        static int WildcardRank(string prefix, char c)
+        {
+            // base patches are family 2; a locale that sorts above "patch-" (ruRU, zhCN…) puts its patches above them (3),
+            // one that sorts below (enUS, deDE, frFR…) puts them below (1). The client compares case-insensitively.
+            int family = prefix == "patch-" ? 2 : string.CompareOrdinal(prefix.ToLowerInvariant(), "patch-") > 0 ? 3 : 1;   // strnicmp lowercases
+            return 1000 + 256 * family + char.ToLowerInvariant(c);
         }
 
         public string Label => "Client (what the game sees)";

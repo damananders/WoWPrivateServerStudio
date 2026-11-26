@@ -22,7 +22,7 @@ namespace AndersCraftStudio
     {
         public static UIElement Strip(string title, string sub)
         {
-            var pill = new Border { Background = U.R("BadBg"), BorderBrush = U.R("Bad"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12), Padding = new Thickness(10, 3, 10, 3), VerticalAlignment = VerticalAlignment.Center,
+            var pill = new Border { Background = U.R("BadBg"), CornerRadius = new CornerRadius(20), Padding = new Thickness(10, 3, 10, 3), VerticalAlignment = VerticalAlignment.Center,
                 Child = U.Row(new Ellipse { Width = 8, Height = 8, Fill = U.R("Bad"), Margin = new Thickness(0, 0, 7, 0), VerticalAlignment = VerticalAlignment.Center }, U.T("LIVE SERVER", 11.5, "Bad", FontWeights.Bold, false)),
                 ToolTip = "Everything on this tab acts on your running server right away. Nothing here is staged, and Apply isn't involved." };
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
@@ -31,7 +31,7 @@ namespace AndersCraftStudio
             var right = U.Row(pill, note); right.VerticalAlignment = VerticalAlignment.Center;
             DockPanel.SetDock(right, Dock.Right); head.Children.Add(right);
             head.Children.Add(U.Stack(U.H1(title), U.T(sub, 13.5, "Muted")));
-            return head;
+            return U.Hero(head);
         }
 
         /// <summary>A labelled field whose box keeps its own width at the left (not centred).</summary>
@@ -458,7 +458,7 @@ namespace AndersCraftStudio
                     Btns(A("Send money", () => { var cp = Gm.Copper(Gm.Int(g.Text, 0), Gm.Int(s2.Text, 0), Gm.Int(c2.Text, 0)); return cp <= 0 ? null : Gm.Money(c.Name, subj.Text, body.Text, cp); }, true))),
                 U.Row(Live.F("Items", "6948 2589:20", items), new Border { Width = 10 }, Btns(A("Send items", () => Gm.ItemList(items.Text) is string it ? Gm.Items(c.Name, subj.Text, body.Text, it) : null, true)))));
             sp.Children.Add(Section("What the server said", outBox));
-            Content = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Child = U.Scroll(sp) };
+            Content = U.Frame(new Border { Child = U.Scroll(sp) });
             Loaded += async (s, e) =>
             {
                 try { var b = await Task.Run(() => H.Read(db => LiveData.BanStatus(db, c, H.Cfg.AuthDb))); banLbl.Text = b.Count == 0 ? "No bans or mutes." : string.Join("\n", b); banLbl.Foreground = U.R(b.Count == 0 ? "Muted" : "Bad"); }

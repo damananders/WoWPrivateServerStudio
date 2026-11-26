@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using AndersCraftStudio.Core;
+using DS = global::Studio.DesignSystem;
 
 namespace AndersCraftStudio
 {
@@ -68,7 +69,7 @@ namespace AndersCraftStudio
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
             var strip = U.StepStrip(1); DockPanel.SetDock(strip, Dock.Right); strip.VerticalAlignment = VerticalAlignment.Center; head.Children.Add(strip);
             head.Children.Add(U.Stack(U.H1("Spells"), U.T("Spell.dbc as a form: effects, range, cast time, cost, duration, flags, icon and visuals, with the in-game tooltip updating as you type. Edits are staged as DBC row patches with undo.", 13.5, "Muted")));
-            view.Children.Add(head);
+            view.Children.Add(U.Hero(head));
 
             var g = new Grid();
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
@@ -84,7 +85,7 @@ namespace AndersCraftStudio
             srcClient = new RadioButton { Style = U.S("SegBtn"), Content = "Client", GroupName = "spsrc", ToolTip = "Edit against the Spell.dbc the game client really loads (the winning MPQ)." };
             srcServer.Checked += (s, e) => SwitchSource("server");
             srcClient.Checked += (s, e) => SwitchSource("client");
-            var seg = new Border { Background = U.R("Panel2"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), HorizontalAlignment = HorizontalAlignment.Left, Child = U.Row(srcServer, srcClient), Margin = new Thickness(0, 0, 0, 10) };
+            var seg = new Border { Background = Brushes.Transparent, Padding = new Thickness(3), HorizontalAlignment = HorizontalAlignment.Left, Child = U.Row(srcServer, srcClient), Margin = new Thickness(0, 0, 0, 10) };
             var top = U.Stack(U.Eyebrow("Source"), seg);
             DockPanel.SetDock(top, Dock.Top); left.Children.Add(top);
             search.ToolTip = "Spell name (part of it) or ID. Enter searches.";
@@ -103,7 +104,7 @@ namespace AndersCraftStudio
 
             var right = new StackPanel();
             right.Children.Add(U.Card(bookCheck, new Thickness(16, 14, 16, 14), new Thickness(0, 0, 0, 12)));
-            right.Children.Add(U.Card(U.Stack(U.Eyebrow("In-game tooltip (preview)"), new Border { Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0B, 0x18)), BorderBrush = new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x6E)), BorderThickness = new Thickness(1.5), CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 10, 12, 10), Child = tooltip }), new Thickness(16, 14, 16, 14), new Thickness(0, 0, 0, 12)));
+            right.Children.Add(U.Card(U.Stack(U.Eyebrow("In-game tooltip (preview)"), DS.U.GameTooltip(new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 10, 12, 10), Child = tooltip })), new Thickness(16, 14, 16, 14), new Thickness(0, 0, 0, 12)));
             right.Children.Add(U.Card(U.Stack(U.Eyebrow("What it does"), effectsList), new Thickness(16, 14, 16, 14), new Thickness(0, 0, 0, 12)));
             right.Children.Add(U.Card(guide, new Thickness(16, 14, 16, 14), new Thickness(0)));
             var rs = U.Scroll(right); Grid.SetColumn(rs, 4); g.Children.Add(rs);
@@ -214,7 +215,7 @@ namespace AndersCraftStudio
         void SwitchSource(string s)
         {
             if (source == s) return;
-            if (dirtyFiles.Count > 0 && MessageBox.Show(w, "You have spell edits that aren't staged yet. Switch source and drop them?", "Unstaged edits", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            if (dirtyFiles.Count > 0 && DS.StudioDialog.Show(w, "You have spell edits that aren't staged yet. Switch source and drop them?", "Unstaged edits", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
             { (s == "client" ? srcServer : srcClient).IsChecked = true; return; }
             source = s; tables.Clear(); dirtyFiles.Clear(); refs = null;
             if (sp != null) Open(id, force: true); else RunSearch();
@@ -846,9 +847,9 @@ namespace AndersCraftStudio
             if (headerName != null) headerName.Text = sp.Name;
             if (headerIcon != null) headerIcon.Source = Icon(sp.U("SpellIconID"));
             tooltip.Children.Clear();
-            var gold = new SolidColorBrush(Color.FromRgb(0xFF, 0xD1, 0x00));
-            var white = Brushes.White;
-            var grey = new SolidColorBrush(Color.FromRgb(0xA0, 0xA0, 0xA0));
+            var gold = U.R("Game.Gold");
+            var white = U.R("Game.White");
+            var grey = U.R("Game.Grey");
             TextBlock L(string text, Brush b, double size = 13, bool bold = false) => new TextBlock { Text = text, Foreground = b, FontSize = size, FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal, TextWrapping = TextWrapping.Wrap, FontFamily = U.Font };
             DockPanel Pair(string a, string b)
             {
@@ -880,7 +881,7 @@ namespace AndersCraftStudio
                 if (orig == null) { ctl.BorderBrush = U.R("Ok"); continue; }
                 var was = Table("Spell.dbc").baseT.FieldText(orig, f);
                 var now = sp.Table.FieldText(sp.Row, f);
-                if (was != now) { ctl.BorderBrush = U.R("Amber"); ctl.BorderThickness = new Thickness(1.5); ctl.ToolTip = "Was " + (was.Length == 0 ? "(empty)" : was); }
+                if (was != now) { ctl.BorderBrush = U.R("Amber"); ctl.ToolTip = "Was " + (was.Length == 0 ? "(empty)" : was); }
                 else if (ctl.BorderBrush != U.R("Bad")) { ctl.ClearValue(Control.BorderBrushProperty); ctl.ClearValue(Control.BorderThicknessProperty); if (ctl.ToolTip is string tt && tt.StartsWith("Was ")) ctl.ToolTip = null; }
             }
         }
@@ -1043,7 +1044,7 @@ namespace AndersCraftStudio
             var win = new Window { Owner = owner, Width = width, SizeToContent = SizeToContent.Height, WindowStartupLocation = WindowStartupLocation.CenterOwner, WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Background = U.R("Panel"), FontFamily = U.Font, Foreground = U.R("Text") };
             System.Windows.Shell.WindowChrome.SetWindowChrome(win, new System.Windows.Shell.WindowChrome { CaptionHeight = 30, GlassFrameThickness = new Thickness(0), ResizeBorderThickness = new Thickness(0) });
             var close = U.Btn("Close", () => win.Close(), "BtnPrimary"); close.IsCancel = true; close.IsDefault = true; close.HorizontalAlignment = HorizontalAlignment.Left; close.Margin = new Thickness(0, 14, 0, 0);
-            win.Content = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Padding = new Thickness(22, 18, 22, 18), Child = U.Stack(U.H2(title), body, close) };
+            win.Content = U.Frame(new Border { Padding = new Thickness(22, 18, 22, 18), Child = U.Stack(U.H2(title), body, close) });
             if (MainWindow.Instance?.IsScreens == true) { win.WindowStartupLocation = WindowStartupLocation.Manual; win.Left = -20000; win.Top = -20000; win.ShowActivated = false; Last = win; win.Show(); return; }
             win.ShowDialog();
         }
@@ -1086,7 +1087,7 @@ namespace AndersCraftStudio
             var bottom = U.Stack(err, U.Row(ok, cancel)); bottom.Margin = new Thickness(0, 12, 0, 0);
             DockPanel.SetDock(bottom, Dock.Bottom); dock.Children.Add(bottom);
             dock.Children.Add(U.Scroll(fields));
-            Content = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Padding = new Thickness(22, 18, 22, 18), Child = dock };
+            Content = U.Frame(new Border { Padding = new Thickness(22, 18, 22, 18), Child = dock });
         }
     }
 
@@ -1120,7 +1121,7 @@ namespace AndersCraftStudio
             DockPanel.SetDock(top, Dock.Top); dock.Children.Add(top);
             DockPanel.SetDock(cancel, Dock.Bottom); cancel.HorizontalAlignment = HorizontalAlignment.Left; cancel.Margin = new Thickness(0, 10, 0, 0); dock.Children.Add(cancel);
             dock.Children.Add(U.Scroll(grid));
-            Content = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Padding = new Thickness(22, 18, 22, 18), Child = dock };
+            Content = U.Frame(new Border { Padding = new Thickness(22, 18, 22, 18), Child = dock });
             Filter("");
             int idx = shown.FindIndex(x => x.id == current);
             if (idx >= 0) Go(idx / PerPage);

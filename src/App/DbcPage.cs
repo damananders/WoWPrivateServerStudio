@@ -11,6 +11,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using AndersCraftStudio.Core;
+using DS = global::Studio.DesignSystem;
 
 namespace AndersCraftStudio
 {
@@ -73,7 +74,7 @@ namespace AndersCraftStudio
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 16) };
             var strip = U.StepStrip(1); DockPanel.SetDock(strip, Dock.Right); strip.VerticalAlignment = VerticalAlignment.Center; head.Children.Add(strip);
             head.Children.Add(U.Stack(U.H1("DBC tables"), U.T("The client's data tables (spells, zones, races, item looks…). Read any of the 246, edit rows, and stage the edits. Originals are never overwritten: staged edits leave Studio as a patch for the client and an updated server copy, from the Changes screen.", 13.5, "Muted")));
-            view.Children.Add(head);
+            view.Children.Add(U.Hero(head));
 
             var g = new Grid();
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(290) });
@@ -87,7 +88,7 @@ namespace AndersCraftStudio
             srcClient = new RadioButton { Style = U.S("SegBtn"), Content = "Client", GroupName = "dbcsrc", ToolTip = "What the game client really sees: each DBC taken from the archive that wins in the client's load order (base, locale and patch MPQs)." };
             srcServer.Checked += (s, e) => SwitchSource("server");
             srcClient.Checked += (s, e) => SwitchSource("client");
-            var seg = new Border { Background = U.R("Panel2"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), HorizontalAlignment = HorizontalAlignment.Left, Child = U.Row(srcServer, srcClient) };
+            var seg = new Border { Background = Brushes.Transparent, Padding = new Thickness(3), HorizontalAlignment = HorizontalAlignment.Left, Child = U.Row(srcServer, srcClient) };
             var top = U.Stack(U.Eyebrow("Source"), seg, srcNote);
             top.Margin = new Thickness(0, 0, 0, 10);
             DockPanel.SetDock(top, Dock.Top); left.Children.Add(top);
@@ -153,7 +154,7 @@ namespace AndersCraftStudio
         void SwitchSource(string s)
         {
             if (source == s) return;
-            if (dirty && MessageBox.Show(w, "You have edits in this table that aren't staged yet. Switch source and drop them?", "Unstaged edits", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            if (dirty && DS.StudioDialog.Show(w, "You have edits in this table that aren't staged yet. Switch source and drop them?", "Unstaged edits", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
             { (s == "client" ? srcServer : srcClient).IsChecked = true; return; }
             source = s;
             linkNames.Clear(); diffKeys = null;
@@ -263,7 +264,7 @@ namespace AndersCraftStudio
         {
             bool isCurrent = string.Equals(f, file, StringComparison.OrdinalIgnoreCase);
             bool d = isCurrent ? dirty : tabs.TryGet(f, out var st) && st != null && st.Dirty;
-            if (d && MessageBox.Show(w, $"{f} has edits that aren't staged yet. Close it and drop them?", "Unstaged edits", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            if (d && DS.StudioDialog.Show(w, $"{f} has edits that aren't staged yet. Close it and drop them?", "Unstaged edits", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             if (isCurrent) { file = null; working = baseTable = null; dirty = false; }
             var next = tabs.Close(f);
             if (isCurrent)
@@ -787,7 +788,7 @@ namespace AndersCraftStudio
             using (new WaitCursor()) r = DbcCsv.Import(working, File.ReadAllText(dlg.FileName));
             if (r.Errors.Count > 0)
             {
-                MessageBox.Show(w, "Nothing was imported:\n\n" + string.Join("\n", r.Errors.Take(12)) + (r.Errors.Count > 12 ? $"\n… and {r.Errors.Count - 12} more" : ""), "CSV import", MessageBoxButton.OK, MessageBoxImage.Warning);
+                DS.StudioDialog.Show(w, "Nothing was imported:\n\n" + string.Join("\n", r.Errors.Take(12)) + (r.Errors.Count > 12 ? $"\n… and {r.Errors.Count - 12} more" : ""), "CSV import", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             if (r.Updated + r.Added > 0) { dirty = true; diffKeys = null; }
@@ -800,7 +801,7 @@ namespace AndersCraftStudio
         {
             var win = new Window { Owner = w, Width = width, SizeToContent = SizeToContent.Height, WindowStartupLocation = WindowStartupLocation.CenterOwner, WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Background = U.R("Panel"), FontFamily = U.Font, Foreground = U.R("Text") };
             System.Windows.Shell.WindowChrome.SetWindowChrome(win, new System.Windows.Shell.WindowChrome { CaptionHeight = 30, GlassFrameThickness = new Thickness(0), ResizeBorderThickness = new Thickness(0) });
-            win.Content = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Padding = new Thickness(22, 18, 22, 18), Child = U.Stack(U.H2(title), body) };
+            win.Content = U.Frame(new Border { Padding = new Thickness(22, 18, 22, 18), Child = U.Stack(U.H2(title), body) });
             return win;
         }
 
@@ -953,7 +954,7 @@ namespace AndersCraftStudio
                 else w.Toast("No editor for that yet.", "warn");
                 return;
             }
-            if (dirty && MessageBox.Show(w, $"{file} has edits that aren't staged yet. Stage them before opening {c.Link}?", "Unstaged edits", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) Stage();
+            if (dirty && DS.StudioDialog.Show(w, $"{file} has edits that aren't staged yet. Stage them before opening {c.Link}?", "Unstaged edits", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) Stage();
             dirty = false;
             OpenTable(c.Link, id);
         }

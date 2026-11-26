@@ -12,8 +12,8 @@ from PIL import Image, ImageDraw, ImageFont
 # them here: (left, top, right, bottom) of the box interior at 1600x1000, then the replacement text.
 REDACT = {
     'wizard': [((424, 357, 888, 396), 'studio_ro'), ((972, 376, 1440, 415), 'studio_rw')],
-    'patches': [((318, 272, 1416, 311), r'C:\Games\WoW 3.3.5a'),
-                ((318, 574, 1302, 613), r'C:\Users\you\Documents\AndersCraft Studio\patch_work\patch-W')],
+    'patches': [((330, 345, 1410, 396), r'C:\Games\WoW 3.3.5a'),
+                ((330, 645, 1299, 696), r'C:\Users\you\Documents\AndersCraft Studio\patch_work\patch-W')],
 }
 
 PICTURES = {

@@ -468,8 +468,8 @@ namespace AndersCraftStudio
         protected override UIElement BuildPreview()
         {
             string Fill(string s) => (s ?? "").Replace("$N", "Aldren").Replace("$n", "Aldren").Replace("$C", "Warrior").Replace("$c", "warrior").Replace("$R", "Human").Replace("$r", "human").Replace("$B", "\n").Replace("$b", "\n");
-            var parch = new Border { Background = new SolidColorBrush(Color.FromRgb(0xE9, 0xDC, 0xBF)), CornerRadius = new CornerRadius(12), Padding = new Thickness(18, 16, 18, 16) };
-            var ink = new SolidColorBrush(Color.FromRgb(0x3A, 0x26, 0x14)); var head = new SolidColorBrush(Color.FromRgb(0x2A, 0x16, 0x06));
+            var parch = new Border { Background = U.R("Parchment"), CornerRadius = new CornerRadius(12), Padding = new Thickness(18, 16, 18, 16) };
+            var ink = U.R("Parchment.Ink"); var head = U.R("Parchment.Head");
             TextBlock P(string t, double size = 13, bool bold = false, Brush b = null) => new TextBlock { Text = t, FontSize = size, FontWeight = bold ? FontWeights.Bold : FontWeights.Normal, Foreground = b ?? ink, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8), FontFamily = new FontFamily("Georgia") };
             var sp = new StackPanel();
             sp.Children.Add(P(string.IsNullOrWhiteSpace(d.Title) ? "(no name)" : d.Title, 17, true, head));

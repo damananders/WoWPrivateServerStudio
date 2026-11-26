@@ -71,7 +71,7 @@ namespace AndersCraftStudio
             var strip = U.StepStrip(1); DockPanel.SetDock(strip, Dock.Right); strip.VerticalAlignment = VerticalAlignment.Center;
             head.Children.Add(strip);
             head.Children.Add(U.Stack(U.H1("SQL browser"), U.T("Look at any table, filter it, export it, or run read-only queries. Edits and write statements are staged, never run.", 13.5, "Muted")));
-            view.Children.Add(head);
+            view.Children.Add(U.Hero(head));
 
             Grid.SetRow(mainHost, 1);
             view.Children.Add(mainHost);
@@ -140,7 +140,7 @@ namespace AndersCraftStudio
             tabData.Checked += (s, e) => ShowTab(false);
             tabQuery.Checked += (s, e) => ShowTab(true);
             tabStructure.Checked += (s, e) => ShowStructure();
-            var tabs = new Border { Background = U.R("Panel"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 12), Child = U.Row(tabData, tabQuery, tabStructure) };
+            var tabs = new Border { Background = Brushes.Transparent, Padding = new Thickness(3), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 12), Child = U.Row(tabData, tabQuery, tabStructure) };
             DockPanel.SetDock(tabs, Dock.Top); right.Children.Add(tabs);
 
             BuildDataPane();
@@ -228,7 +228,7 @@ namespace AndersCraftStudio
                 if (e.Key == Key.Enter) { ApplyFilter(); e.Handled = true; }
                 else if (e.Key == Key.Escape) { whereBox.Text = ""; ApplyFilter(); e.Handled = true; }
             };
-            var wl = new Border { Background = U.R("Panel2"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(1, 1, 0, 1), CornerRadius = new CornerRadius(9, 0, 0, 9), Padding = new Thickness(10, 0, 10, 0),
+            var wl = new Border { Background = U.R("Layer10"), CornerRadius = new CornerRadius(8, 0, 0, 8), Padding = new Thickness(10, 0, 10, 0),
                 Child = U.T("WHERE", 12, "Amber", FontWeights.Bold, false) };
             ((TextBlock)wl.Child).VerticalAlignment = VerticalAlignment.Center;
             var wg = new DockPanel { Margin = new Thickness(0, 0, 10, 0) };
@@ -732,7 +732,7 @@ namespace AndersCraftStudio
                     U.T($"Staged {writes.Count} write statement(s) in your changeset. Nothing ran on your database.", 13.5, "Text", FontWeights.SemiBold),
                     U.T(noUndo == 0 ? "Studio captured the current rows so it can undo them." : $"{noUndo} of them have no automatic undo; the backup taken before Apply covers them. See the Undo SQL tab on the Changes screen.", 12.5, "Muted", null, true, new Thickness(0, 4, 0, 10)),
                     U.Btn("Review on the Changes screen", () => w.Navigate("changes"), "BtnAmber", "Ctrl+Shift+R"));
-                queryMsg.Content = new Border { Background = U.R("AmberDim"), BorderBrush = U.R("Amber"), BorderThickness = new Thickness(3, 0, 0, 0), CornerRadius = new CornerRadius(10), Padding = new Thickness(14, 10, 14, 12), Margin = new Thickness(0, 0, 0, 12), Child = sp };
+                queryMsg.Content = new Border { Background = U.R("AmberDim"), CornerRadius = new CornerRadius(16), Padding = new Thickness(14, 10, 14, 12), Margin = new Thickness(0, 0, 0, 12), Child = sp };
                 if (reads.Count == 0) return;
             }
             history.Add(db, text);

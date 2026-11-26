@@ -17,6 +17,10 @@ maintenance mode, accounts, bulk player actions, quick commands, live coloured l
 backup restore). Settings › Show technical names (off by default).
 Step-by-step builders for quests, NPCs and creature behaviours (new, yours, or the game's: copy or change), with live
 previews, all staged; plain names across the editors, lists, Changes and SmartAI (NAMING_AUDIT.md).
+New look across every screen (the studio suite's design, AndersCraft colours). Fixed: Send to game now follows the
+client's real patch order (Data\patch-X beats every Data\enUS patch) and updates the patch that loads last when nothing
+can outrank it; spells can be learned automatically at login; the 3D viewer's wheel no longer scrolls the page; a
+maximized window stays above the taskbar.
 
 ## 0.8.0
 Admin console (everything HeidiSQL does, including setting up AzerothCore's databases) and the rest of Keira3's editors.

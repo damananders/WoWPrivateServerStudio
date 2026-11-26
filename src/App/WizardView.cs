@@ -53,7 +53,7 @@ namespace AndersCraftStudio
             ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
             ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            var left = new Border { Background = U.R("Panel"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(0, 0, 1, 0), Padding = new Thickness(26, 30, 22, 20) };
+            var left = new Border { Background = U.R("Layer5"), Padding = new Thickness(26, 30, 22, 20) };
             var ls = new DockPanel();
             var head = U.Stack(U.Eyebrow(rerun ? "Setup · run again" : "First-run setup"), U.T("Let's connect Studio to your server", 19, "Text", FontWeights.SemiBold, true, new Thickness(0, 0, 0, 22)));
             DockPanel.SetDock(head, Dock.Top); ls.Children.Add(head);
@@ -115,7 +115,7 @@ namespace AndersCraftStudio
             for (int i = 1; i <= 5; i++)
             {
                 bool on = i == step, done = i < step;
-                var num = new Border { Width = 30, Height = 30, CornerRadius = new CornerRadius(15), Background = on ? U.R("Amber") : done ? U.R("OkBg") : U.R("Panel2"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(on || done ? 0 : 1),
+                var num = new Border { Width = 30, Height = 30, CornerRadius = new CornerRadius(15), Background = on ? U.R("Amber.Gradient") : done ? U.R("OkBg") : U.R("Layer10"),
                     Child = new TextBlock { Text = done ? "✓" : i.ToString(), FontWeight = FontWeights.Bold, Foreground = on ? U.R("AmberInk") : done ? U.R("Ok") : U.R("Muted"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
                 var txt = U.Stack(U.T(Titles[i - 1], 14, on ? "Text" : "Muted", on ? FontWeights.SemiBold : FontWeights.Normal, false), U.T(Subs[i - 1], 12, "Faint", null, false));
                 txt.Margin = new Thickness(12, 0, 0, 0);

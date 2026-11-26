@@ -86,6 +86,8 @@ namespace AndersCraftStudio.Core
             public DateTime InstalledUtc { get; set; }
             public string Sha256 { get; set; }
             public string BackupOfPrevious { get; set; } // file that was there before (null if none)
+            /// <summary>Someone else's patch that Studio put files into (not a patch of Studio's own): never rebuilt from scratch.</summary>
+            public bool InPlace { get; set; }
         }
 
         readonly string stateFile;
@@ -142,10 +144,66 @@ namespace AndersCraftStudio.Core
             }
             var tmp = target + ".studio-new";
             File.Copy(builtMpq, tmp, true);
-            File.Move(tmp, target, true);
+            PutInPlace(tmp, target);
             var rec = new Record { Name = Path.GetFileName(target), DataDir = data, InstalledUtc = DateTime.UtcNow, Sha256 = Sha256Of(target), BackupOfPrevious = backup };
             var all = Records(); all.RemoveAll(r => string.Equals(r.Name, rec.Name, StringComparison.OrdinalIgnoreCase) && r.DataDir == data); all.Add(rec); Save(all);
             return rec;
+        }
+
+        /// <summary>
+        /// Puts <paramref name="files"/> into a patch that's already in the game (one Studio can't load after, because it already
+        /// loads last): the patch is backed up, a copy is updated and checked, then it replaces the original. Uninstall puts the
+        /// backup back. Refuses while the game runs.
+        /// </summary>
+        public Record UpdateInPlace(string clientDir, string relativeToData, IList<(string path, byte[] data)> files)
+        {
+            var running = this.running(clientDir);
+            if (running.Count > 0) throw new InvalidOperationException("Close the game first: " + string.Join(", ", running) + " is running and has the patches open.");
+            var target = Path.Combine(clientDir, "Data", relativeToData);
+            if (!File.Exists(target)) throw new FileNotFoundException("The patch isn't there any more: " + target);
+            var dir = Path.Combine(BackupRoot, "client_" + DateTime.Now.ToString("yyyy-MM-dd_HHmmss"));
+            Directory.CreateDirectory(dir);
+            var backup = Path.Combine(dir, Path.GetFileName(target));
+            File.Copy(target, backup, false);
+            var tmp = target + ".studio-new";
+            File.Copy(target, tmp, true);
+            try
+            {
+                MpqWriter.ReplaceFiles(tmp, files);
+                var problems = MpqWriter.Verify(tmp, files);
+                if (problems.Count > 0) throw new InvalidOperationException("The updated patch didn't pass its check: " + string.Join(" ", problems.Take(3)));
+                PutInPlace(tmp, target);
+            }
+            finally { if (File.Exists(tmp)) File.Delete(tmp); }
+            var data = Path.GetDirectoryName(target);
+            var all = Records();
+            var prev = all.FirstOrDefault(r => string.Equals(r.Name, Path.GetFileName(target), StringComparison.OrdinalIgnoreCase) && string.Equals(r.DataDir, data, StringComparison.OrdinalIgnoreCase));
+            var rec = new Record { Name = Path.GetFileName(target), DataDir = data, InstalledUtc = DateTime.UtcNow, Sha256 = Sha256Of(target), BackupOfPrevious = prev?.BackupOfPrevious ?? backup, InPlace = true };
+            all.RemoveAll(r => string.Equals(r.Name, rec.Name, StringComparison.OrdinalIgnoreCase) && string.Equals(r.DataDir, data, StringComparison.OrdinalIgnoreCase)); all.Add(rec); Save(all);
+            return rec;
+        }
+
+        /// <summary>
+        /// Moves the finished file over the patch. Windows refuses to rename over a file another program has open, and Studio
+        /// itself keeps the client's archives open to read them (shared for writing), so when the rename is refused the new
+        /// bytes are written over the old file in place instead, then the temp file is removed.
+        /// </summary>
+        static void PutInPlace(string tmp, string target)
+        {
+            try { File.Move(tmp, target, true); return; }
+            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is IOException)
+            {
+                if (!File.Exists(target)) throw;
+                if ((File.GetAttributes(target) & FileAttributes.ReadOnly) != 0) File.SetAttributes(target, File.GetAttributes(target) & ~FileAttributes.ReadOnly);
+                using (var src = new FileStream(tmp, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (var dst = new FileStream(target, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    src.CopyTo(dst);
+                    dst.SetLength(src.Length);
+                    dst.Flush(true);
+                }
+                File.Delete(tmp);
+            }
         }
 
         /// <summary>Removes a patch Studio installed and puts back whatever was there before. Refuses if the file was changed by something else.</summary>

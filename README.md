@@ -110,7 +110,9 @@ school or what it raises, cast time, cooldown, cost, range, icon, spellbook tab)
 builds the whole spell from a real one of the same kind and links it to the spellbook tab you picked. The card *Will it
 show in the spellbook?* checks every spell (hidden or passive flags, the spellbook link, the class you test with, and
 whether the game client has the same version) with a one-click fix for each problem. *Send to game* puts every spell and
-DBC edit into one client patch that wins over your other patches, installs it with a backup, and updates the server's copy.
+DBC edit into the patch the game really reads last (a new Data\patch-X, or the one that already loads last, updated in
+place with a backup), and updates the server's copy. Tick *learns it by themselves* and every character of the class has
+the spell after their next login.
 
 **Spell and DBC edits don't use Apply.** On Changes they go out with *Send out DBC edits*: as files for a client patch
 (then build and install it on Client patches) and as an updated server copy (then restart worldserver). Once an edit has

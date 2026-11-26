@@ -49,13 +49,13 @@ namespace AndersCraftStudio
             var strip = U.StepStrip(3); DockPanel.SetDock(strip, Dock.Right); strip.VerticalAlignment = VerticalAlignment.Center;
             head.Children.Add(strip);
             head.Children.Add(U.Stack(U.H1("Changes"), U.T("Everything you've staged, with the exact SQL and how to undo it. Tick what you want, pick a target, and apply.", 13.5, "Muted")));
-            view.Children.Add(head);
+            view.Children.Add(U.Hero(head));
 
             tabStaged = new RadioButton { Style = U.S("SegBtn"), GroupName = "chg", IsChecked = true, ToolTip = "Changes waiting to be applied." };
             tabHistory = new RadioButton { Style = U.S("SegBtn"), Content = "History", GroupName = "chg", ToolTip = "Past applies, their backups, and Roll back." };
             tabStaged.Checked += (s, e) => Refresh();
             tabHistory.Checked += (s, e) => Refresh();
-            var tabs = new Border { Background = U.R("Panel"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 14), Child = U.Row(tabStaged, tabHistory) };
+            var tabs = new Border { Background = Brushes.Transparent, Padding = new Thickness(3), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 14), Child = U.Row(tabStaged, tabHistory) };
             Grid.SetRow(tabs, 1); view.Children.Add(tabs);
 
             BuildStaged();
@@ -167,7 +167,7 @@ namespace AndersCraftStudio
                 return r;
             }
             if (c.Dbc != null) { detailTab = 0; ShowDbcDetail(c, sp); return; }
-            var tabs = new Border { Background = U.R("Panel2"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 12),
+            var tabs = new Border { Background = Brushes.Transparent, Padding = new Thickness(3), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 12),
                 Child = U.Row(Tab("Diff", 0, "Before and after, field by field, with what each field means."), Tab("SQL", 1, "The exact statement Apply will run."), Tab("Undo SQL", 2, "The statement that puts things back. Roll back runs it.")) };
             DockPanel.SetDock(tabs, Dock.Top); sp.Children.Add(tabs);
 

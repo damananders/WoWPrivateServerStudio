@@ -141,6 +141,18 @@ namespace AndersCraftStudio
             await Milestone11(w);
         }
 
+        /// <summary>The facelift check: Home and a creature record, same content every run (before / after).</summary>
+        public static async Task RunM14(MainWindow w, string dir)
+        {
+            Directory.CreateDirectory(dir);
+            w.Navigate("home"); await Wait(1200); w.HideToast();
+            await w.Snap("170_facelift_home.png");
+            EntityEditorPage pg = null;
+            w.Navigate("creatures", p => pg = (EntityEditorPage)p);
+            pg.Open(448); w.HideToast(); await Wait(2500);
+            await w.Snap("171_facelift_creature.png");
+        }
+
         public static async Task RunM13(MainWindow w, string dir)
         {
             Directory.CreateDirectory(dir);

@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using DS = global::Studio.DesignSystem;
 
 namespace AndersCraftStudio
 {
@@ -15,14 +16,17 @@ namespace AndersCraftStudio
         public static Style S(string key) => (Style)Application.Current.Resources[key];
         public static FontFamily Mono => (FontFamily)Application.Current.Resources["MonoFont"];
         public static FontFamily Font => (FontFamily)Application.Current.Resources["UiFont"];
+        /// <summary>Line icons (Segoe Fluent Icons on Windows 11, MDL2 on Windows 10).</summary>
+        public static readonly FontFamily IconFont = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets");
 
         public static TextBlock T(string text, double size = 13.5, string brush = "Text", FontWeight? weight = null, bool wrap = true, Thickness? margin = null)
             => new TextBlock { Text = text, FontSize = size, Foreground = R(brush), FontWeight = weight ?? FontWeights.Normal, TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap, TextTrimming = wrap ? TextTrimming.None : TextTrimming.CharacterEllipsis, Margin = margin ?? new Thickness(0), FontFamily = Font };
 
-        public static TextBlock H1(string text) => T(text, 26, "Text", FontWeights.SemiBold, true, new Thickness(0, 0, 0, 4));
-        public static TextBlock H2(string text) => T(text, 17, "Text", FontWeights.SemiBold, true, new Thickness(0, 0, 0, 6));
+        /// <summary>A page title: the warm Text.Magic gradient with its glow (the underline comes with <see cref="Hero"/>).</summary>
+        public static TextBlock H1(string text) { var t = T(text, 28, "Text.Magic", FontWeights.SemiBold, true, new Thickness(0, 0, 0, 4)); t.Effect = (System.Windows.Media.Effects.Effect)Application.Current.Resources["Glow.Title"]; return t; }
+        public static TextBlock H2(string text) => T(text, 17, "TextStrong", FontWeights.SemiBold, true, new Thickness(0, 0, 0, 6));
         public static TextBlock Sub(string text) => T(text, 13.5, "Muted", null, true, new Thickness(0, 0, 0, 14));
-        public static TextBlock Eyebrow(string text) => T(text.ToUpperInvariant(), 11, "Amber", FontWeights.Bold, false, new Thickness(0, 0, 0, 6));
+        public static TextBlock Eyebrow(string text) { var t = T(text.ToUpperInvariant(), 11, "Amber", FontWeights.Bold, false, new Thickness(0, 0, 0, 6)); t.Effect = (System.Windows.Media.Effects.Effect)Application.Current.Resources["Glow.Text"]; return t; }   // section labels glow
 
         public static Button Btn(string text, Action click, string style = null, string tip = null, double minW = 0)
         {
@@ -42,8 +46,25 @@ namespace AndersCraftStudio
         public static bool Technical { get => technical; set { technical = value; Core.SmartAI.ShowIds = value; } }
         static bool technical;
 
+        /// <summary>A glass card: translucent (the ambient light shows through), a warm sheen on its top edge, floating in a
+        /// soft halo; radius 16, no outline. A named tone (e.g. "Panel2") makes a quieter inner panel instead.</summary>
         public static Border Card(UIElement child, Thickness? pad = null, Thickness? margin = null, string bg = "Panel")
-            => new Border { Background = R(bg), BorderBrush = R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14), Padding = pad ?? new Thickness(20), Margin = margin ?? new Thickness(0, 0, 0, 16), Child = child };
+        {
+            var b = new Border { Background = R(bg == "Panel" ? "Card.Surface" : bg == "Panel2" ? "Layer5" : bg), CornerRadius = new CornerRadius(16), Padding = pad ?? new Thickness(20), Margin = margin ?? new Thickness(0, 0, 0, 16), Child = child };
+            if (bg == "Panel") b.Effect = (System.Windows.Media.Effects.Effect)Application.Current.Resources["Glow.Card"];
+            return b;
+        }
+
+        /// <summary>The one hero per screen (the page's title block on a bleed panel).</summary>
+        public static Border Hero(FrameworkElement head, Thickness? pad = null) => DS.U.Hero(head, pad);
+        /// <summary>The faint edge of a borderless dialog window.</summary>
+        public static Border Frame(Border b) => DS.U.Frame(b);
+        /// <summary>Segment buttons (tabs) on a soft pill track.</summary>
+        public static Border Segments(UIElement child) => DS.U.Segments(child);
+        /// <summary>A list row as a floating strip (6 px apart, brighter on hover).</summary>
+        public static Border Strip(UIElement child, Thickness pad, bool hover = true) => DS.U.Strip(child, pad, hover);
+        /// <summary>A clickable feathered tile.</summary>
+        public static Grid Tile(UIElement content, string tone, double radius, Thickness pad, Action click, string name, double glow = 0.22) => DS.U.Tile(content, tone, radius, pad, click, name, glow);
 
         public static StackPanel Stack(params UIElement[] kids) { var s = new StackPanel(); foreach (var k in kids) if (k != null) s.Children.Add(k); return s; }
         public static StackPanel Row(params UIElement[] kids) { var s = new StackPanel { Orientation = Orientation.Horizontal }; foreach (var k in kids) if (k != null) s.Children.Add(k); return s; }
@@ -115,7 +136,7 @@ namespace AndersCraftStudio
             g.Children.Add(dot);
             var l = T(label, 13.5, "Muted", null, false); Grid.SetColumn(l, 1); g.Children.Add(l); l.VerticalAlignment = VerticalAlignment.Center;
             var v = T(value, 13.5, "Text", FontWeights.SemiBold, true); Grid.SetColumn(v, 2); g.Children.Add(v); v.VerticalAlignment = VerticalAlignment.Center;
-            var b = new Border { Child = g, Padding = new Thickness(4, 7, 4, 7), BorderBrush = R("Line"), BorderThickness = new Thickness(0, 0, 0, 1) };
+            var b = new Border { Child = g, Padding = new Thickness(4, 7, 4, 7) };   // rows are separated by space, not lines
             if (tip != null) b.ToolTip = tip;
             return b;
         }
@@ -135,49 +156,25 @@ namespace AndersCraftStudio
             for (int i = 0; i < 4; i++)
             {
                 bool on = i + 1 == active, done = i + 1 < active;
-                var num = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(11), Background = on ? R("Amber") : done ? R("MaroonDim") : R("Panel2"), BorderBrush = R("Line"), BorderThickness = new Thickness(on ? 0 : 1),
+                var num = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(11), Background = on ? R("Amber.Gradient") : done ? R("MaroonDim") : R("Layer10"),
                     Child = new TextBlock { Text = (i + 1).ToString(), FontSize = 12, FontWeight = FontWeights.Bold, Foreground = on ? R("AmberInk") : R("Muted"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
                 var step = Row(num, T(names[i], 13, on ? "Text" : "Muted", on ? FontWeights.SemiBold : FontWeights.Normal, false, new Thickness(7, 0, 0, 0)));
                 step.ToolTip = tips[i];
                 step.Background = Brushes.Transparent;
                 row.Children.Add(step);
-                if (i < 3) row.Children.Add(new Rectangle { Width = 22, Height = 1, Fill = R("LineHi"), Margin = new Thickness(10, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center });
+                if (i < 3) row.Children.Add(new Rectangle { Width = 22, Height = 1.5, RadiusX = 1, RadiusY = 1, Fill = R("Layer20"), Margin = new Thickness(10, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center });
             }
             var note = Row(new Border { Width = 6, Height = 6, CornerRadius = new CornerRadius(3), Background = R("Ok"), Margin = new Thickness(18, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center },
                 T("Nothing reaches your database until step 4", 12.5, "Ok", null, false));
             row.Children.Add(note);
-            return new Border { Background = R("Panel"), BorderBrush = R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12), Padding = new Thickness(14, 9, 14, 9), Child = row, HorizontalAlignment = HorizontalAlignment.Left };
+            return new Border { Background = R("Layer5"), CornerRadius = new CornerRadius(20), Padding = new Thickness(14, 8, 18, 8), Child = row, HorizontalAlignment = HorizontalAlignment.Left };
         }
 
-        /// <summary>The crossed-swords crest. Drawn from simple shapes so it scales crisply.</summary>
-        public static Viewbox Crest(double size)
-        {
-            var c = new Canvas { Width = 64, Height = 64 };
-            var shield = new Path
-            {
-                Data = Geometry.Parse("M32,3 L57,12 L57,30 C57,46 46,56 32,61 C18,56 7,46 7,30 L7,12 Z"),
-                Fill = new LinearGradientBrush((Color)ColorConverter.ConvertFromString("#A53547"), (Color)ColorConverter.ConvertFromString("#5E1A26"), 90),
-                Stroke = (Brush)new BrushConverter().ConvertFromString("#F0B46A"), StrokeThickness = 2.2,
-            };
-            c.Children.Add(shield);
-            c.Children.Add(Sword(-42));
-            c.Children.Add(Sword(42));
-            c.Children.Add(new Ellipse { Width = 7, Height = 7, Fill = (Brush)new BrushConverter().ConvertFromString("#F0B46A"), Margin = new Thickness(28.5, 28.5, 0, 0) });
-            return new Viewbox { Width = size, Height = size, Child = c };
-        }
+        /// <summary>The crossed-swords crest (drawn by the design system from the Crest.* colours).</summary>
+        public static Viewbox Crest(double size) => DS.U.SwordsCrest(size);
 
-        static Path Sword(double angle)
-        {
-            // blade pointing up, crossguard and grip, rotated around the centre
-            var g = Geometry.Parse("M32,12 L34.2,16 L34.2,38 L39,38 L39,40.6 L34,40.6 L34,47 L35.4,47 L35.4,50 L28.6,50 L28.6,47 L30,47 L30,40.6 L25,40.6 L25,38 L29.8,38 L29.8,16 Z");
-            return new Path
-            {
-                Data = g, Fill = (Brush)new BrushConverter().ConvertFromString("#F3E6D8"), Stroke = (Brush)new BrushConverter().ConvertFromString("#24170D"), StrokeThickness = 0.8,
-                RenderTransform = new RotateTransform(angle, 32, 32),
-            };
-        }
-
-        public static Border Divider(double top = 8, double bottom = 8) => new Border { Height = 1, Background = R("Line"), Margin = new Thickness(0, top, 0, bottom) };
+        /// <summary>Separation by space (the MO has no ruled lines).</summary>
+        public static Border Divider(double top = 8, double bottom = 8) => new Border { Height = 4, Margin = new Thickness(0, top, 0, bottom) };
 
         /// <summary>An info / warning callout box.</summary>
         public static Border Callout(string text, string kind = "info", string title = null)
@@ -187,8 +184,7 @@ namespace AndersCraftStudio
             var sp = new StackPanel();
             if (title != null) sp.Children.Add(T(title, 13.5, fg, FontWeights.SemiBold, true, new Thickness(0, 0, 0, 3)));
             sp.Children.Add(T(text, 13, kind == "info" ? "Muted" : "Text", null, true));
-            return new Border { Background = R(bg), CornerRadius = new CornerRadius(10), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 0, 0, 14), Child = sp,
-                BorderBrush = R(fg), BorderThickness = new Thickness(3, 0, 0, 0) };
+            return new Border { Background = R(bg == "Panel2" ? "Layer5" : bg), CornerRadius = new CornerRadius(16), Padding = new Thickness(18, 14, 18, 14), Margin = new Thickness(0, 0, 0, 14), Child = sp };
         }
 
         public static void OnKey(UIElement el, Key key, ModifierKeys mods, Action a)

@@ -31,6 +31,13 @@ VERSION 0.9
     Behaviours), Core\PlainNames.cs; App\BuilderWindows.cs (StepWindow, QuestBuildWindow, NpcBuildWindow, BehaviourWindow).
     Tests\BuilderTests.cs. Screens: --m13 (stages into the throw-away changeset and checks every column against the real tables).
   - NAMING_AUDIT.md: what's plain, what stays technical by design.
+  - Look: src\DesignSystem (vendored Studio.DesignSystem: StudioDesignSystem.xaml, Tokens.xaml = the suite's token names with
+    AndersCraft colours, Magic.cs aurora / motes, StudioLook Mica + reduced motion, StudioDialog). Screens use U.Card / U.Hero /
+    U.Segments / U.Frame; Tests\DesignRulesTests.cs forbids outlines, hex colours, separators and MessageBox in src\App
+    (data colours are marked "design-check: data"). Screens: --m14 (Home and a creature, the before/after pair).
+  - Client load order (Core\DbcChanges.cs ClientDbcSource.Rank): WoW.exe sorts Data\patch-?.MPQ and Data\<loc>\patch-<loc>-?.MPQ
+    by path, highest first, then patch.MPQ, patch-<loc>.MPQ. GameShip.PickName picks a winning name or InPlace (MpqWriter.ReplaceFiles,
+    PatchInstaller.UpdateInPlace). SpellBook.SetAutoLearn / AcquireMethod 1. WindowFit: WM_GETMINMAXINFO for borderless windows.
 
 VERSION 0.8
   - Admin console (AdminPage.cs, Core\Admin.cs): admin login per session, never saved; direct SQL, databases/tables/indexes/views,

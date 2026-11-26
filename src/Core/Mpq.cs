@@ -482,6 +482,120 @@ namespace AndersCraftStudio.Core
             bw.Flush();
         }
 
+        /// <summary>
+        /// Puts new versions of <paramref name="files"/> into an existing archive (adding any it doesn't have): the new data,
+        /// a fresh hash table and block table are appended and the header is pointed at them. Everything else in the archive is
+        /// left exactly as it was (the old copies just become unused space). Its (attributes) checksums are dropped, since
+        /// they'd no longer match; the client doesn't need them. Format 0 (32-byte header) archives up to 4 GB.
+        /// </summary>
+        public static void ReplaceFiles(string archivePath, IList<(string path, byte[] data)> files)
+        {
+            using var fs = new FileStream(archivePath, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
+            var br = new BinaryReader(fs, Encoding.ASCII, true);
+            long start = 0;
+            for (; ; start += 512)
+            {
+                if (start + 32 > fs.Length) throw new InvalidDataException("Not an MPQ archive (no header found).");
+                fs.Position = start; uint sig = br.ReadUInt32();
+                if (sig == 0x1A51504D) break;
+                if (sig == 0x1B51504D) { br.ReadUInt32(); start += br.ReadUInt32() - 512; continue; }
+            }
+            uint headerSize = br.ReadUInt32(); br.ReadUInt32(); ushort version = br.ReadUInt16(); ushort shift = br.ReadUInt16();
+            uint hashPos = br.ReadUInt32(), blockPos = br.ReadUInt32(), hashCount = br.ReadUInt32(), blockCount = br.ReadUInt32();
+            if (version != 0) throw new NotSupportedException("Only format 0 archives can be updated in place (this one is format " + version + ").");
+            uint[] ReadTable(long pos, uint n, string key)
+            {
+                fs.Position = start + pos; var b = br.ReadBytes((int)(n * 16));
+                var u = new uint[n * 4]; Buffer.BlockCopy(b, 0, u, 0, b.Length);
+                MpqCrypto.Decrypt(u, MpqCrypto.Hash(key, MpqCrypto.FileKey));
+                return u;
+            }
+            var hash = ReadTable(hashPos, hashCount, "(hash table)");
+            var blocks = ReadTable(blockPos, blockCount, "(block table)").ToList();
+            int Find(string p)
+            {
+                uint a = MpqCrypto.Hash(p, MpqCrypto.NameA), b = MpqCrypto.Hash(p, MpqCrypto.NameB);
+                uint i = MpqCrypto.Hash(p, MpqCrypto.TableOffset) % hashCount, i0 = i;
+                do
+                {
+                    if (hash[i * 4 + 3] == 0xFFFFFFFF) return -1;
+                    if (hash[i * 4] == a && hash[i * 4 + 1] == b && hash[i * 4 + 3] != 0xFFFFFFFE) return (int)i;
+                    i = (i + 1) % hashCount;
+                } while (i != i0);
+                return -1;
+            }
+            // the archive's own list of names, kept complete
+            var list = files.Select(f => (path: f.path.Replace('/', '\\').TrimStart('\\'), f.data)).Where(f => !f.path.Equals("(listfile)", StringComparison.OrdinalIgnoreCase) && !f.path.Equals("(attributes)", StringComparison.OrdinalIgnoreCase)).ToList();
+            using (var r = new MpqReader(new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)))
+            {
+                string old = null;
+                try { old = r.Find("(listfile)") != null ? Encoding.UTF8.GetString(r.Read("(listfile)")) : null; } catch { }
+                if (old != null)
+                {
+                    var names = old.Split(new[] { '\r', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                    var have = new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
+                    foreach (var f in list) if (have.Add(f.path)) names.Add(f.path);
+                    list.Add(("(listfile)", Encoding.UTF8.GetBytes(string.Join("\r\n", names) + "\r\n")));
+                }
+            }
+            int attr = Find("(attributes)");
+            if (attr >= 0) hash[attr * 4 + 3] = 0xFFFFFFFE;   // deleted: its checksums would be stale
+
+            var bw = new BinaryWriter(fs, Encoding.ASCII, true);
+            fs.Position = fs.Length;
+            int sector = 512 << shift;
+            foreach (var (path, data) in list)
+            {
+                long pos = fs.Position - start;
+                var (stored, flags) = WriteFileData(bw, data, sector, true);
+                int slot = Find(path);
+                uint blockIndex;
+                if (slot >= 0) blockIndex = hash[slot * 4 + 3];
+                else
+                {
+                    blockIndex = (uint)(blocks.Count / 4);
+                    blocks.AddRange(new uint[4]);
+                    uint i = MpqCrypto.Hash(path, MpqCrypto.TableOffset) % hashCount, i0 = i;
+                    while (hash[i * 4 + 3] != 0xFFFFFFFF && hash[i * 4 + 3] != 0xFFFFFFFE) { i = (i + 1) % hashCount; if (i == i0) throw new IOException("The archive's hash table is full."); }
+                    hash[i * 4] = MpqCrypto.Hash(path, MpqCrypto.NameA); hash[i * 4 + 1] = MpqCrypto.Hash(path, MpqCrypto.NameB); hash[i * 4 + 2] = 0; hash[i * 4 + 3] = blockIndex;
+                }
+                blocks[(int)blockIndex * 4] = (uint)pos; blocks[(int)blockIndex * 4 + 1] = stored; blocks[(int)blockIndex * 4 + 2] = (uint)data.Length; blocks[(int)blockIndex * 4 + 3] = flags;
+            }
+            long newHash = fs.Position - start;
+            var h = (uint[])hash.Clone(); MpqCrypto.Encrypt(h, MpqCrypto.Hash("(hash table)", MpqCrypto.FileKey)); foreach (var u in h) bw.Write(u);
+            long newBlock = fs.Position - start;
+            var bt = blocks.ToArray(); MpqCrypto.Encrypt(bt, MpqCrypto.Hash("(block table)", MpqCrypto.FileKey)); foreach (var u in bt) bw.Write(u);
+            long end = fs.Position;
+            if (end - start > uint.MaxValue) throw new IOException("Archives larger than 4 GB aren't supported.");
+            fs.Position = start + 8; bw.Write((uint)(end - start));
+            fs.Position = start + 16; bw.Write((uint)newHash); bw.Write((uint)newBlock); bw.Write(hashCount); bw.Write((uint)(blocks.Count / 4));
+            bw.Flush();
+        }
+
+        /// <summary>One file's data as the archive stores it (zlib per 4 KB sector when that's smaller). Returns the stored size and flags.</summary>
+        static (uint stored, uint flags) WriteFileData(BinaryWriter bw, byte[] data, int sector, bool compress)
+        {
+            uint flags = (uint)MpqFileFlags.Exists;
+            if (data.Length == 0) return (0, flags);
+            if (!compress) { bw.Write(data); return ((uint)data.Length, flags); }
+            int sectors = (data.Length + sector - 1) / sector;
+            var chunks = new List<byte[]>();
+            for (int i = 0; i < sectors; i++)
+            {
+                int off = i * sector, len = Math.Min(sector, data.Length - off);
+                var z = Zlib(data, off, len);
+                if (z.Length + 1 < len) { var c = new byte[z.Length + 1]; c[0] = 0x02; Buffer.BlockCopy(z, 0, c, 1, z.Length); chunks.Add(c); }
+                else { var raw = new byte[len]; Buffer.BlockCopy(data, off, raw, 0, len); chunks.Add(raw); }
+            }
+            uint o = (uint)((sectors + 1) * 4);
+            var table = new uint[sectors + 1];
+            for (int i = 0; i < sectors; i++) { table[i] = o; o += (uint)chunks[i].Length; }
+            table[sectors] = o;
+            foreach (var t in table) bw.Write(t);
+            foreach (var c in chunks) bw.Write(c);
+            return (o, flags | (uint)MpqFileFlags.Compress);
+        }
+
         static byte[] Zlib(byte[] data, int off, int len)
         {
             using var ms = new MemoryStream();
@@ -530,7 +644,8 @@ namespace AndersCraftStudio.Core
     /// <summary>What the 3.3.5a client does with patch archive names.</summary>
     public static class PatchNames
     {
-        /// <summary>Base-folder patches the client loads: patch.MPQ, patch-2..9 and patch-A..Z (later letters win).</summary>
+        /// <summary>Base-folder patches the client loads: patch.MPQ, patch-2..9 and patch-A..Z (later letters win; every one of
+        /// them also wins over every Data\enUS\patch-enUS-X.MPQ, see <see cref="ClientDbcSource.Rank"/>).</summary>
         public static bool IsLoadable(string fileName, out string why)
         {
             why = null;

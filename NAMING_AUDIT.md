@@ -33,7 +33,6 @@ next to them where Studio knows one):
 * **DBC tables**: the client's raw tables (the column list shows a short description for each field).
 * **Client patches**: archive paths inside MPQ files.
 
-## Still to do (next passes)
+## Done in the restyle pass
 
-* The visual restyle pass will also re-check wording on the older screens (Home, Settings, Client patches, Asset import).
-* Guide pictures of the record editors were taken before the "Column:" lines were hidden; they're refreshed in the restyle pass.
+* Every screen restyled; the guide pictures were taken again (no "Column:" lines), with their numbered markers re-placed.

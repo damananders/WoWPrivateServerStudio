@@ -21,6 +21,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Core\AndersCraftStudio.Core.csproj" />
+    <ProjectReference Include="..\DesignSystem\Studio.DesignSystem.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Studio.ico" Condition="Exists('Studio.ico')" />

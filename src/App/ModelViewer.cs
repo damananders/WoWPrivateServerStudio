@@ -195,12 +195,12 @@ namespace AndersCraftStudio
         {
             this.lib = lib;
             stage.Height = height;
-            stage.Background = new LinearGradientBrush(Color.FromRgb(0x2a, 0x24, 0x24), Color.FromRgb(0x14, 0x11, 0x12), 90);
+            stage.Background = new LinearGradientBrush((Color)Application.Current.Resources["Viewer.TopColor"], (Color)Application.Current.Resources["Viewer.BottomColor"], 90);
             view.Camera = cam;
             var lights = new Model3DGroup();
-            lights.Children.Add(new AmbientLight(Color.FromRgb(0x8c, 0x8c, 0x8c)));
-            lights.Children.Add(new DirectionalLight(Color.FromRgb(0xc8, 0xc4, 0xbc), new Vector3D(-0.6, -0.8, -0.5)));
-            lights.Children.Add(new DirectionalLight(Color.FromRgb(0x50, 0x50, 0x58), new Vector3D(0.7, 0.3, 0.6)));
+            lights.Children.Add(new AmbientLight(Color.FromRgb(0x8c, 0x8c, 0x8c)));   // design-check: data (3D light)
+            lights.Children.Add(new DirectionalLight(Color.FromRgb(0xc8, 0xc4, 0xbc), new Vector3D(-0.6, -0.8, -0.5)));   // design-check: data (3D light)
+            lights.Children.Add(new DirectionalLight(Color.FromRgb(0x50, 0x50, 0x58), new Vector3D(0.7, 0.3, 0.6)));   // design-check: data (3D light)
             view.Children.Add(new ModelVisual3D { Content = lights });
             view.Children.Add(modelVisual);
             stage.Children.Add(view);
@@ -220,7 +220,7 @@ namespace AndersCraftStudio
                 else { var right = Vector3D.CrossProduct(cam.LookDirection, cam.UpDirection); right.Normalize(); pan += right * (-d.X * dist / 600) + cam.UpDirection * (d.Y * dist / 600); }
                 UpdateCamera();
             };
-            stage.MouseWheel += (s, e) => { dist = Math.Clamp(dist * (e.Delta > 0 ? 0.88 : 1.14), radius * 0.2, radius * 30); UpdateCamera(); };
+            stage.MouseWheel += (s, e) => { dist = Math.Clamp(dist * (e.Delta > 0 ? 0.88 : 1.14), radius * 0.2, radius * 30); UpdateCamera(); e.Handled = true; };   // the wheel zooms the model only; the page around it doesn't scroll
             foreach (var x in new[] { "0.25×", "0.5×", "1×", "2×" }) speed.Items.Add(x);
             speed.SelectedIndex = 2;
             play = U.Btn("▶ Play", TogglePlay, null, "Play or pause the animation.");
@@ -230,7 +230,7 @@ namespace AndersCraftStudio
             wire.Checked += (s, e) => Redraw(); wire.Unchecked += (s, e) => Redraw();
             var bar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
             foreach (var x in new FrameworkElement[] { anims, play, speed, wire, reset }) { x.Margin = new Thickness(0, 0, 8, 4); x.VerticalAlignment = VerticalAlignment.Center; bar.Children.Add(x); }
-            root.Child = U.Stack(bar, new Border { CornerRadius = new CornerRadius(10), ClipToBounds = true, Child = stage, BorderBrush = U.R("Line"), BorderThickness = new Thickness(1) }, status);
+            root.Child = U.Stack(bar, new Border { CornerRadius = new CornerRadius(16), ClipToBounds = true, Child = stage }, status);
             root.Unloaded += (s, e) => Stop();
             ShowMessage("No model loaded.");
         }
@@ -309,7 +309,7 @@ namespace AndersCraftStudio
                     var tex = i < w.Materials.Count ? w.Materials[i].Texture : null;
                     var bytes = tex == null ? null : lib.Read(tex);
                     if (bytes != null) try { var img = Blp.Decode(bytes); var px = img.Pixels; if (i < w.Materials.Count && w.Materials[i].Blend == 0) { px = (byte[])px.Clone(); for (int k = 3; k < px.Length; k += 4) px[k] = 255; } bmp = BitmapSource.Create(img.Width, img.Height, 96, 96, PixelFormats.Bgra32, null, px, img.Width * 4); bmp.Freeze(); } catch { }
-                    if (bmp == null) { missingTextures++; m = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(0x9a, 0x92, 0x88))); }
+                    if (bmp == null) { missingTextures++; m = new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(0x9a, 0x92, 0x88))); }   // design-check: data (untextured 3D material)
                     else { var br = new ImageBrush(bmp) { ViewportUnits = BrushMappingMode.Absolute, Viewport = new Rect(0, 0, 1, 1), TileMode = TileMode.Tile }; br.Freeze(); m = new DiffuseMaterial(br); }
                     mats[i] = m; return m;
                 }
@@ -409,7 +409,7 @@ namespace AndersCraftStudio
                 }
                 if (bmp == null) missingTextures++;
             }
-            if (bmp == null) return new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(0x9a, 0x92, 0x88)));
+            if (bmp == null) return new DiffuseMaterial(new SolidColorBrush(Color.FromRgb(0x9a, 0x92, 0x88)));   // design-check: data (untextured 3D material)
             var brush = new ImageBrush(bmp) { ViewportUnits = BrushMappingMode.Absolute, Viewport = new Rect(0, 0, 1, 1), TileMode = TileMode.Tile, Stretch = Stretch.Fill };
             brush.Freeze();
             if (p.Blend >= 3 || p.EnvMap) return new EmissiveMaterial(brush);   // glows add light rather than paint over
@@ -445,7 +445,7 @@ namespace AndersCraftStudio
                     catch { }
                 }
             BuildEffects(group, r);
-            wireGeo = new GeometryModel3D { Material = new EmissiveMaterial(new SolidColorBrush(Color.FromRgb(0xf0, 0xb0, 0x50))) };
+            wireGeo = new GeometryModel3D { Material = new EmissiveMaterial(new SolidColorBrush(Color.FromRgb(0xf0, 0xb0, 0x50))) };   // design-check: data (3D wireframe material)
             group.Children.Add(wireGeo);
             // M2 is Z-up; WPF is Y-up
             group.Transform = new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(1, 0, 0), -90));

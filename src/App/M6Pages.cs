@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using AndersCraftStudio.Core;
+using DS = global::Studio.DesignSystem;
 
 namespace AndersCraftStudio
 {
@@ -65,105 +66,170 @@ SOFTWARE.";
         void Build()
         {
             var p = S.Profile;
-            var root = new StackPanel { Margin = new Thickness(28, 22, 28, 20) };
-            var head = new DockPanel { Margin = new Thickness(0, 0, 0, 18) };
-            var crest = U.Crest(64); crest.Margin = new Thickness(0, 0, 18, 0); DockPanel.SetDock(crest, Dock.Left); head.Children.Add(crest);
-            head.Children.Add(U.Stack(U.H1("Welcome to AndersCraft Studio"), U.T(p == null ? "Set up a server to get started." : $"Server profile \"{p.Name}\" · nothing reaches your database until you review and apply it.", 14, "Muted")));
-            root.Children.Add(head);
+            var root = new StackPanel { Margin = new Thickness(30, 10, 30, 28) };
 
+            // ---- the one hero: welcome, the four-step promise, the main actions; the crest floats on the right in an amber halo
+            var hero = new Grid { Margin = new Thickness(0, 0, 0, 22) };
+            hero.Children.Add(new Border { Background = U.R("Fill.Bleed"), CornerRadius = (CornerRadius)Application.Current.Resources["Radius.Hero"], IsHitTestVisible = false });
+            var heroDock = new DockPanel { Margin = new Thickness(34, 30, 34, 30) };
+            var crest = U.Crest(132); crest.Margin = new Thickness(30, 0, 18, 0); crest.VerticalAlignment = VerticalAlignment.Center;
+            var crestGlow = DS.Glow.Halo(crest, new CornerRadius(66), DS.Glow.AmberColor, 0.32, 4.2);
+            DockPanel.SetDock(crestGlow, Dock.Right); heroDock.Children.Add(crestGlow);
+            var heroBody = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            heroBody.Children.Add(U.Eyebrow("AndersCraft Studio " + AppInfo.Version));
+            var title = U.T("Welcome to AndersCraft Studio", 32, "TextStrong", FontWeights.SemiBold, true);
+            DS.Glow.Shimmer(title);
+            heroBody.Children.Add(title);
+            heroBody.Children.Add(U.T(p == null ? "Set up a server to get started." : $"Server profile \"{p.Name}\". Change anything in your world; nothing reaches your database until you review and apply it.", 14.5, "Muted", null, true, new Thickness(0, 8, 0, 20)));
+            // the four steps as soft chips
+            var steps = new WrapPanel();
+            string[] names = { "Edit", "Stage", "Review", "Apply" };
+            string[] tips =
+            {
+                "Edit something: a creature, a loot table, a spell…",
+                "Stage it: it goes into your changeset, not the database.",
+                "Review it on Changes: before, after, and how to undo it.",
+                "Apply it to the practice sandbox (and later Live), with a backup first.",
+            };
+            for (int i = 0; i < 4; i++)
+            {
+                var num = new Border { Width = 24, Height = 24, CornerRadius = new CornerRadius(12), Background = U.R(i == 0 ? "Amber.Gradient" : "Layer10"),
+                    Child = U.T((i + 1).ToString(), 12, i == 0 ? "AmberInk" : "Text", FontWeights.Bold, false) };
+                ((TextBlock)num.Child).HorizontalAlignment = HorizontalAlignment.Center; ((TextBlock)num.Child).VerticalAlignment = VerticalAlignment.Center;
+                var label = U.T(names[i], 13, "Text", FontWeights.SemiBold, false, new Thickness(9, 0, 0, 0)); label.VerticalAlignment = VerticalAlignment.Center;
+                steps.Children.Add(new Border { Background = U.R("Layer5"), CornerRadius = (CornerRadius)Application.Current.Resources["Radius.Pill"], Padding = new Thickness(5, 5, 16, 5), Margin = new Thickness(0, 0, 8, 8), ToolTip = tips[i], Child = U.Row(num, label) });
+            }
+            var safe = U.Row(new Border { Width = 7, Height = 7, CornerRadius = new CornerRadius(4), Background = U.R("Ok"), Margin = new Thickness(6, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center },
+                U.T("Nothing reaches your database until step 4", 12.5, "Ok", null, false));
+            safe.VerticalAlignment = VerticalAlignment.Center; safe.Margin = new Thickness(4, 0, 0, 8);
+            steps.Children.Add(safe);
+            heroBody.Children.Add(steps);
+            var guideBtn = U.Btn("Getting started guide", () => w.Navigate("help"), "BtnPrimary", "Getting started, the safety model, a glossary and the keys.");
+            guideBtn.Margin = new Thickness(0);
+            var actions = U.Row(DS.Glow.Halo(guideBtn, new CornerRadius(20), DS.Glow.MaroonColor, 0.5, 3.2), new Border { Width = 12 },
+                U.Btn("Try a template", () => w.Navigate("templates"), "Pill", "Ready-made actions: clone a boss, make a vendor, new quest, scale a creature, add a combat spell."));
+            actions.Margin = new Thickness(0, 14, 0, 0);
+            heroBody.Children.Add(actions);
+            heroDock.Children.Add(heroBody);
+            hero.Children.Add(heroDock);
+            root.Children.Add(hero);
+
+            // ---- bento: make + jump to on the left (wide), changes + server on the right
             var g = new Grid();
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.65, GridUnitType.Star) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(22) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 340 });
             root.Children.Add(g);
             var left = new StackPanel(); var right = new StackPanel();
             Grid.SetColumn(right, 2); g.Children.Add(left); g.Children.Add(right);
 
-            // start here
-            var start = new StackPanel();
-            start.Children.Add(U.Eyebrow("New to this? Start here"));
-            start.Children.Add(U.H2("Four steps, always the same"));
-            start.Children.Add(U.T("1  Edit something (a creature, a loot table, a spell…).\n2  Stage it: it goes into your changeset, not the database.\n3  Review it on Changes: before, after, and how to undo it.\n4  Apply it to the practice sandbox (and later Live), with a backup first.", 13.5, "Text", null, true, new Thickness(0, 0, 0, 12)));
-            start.Children.Add(U.Row(U.Btn("Getting started guide", () => w.Navigate("help"), "BtnPrimary"), U.Btn("Try a template", () => w.Navigate("templates"))));
-            var make = new WrapPanel { Margin = new Thickness(0, 12, 0, 0) };
-            foreach (var (t, a, tip) in new (string, Action, string)[]
+            TextBlock Glyph(string glyph, double size, string brush) => new TextBlock { Text = glyph, FontFamily = U.IconFont, FontSize = size, Foreground = U.R(brush), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+            UIElement Section(string head, string sub)
             {
-                ("Make a quest", () => new QuestBuildWindow(w).ShowDialog(), "Step by step: new, yours, or a copy of a game quest."),
-                ("Make an NPC", () => new NpcBuildWindow(w).ShowDialog(), "Step by step: what it is, its look, what it offers, where it stands."),
-                ("Make it do something", () => new BehaviourWindow(w).ShowDialog(), "A behaviour for a creature, in plain words."),
-                ("Make a spell", () => w.Navigate("spells", p => ((SpellEditorPage)p).CreateGuided()), "Damage, heal, buff or passive, straight into the spellbook."),
-            })
-            { var b = U.Btn(t, a, null, tip); b.Margin = new Thickness(0, 0, 8, 6); make.Children.Add(b); }
-            start.Children.Add(U.T("Or make something step by step:", 12.5, "Muted", null, false, new Thickness(0, 12, 0, 0)));
-            start.Children.Add(make);
-            left.Children.Add(U.Card(start, new Thickness(20, 16, 20, 16)));
+                var sp = U.Stack(U.T(head, 17, "TextStrong", FontWeights.SemiBold, false));
+                if (sub != null) sp.Children.Add(U.T(sub, 12.5, "Muted", null, true, new Thickness(0, 3, 0, 0)));
+                sp.Margin = new Thickness(4, 0, 0, 12);
+                return sp;
+            }
 
-            // server summary
+            // make something, step by step: four big tiles
+            left.Children.Add(Section("Make something, step by step", "Guided, linear builders. Start from nothing, from one of yours, or from one of the game's."));
+            var make = new Grid { Margin = new Thickness(0, 0, 0, 26) };
+            make.ColumnDefinitions.Add(new ColumnDefinition()); make.ColumnDefinitions.Add(new ColumnDefinition());
+            make.RowDefinitions.Add(new RowDefinition()); make.RowDefinitions.Add(new RowDefinition());
+            int mi = 0;
+            foreach (var (glyph, t, a, tip) in new (string, string, Action, string)[]
+            {
+                ("", "Make a quest", () => new QuestBuildWindow(w).ShowDialog(), "New, yours, or a copy of a game quest: objectives, rewards, texts and the chain."),
+                ("", "Make an NPC", () => new NpcBuildWindow(w).ShowDialog(), "What it is, its look, what it offers and where it stands."),
+                ("", "Make it do something", () => new BehaviourWindow(w).ShowDialog(), "A behaviour for a creature, in plain words: casts, lines, calls for help."),
+                ("", "Make a spell", () => w.Navigate("spells", pg => ((SpellEditorPage)pg).CreateGuided()), "Damage, heal, buff or passive, straight into the spellbook."),
+            })
+            {
+                var icon = new Border { Width = 46, Height = 46, CornerRadius = new CornerRadius(23), Background = U.R("Accent.Gradient"), Margin = new Thickness(0, 0, 16, 0), VerticalAlignment = VerticalAlignment.Top, Child = Glyph(glyph, 19, "TextStrong") };
+                var body = U.Stack(U.T(t, 15.5, "TextStrong", FontWeights.SemiBold, false), U.T(tip, 12.5, "Muted", null, true, new Thickness(0, 4, 0, 0)));
+                var dock = new DockPanel(); DockPanel.SetDock(icon, Dock.Left); dock.Children.Add(icon); dock.Children.Add(body);
+                var tile = DS.U.Tile(dock, "MaroonDim", 16, new Thickness(20, 18, 20, 18), a, t, 0.28);
+                tile.Margin = new Thickness(mi % 2 == 0 ? 0 : 6, mi < 2 ? 0 : 12, mi % 2 == 0 ? 6 : 0, 0);
+                Grid.SetColumn(tile, mi % 2); Grid.SetRow(tile, mi / 2); make.Children.Add(tile);
+                mi++;
+            }
+            left.Children.Add(make);
+
+            // jump to: every workspace as a small feathered tile with its line icon
+            left.Children.Add(Section("Jump to", null));
+            var links = new WrapPanel();
+            foreach (var (key, glyph, text, tip) in new[]
+            {
+                ("creatures", "", "Creatures", "NPCs and monsters"), ("items", "", "Items", "Gear and everything in bags"), ("quests", "", "Quests", "Text, objectives, rewards"),
+                ("gameobjects", "", "Game objects", "Chests, doors, herbs, signs"), ("npctext", "", "NPC text", "Gossip greetings"), ("pagetext", "", "Page text", "Books and letters"),
+                ("loot", "", "Loot", "Drops and the simulator"), ("smartai", "", "SmartAI", "Behaviour as sentences"), ("world", "", "World tables", "Conditions, waypoints, gossip, events"),
+                ("templates", "", "Templates", "Ready-made actions"), ("spells", "", "Spells", "Spells with a live tooltip"), ("dbc", "", "DBC tables", "All 246 client tables"),
+                ("assets", "", "Asset import", "Icons, models, sounds"), ("patches", "", "Client patches", "Build and install patches"), ("sql", "", "SQL browser", "Every table, read-only queries"),
+                ("admin", "", "Admin console", "Direct SQL, users, import and export"),
+            })
+            {
+                var k = key;
+                var c = U.Stack(Glyph(glyph, 17, "Amber"), U.T(text, 13.5, "TextStrong", FontWeights.SemiBold, false, new Thickness(0, 10, 0, 2)), U.T(tip, 11.5, "Muted", null, false));
+                ((TextBlock)c.Children[0]).HorizontalAlignment = HorizontalAlignment.Left;
+                var tile = DS.U.Tile(c, "Layer5", 16, new Thickness(16, 14, 14, 14), () => w.Navigate(k), text + ": " + tip, 0.18);
+                tile.Width = 178; tile.Margin = new Thickness(0, 0, 10, 10);
+                links.Children.Add(tile);
+            }
+            left.Children.Add(links);
+
+            // changes: what's staged and the recent applies
+            var ch = new StackPanel();
+            var pending = S.Changes.Pending.Changes;
+            var chHead = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
+            var count = U.Pill(pending.Count == 0 ? "nothing staged" : $"{pending.Count} staged", pending.Count == 0 ? "Layer10" : "AmberDim", pending.Count == 0 ? "Muted" : "Amber");
+            DockPanel.SetDock(count, Dock.Right); chHead.Children.Add(count);
+            chHead.Children.Add(U.T("Changes", 17, "TextStrong", FontWeights.SemiBold, false));
+            ch.Children.Add(chHead);
+            if (pending.Count == 0) ch.Children.Add(U.T("Edits you stage anywhere in Studio collect here first.", 13, "Muted"));
+            else
+            {
+                foreach (var grp in pending.GroupBy(c => c.Category ?? "Database").OrderByDescending(x => x.Count()))
+                    ch.Children.Add(DS.U.Strip(DS.U.CheckRow(DS.U.Check.Pending, grp.Key, $"{grp.Count()} staged", null, 150), new Thickness(10, 2, 10, 2)));
+                var rv = U.Btn($"Review {pending.Count} staged change(s)", () => w.Navigate("changes"), "BtnAmber"); rv.Margin = new Thickness(0, 10, 0, 0); rv.HorizontalAlignment = HorizontalAlignment.Left;
+                ch.Children.Add(rv);
+            }
+            var hist = S.Changes.History().Take(5).ToList();
+            ch.Children.Add(U.T("Recent applies", 13.5, "Text", FontWeights.SemiBold, false, new Thickness(0, 18, 0, 6)));
+            if (hist.Count == 0) ch.Children.Add(U.T("None yet. Each Apply is recorded with its backup and can be rolled back.", 12.5, "Muted"));
+            foreach (var h in hist) ch.Children.Add(DS.U.Strip(DS.U.CheckRow(h.State == ChangesetState.RolledBack ? DS.U.Check.Info : DS.U.Check.Ok, h.CreatedUtc.ToLocalTime().ToString("MMM d, HH:mm"), $"{h.Changes.Count} change(s) → {h.AppliedTarget}" + (h.State == ChangesetState.RolledBack ? " (rolled back)" : ""), null, 110), new Thickness(10, 2, 10, 2)));
+            right.Children.Add(DS.U.Card(ch, new Thickness(24, 20, 24, 22)));
+
+            // your server
             var srv = new StackPanel();
-            srv.Children.Add(U.H2("Your server"));
+            srv.Children.Add(U.T("Your server", 17, "TextStrong", FontWeights.SemiBold, false, new Thickness(0, 0, 0, 12)));
             if (p == null || !p.SetupComplete)
             {
-                srv.Children.Add(U.Callout("No server is set up yet. The setup wizard finds worldserver.conf, helps you make two safe MySQL accounts and a practice sandbox. It takes about five minutes.", "warn", "Not set up yet"));
-                srv.Children.Add(U.Btn("Run setup", () => w.ShowWizard(1, true), "BtnPrimary"));
+                srv.Children.Add(DS.U.Callout("The setup wizard finds worldserver.conf, helps you make two safe MySQL accounts and a practice sandbox. It takes about five minutes.", "warn", "Not set up yet"));
+                var run = U.Btn("Run setup", () => w.ShowWizard(1, true), "BtnPrimary"); run.HorizontalAlignment = HorizontalAlignment.Left;
+                srv.Children.Add(run);
             }
             else
             {
                 string who = null, ver = null;
                 if (S.HasReadAccount)
                     try { using var db = S.OpenRead(p.WorldDb); var t = db.Query("SELECT CURRENT_USER(), VERSION()", 1); who = Convert.ToString(t.Rows[0][0]); ver = Convert.ToString(t.Rows[0][1]); } catch (Exception ex) { who = "can't connect: " + Friendly.Text(ex); }
-                srv.Children.Add(U.CheckRow(U.Check.Info, "Profile", p.Name, null, 150));
-                srv.Children.Add(U.CheckRow(File.Exists(p.ConfPath) ? U.Check.Ok : U.Check.Warn, "worldserver.conf", p.ConfPath ?? "(not set)", null, 150));
-                srv.Children.Add(U.CheckRow(U.Check.Info, "MySQL", $"{p.Host}:{p.Port}" + (ver != null ? $" · version {ver}" : ""), null, 150));
-                srv.Children.Add(U.CheckRow(S.HasReadAccount && ver != null ? U.Check.Ok : U.Check.Warn, "Browsing as", who ?? "read-only account not set up", "Studio reads with its read-only account in READ ONLY sessions.", 150));
-                srv.Children.Add(U.CheckRow(U.Check.Info, "World database", p.WorldDb, null, 150));
-                srv.Children.Add(U.CheckRow(p.SandboxExists ? U.Check.Ok : U.Check.Warn, "Sandbox", p.SandboxExists ? p.SandboxDb : "not created yet (setup step 5)", null, 150));
-                srv.Children.Add(U.CheckRow(S.Profiles.Settings.AllowLive ? U.Check.Warn : U.Check.Ok, "Live database", S.Profiles.Settings.AllowLive ? "unlocked in Settings" : "locked (Apply goes to the sandbox)", null, 150));
+                void Row(DS.U.Check st, string l, string v, string tip = null) => srv.Children.Add(DS.U.CheckRow(st, l, v, tip, 140));
+                Row(DS.U.Check.Info, "Profile", p.Name);
+                Row(File.Exists(p.ConfPath) ? DS.U.Check.Ok : DS.U.Check.Warn, "Server settings file", p.ConfPath ?? "(not set)", "worldserver.conf");
+                Row(DS.U.Check.Info, "Database server", $"{p.Host}:{p.Port}" + (ver != null ? $" · version {ver}" : ""));
+                Row(S.HasReadAccount && ver != null ? DS.U.Check.Ok : DS.U.Check.Warn, "Browsing as", who ?? "read-only account not set up", "Studio reads with its read-only account in READ ONLY sessions.");
+                Row(DS.U.Check.Info, "World database", p.WorldDb);
+                Row(p.SandboxExists ? DS.U.Check.Ok : DS.U.Check.Warn, "Sandbox", p.SandboxExists ? p.SandboxDb : "not created yet (setup step 5)");
+                Row(S.Profiles.Settings.AllowLive ? DS.U.Check.Warn : DS.U.Check.Ok, "Live database", S.Profiles.Settings.AllowLive ? "unlocked in Settings" : "locked (Apply goes to the sandbox)");
                 string dbc = null; try { var d = ConfParser.ParseFile(p.ConfPath).DataDir; if (!string.IsNullOrEmpty(d)) dbc = Path.Combine(d, "dbc"); } catch { }
-                srv.Children.Add(U.CheckRow(dbc != null && Directory.Exists(dbc) ? U.Check.Ok : U.Check.Info, "Server DBC folder", dbc ?? "(DataDir not set in worldserver.conf)", null, 150));
-                srv.Children.Add(U.CheckRow(!string.IsNullOrEmpty(p.ClientDir) && Directory.Exists(p.ClientDir) ? U.Check.Ok : U.Check.Info, "Game client", string.IsNullOrEmpty(p.ClientDir) ? "not set (optional; needed for icons and client patches)" : p.ClientDir, null, 150));
-                srv.Children.Add(U.CheckRow(U.Check.Info, "Studio folder", S.Profiles.Settings.Workspace(), "Changesets, patch work folders and built patches live here.", 150));
-                var b = U.Row(U.Btn("Settings", () => w.Navigate("settings")), U.Btn("Run setup again", () => w.ShowWizard(1, true), "BtnGhost")); b.Margin = new Thickness(0, 12, 0, 0);
+                Row(dbc != null && Directory.Exists(dbc) ? DS.U.Check.Ok : DS.U.Check.Info, "Server's client data", dbc ?? "(DataDir not set in worldserver.conf)");
+                Row(!string.IsNullOrEmpty(p.ClientDir) && Directory.Exists(p.ClientDir) ? DS.U.Check.Ok : DS.U.Check.Info, "Game client", string.IsNullOrEmpty(p.ClientDir) ? "not set (optional; needed for icons and client patches)" : p.ClientDir);
+                Row(DS.U.Check.Info, "Studio folder", S.Profiles.Settings.Workspace(), "Changesets, patch work folders and built patches live here.");
+                var b = U.Row(U.Btn("Settings", () => w.Navigate("settings"), "Pill"), U.Btn("Run setup again", () => w.ShowWizard(1, true), "Pill.Quiet")); b.Margin = new Thickness(0, 12, 0, 0);
                 srv.Children.Add(b);
             }
-            left.Children.Add(U.Card(srv, new Thickness(20, 16, 20, 16)));
-
-            // changes
-            var ch = new StackPanel();
-            ch.Children.Add(U.H2("Changes"));
-            var pending = S.Changes.Pending.Changes;
-            if (pending.Count == 0) ch.Children.Add(U.T("Nothing staged. Edits you stage anywhere in Studio collect here first.", 13, "Muted"));
-            else
-            {
-                foreach (var grp in pending.GroupBy(c => c.Category ?? "Database").OrderByDescending(x => x.Count()))
-                    ch.Children.Add(U.CheckRow(U.Check.Pending, grp.Key, $"{grp.Count()} staged", null, 170));
-                var rv = U.Btn($"Review {pending.Count} staged change(s)", () => w.Navigate("changes"), "BtnAmber"); rv.Margin = new Thickness(0, 10, 0, 0); rv.HorizontalAlignment = HorizontalAlignment.Left;
-                ch.Children.Add(rv);
-            }
-            var hist = S.Changes.History().Take(5).ToList();
-            ch.Children.Add(U.T("Recent applies", 13.5, "Text", FontWeights.SemiBold, false, new Thickness(0, 16, 0, 6)));
-            if (hist.Count == 0) ch.Children.Add(U.T("None yet. Each Apply is recorded with its backup and can be rolled back.", 12.5, "Muted"));
-            foreach (var h in hist) ch.Children.Add(U.CheckRow(h.State == ChangesetState.RolledBack ? U.Check.Info : U.Check.Ok, h.CreatedUtc.ToLocalTime().ToString("MMM d, HH:mm"), $"{h.Changes.Count} change(s) → {h.AppliedTarget}" + (h.State == ChangesetState.RolledBack ? " (rolled back)" : ""), null, 130));
-            right.Children.Add(U.Card(ch, new Thickness(20, 16, 20, 16)));
-
-            // quick links
-            var links = new WrapPanel();
-            foreach (var (key, text, tip) in new[]
-            {
-                ("creatures", "Creatures", "NPCs and monsters"), ("items", "Items", "Gear and everything in bags"), ("quests", "Quests", "Text, objectives, rewards"),
-                ("gameobjects", "Game objects", "Chests, doors, herbs, signs"), ("npctext", "NPC text", "Gossip greetings"), ("pagetext", "Page text", "Books and letters"),
-                ("admin", "Admin console", "Direct SQL, users, import/export, server setup"),
-                ("loot", "Loot", "Drops and the simulator"), ("smartai", "SmartAI", "Behaviour as sentences"), ("world", "World tables", "Conditions, waypoints, gossip, events, area triggers"),
-                ("templates", "Templates", "Ready-made actions"), ("spells", "Spells", "Spell.dbc with a live tooltip"), ("dbc", "DBC tables", "All 246 client tables"),
-                ("assets", "Asset import", "Icons, models, sounds"), ("patches", "Client patches", "Build and install MPQs"), ("sql", "SQL browser", "Every table, read-only queries"),
-            })
-            {
-                var k = key;
-                var b = new Button { Width = 176, Height = 74, Margin = new Thickness(0, 0, 10, 10), HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(14, 8, 10, 8), ToolTip = tip,
-                    Content = U.Stack(U.T(text, 14, "Text", FontWeights.SemiBold, false), U.T(tip, 11.5, "Muted", null, true)) };
-                b.Click += (s, e) => w.Navigate(k);
-                links.Children.Add(b);
-            }
-            right.Children.Add(U.Card(U.Stack(U.H2("Jump to"), links), new Thickness(20, 16, 10, 6)));
+            right.Children.Add(DS.U.Card(srv, new Thickness(24, 20, 24, 22)));
             host.Content = U.Scroll(root);
         }
     }
@@ -212,7 +278,7 @@ SOFTWARE.";
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 16) };
             var strip = U.StepStrip(1); DockPanel.SetDock(strip, Dock.Right); strip.VerticalAlignment = VerticalAlignment.Center; head.Children.Add(strip);
             head.Children.Add(U.Stack(U.H1("Templates"), U.T("Ready-made actions. Fill in a few boxes, preview exactly what will be staged, then stage it and review it on Changes like any other edit.", 13.5, "Muted")));
-            view.Children.Add(head);
+            view.Children.Add(U.Hero(head));
             var g = new Grid();
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
@@ -377,7 +443,7 @@ SOFTWARE.";
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 16) };
             var strip = U.StepStrip(1); DockPanel.SetDock(strip, Dock.Right); strip.VerticalAlignment = VerticalAlignment.Center; head.Children.Add(strip);
             head.Children.Add(U.Stack(U.H1("World tables"), U.T("Conditions, waypoints, gossip menus, game events, area triggers, pools, spell areas, dungeon requirements and script tables, as explained, editable lists. Edits are staged with undo.", 13.5, "Muted")));
-            view.Children.Add(head);
+            view.Children.Add(U.Hero(head));
             var g = new Grid();
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(250) });
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
@@ -685,8 +751,8 @@ SOFTWARE.";
         void Build()
         {
             var sp = new StackPanel { Margin = new Thickness(28, 22, 28, 20), MaxWidth = 1000, HorizontalAlignment = HorizontalAlignment.Left };
-            sp.Children.Add(U.H1("Getting started"));
-            sp.Children.Add(U.Sub("AndersCraft Studio is a safe, friendly editor for AzerothCore 3.3.5a (Wrath of the Lich King) servers: world database content, the client's DBC tables and spells, and MPQ patches for your players."));
+            sp.Children.Add(U.Hero(U.Stack(U.H1("Getting started"), U.T("AndersCraft Studio is a safe, friendly editor for AzerothCore 3.3.5a (Wrath of the Lich King) servers: world database content, the client's DBC tables and spells, and MPQ patches for your players.", 13.5, "Muted"))));
+
             sp.Children.Add(Section("What you need",
                 P("• An AzerothCore 3.3.5a server you run yourself (its worldserver.conf on this PC or a reachable path) and its MySQL / MariaDB database.\n• MySQL's mysqldump.exe (comes with MySQL Server) for the backup Studio takes before every Apply.\n• Optional: your 3.3.5a game client folder, for icons, client DBCs and building patches.\n• Windows 10/11 (64-bit). The self-contained download needs nothing else; the small download needs the .NET 10 Desktop Runtime.")));
             sp.Children.Add(Section("Set up in five minutes",
@@ -767,7 +833,7 @@ SOFTWARE.";
             var credits = U.T("Uses MySqlConnector (MIT licence, © Bradley Grainger and contributors).\nThe PKWARE DCL, Storm Huffman and ADPCM tables are format constants as documented by StormLib (MIT licence, © Ladislav Zezula).\nDBC column layouts and spell/condition enum names are generated from AzerothCore's source (GPL-2, the AzerothCore project).\nEverything else is Studio's own code.\n\nNot affiliated with or endorsed by Blizzard Entertainment. World of Warcraft is a trademark of Blizzard Entertainment, Inc. Studio ships no game data: it reads the files of a client and server you already have.", 12.5, "Muted", null, true, new Thickness(0, 14, 0, 12));
             var lic = U.Code(AppInfo.License, 220);
             var close = U.Btn("Close", Close, "BtnPrimary"); close.IsDefault = true; close.IsCancel = true; close.HorizontalAlignment = HorizontalAlignment.Left; close.Margin = new Thickness(0, 14, 0, 0);
-            Content = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Padding = new Thickness(24, 20, 24, 20), Child = U.Stack(head, credits, U.Eyebrow("Licence"), lic, close) };
+            Content = U.Frame(new Border { Padding = new Thickness(24, 20, 24, 20), Child = U.Stack(head, credits, U.Eyebrow("Licence"), lic, close) });
         }
     }
 }

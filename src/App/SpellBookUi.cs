@@ -10,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shell;
 using AndersCraftStudio.Core;
+using DS = global::Studio.DesignSystem;
 
 namespace AndersCraftStudio
 {
@@ -107,6 +108,15 @@ namespace AndersCraftStudio
                     Changed(); BuildTab(); RefreshPreview();
                     break;
                 case "link": PickTab(); break;
+                case "autolearn":
+                    {
+                        var sla = Table("SkillLineAbility.dbc").work;
+                        int n = sla == null ? 0 : SpellBook.SetAutoLearn(sla, id, true);
+                        if (n > 0) Changed("SkillLineAbility.dbc");
+                        RefreshBook();
+                        w.Toast("Every character of the linked classes will learn it by themselves at their next login. Stage it, Send to game, and restart the server.", "ok");
+                    }
+                    break;
                 case "ship":
                     if (dirtyFiles.Count > 0)
                     {
@@ -129,7 +139,7 @@ namespace AndersCraftStudio
             var dlg = new TabPickWindow(w, tabs, testClass);
             if (dlg.ShowDialog() != true) return;
             var chosen = dlg.Every ? SpellBook.Classes.Select(c => tabs.First(t => (t.ClassMask & c.mask) != 0)).Where(t => t != null).ToList() : new List<SpellBook.Tab> { dlg.Picked };
-            foreach (var t in chosen) SpellBook.AddLink(sla, id, t.SkillLine, t.ClassMask);
+            foreach (var t in chosen) SpellBook.AddLink(sla, id, t.SkillLine, t.ClassMask, autoLearn: dlg.AutoLearn);
             Changed("SkillLineAbility.dbc");
             RefreshBook();
             w.Toast(dlg.Every ? $"Linked to a spellbook tab for every class ({chosen.Count} SkillLineAbility rows). Stage to keep it." : $"Linked to {dlg.Picked}. Stage to keep it.", "ok");
@@ -167,7 +177,7 @@ namespace AndersCraftStudio
             {
                 var sla = Table("SkillLineAbility.dbc").work;
                 var chosen = dlg.Every ? SpellBook.Classes.Select(c => tabs.FirstOrDefault(x => (x.ClassMask & c.mask) != 0)).Where(x => x != null).ToList() : new List<SpellBook.Tab> { dlg.Tab };
-                if (sla != null) { foreach (var tb in chosen) SpellBook.AddLink(sla, nid, tb.SkillLine, tb.ClassMask); dirtyFiles.Add("SkillLineAbility.dbc"); }
+                if (sla != null) { foreach (var tb in chosen) SpellBook.AddLink(sla, nid, tb.SkillLine, tb.ClassMask, autoLearn: dlg.AutoLearn); dirtyFiles.Add("SkillLineAbility.dbc"); }
             }
             id = nid; sp = data; refs = MakeRefs();
             BuildEditor(); RefreshPreview(); RunSearch();
@@ -190,7 +200,7 @@ namespace AndersCraftStudio
             var data = new SpellData(t, row);
             SpellRecipe.Apply(data, r, f => Table(f).work);
             dirtyFiles.Add("Spell.dbc");
-            if (tab != null) { SpellBook.AddLink(Table("SkillLineAbility.dbc").work, nid, tab.SkillLine, tab.ClassMask); dirtyFiles.Add("SkillLineAbility.dbc"); }
+            if (tab != null) { SpellBook.AddLink(Table("SkillLineAbility.dbc").work, nid, tab.SkillLine, tab.ClassMask, autoLearn: true); dirtyFiles.Add("SkillLineAbility.dbc"); }
             id = nid; sp = data; refs = MakeRefs(); BuildEditor(); RefreshPreview(); RunSearch();
         }
         public void ScreensUnlink() { var t = Table("SkillLineAbility.dbc").work; t.Rows.RemoveAll(r => r.V[t.Layout.FieldByName("Spell")] == id); t.InvalidateIndex(); RefreshBook(); }
@@ -203,6 +213,7 @@ namespace AndersCraftStudio
     {
         public SpellBook.Tab Picked { get; private set; }
         public bool Every { get; private set; }
+        public bool AutoLearn { get; private set; } = true;
 
         public TabPickWindow(Window owner, List<SpellBook.Tab> tabs, uint classMask)
         {
@@ -215,15 +226,15 @@ namespace AndersCraftStudio
             list.SelectedIndex = Math.Max(0, tabs.FindIndex(t => classMask != 0 && (t.ClassMask & classMask) != 0));
             var every = new CheckBox { Content = U.T("Every class (one tab each: the first one of each class)", 13, "Text", null, false), Margin = new Thickness(0, 12, 0, 0) };
             every.Checked += (s, e) => list.IsEnabled = false; every.Unchecked += (s, e) => list.IsEnabled = true;
-            var ok = U.Btn("Add to the spellbook", () => { Picked = (SpellBook.Tab)((ComboBoxItem)list.SelectedItem).Tag; Every = every.IsChecked == true; DialogResult = true; }, "BtnPrimary");
+            var auto = new CheckBox { IsChecked = true, Content = U.T("Every character of the class learns it by themselves (at their next login)", 13, "Text", null, false), Margin = new Thickness(0, 8, 0, 0),
+                ToolTip = "Off: only a trainer, a quest or the GM command .learn teaches it." };
+            var ok = U.Btn("Add to the spellbook", () => { Picked = (SpellBook.Tab)((ComboBoxItem)list.SelectedItem).Tag; Every = every.IsChecked == true; AutoLearn = auto.IsChecked == true; DialogResult = true; }, "BtnPrimary");
             var cancel = U.Btn("Cancel", () => DialogResult = false, "BtnGhost");
-            Content = new Border
-            {
-                BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Padding = new Thickness(22, 18, 22, 18),
+            Content = U.Frame(new Border { Padding = new Thickness(22, 18, 22, 18),
                 Child = U.Stack(U.H2("Which spellbook tab?"),
-                    U.T("The spellbook shows a spell under the tab of the skill line it's linked to (SkillLineAbility.dbc). Every character of a class has that class's tabs, so pick the class and tab it belongs under. The spell still has to be learned (trainer, quest, item or .learn).", 13, "Muted", null, true, new Thickness(0, 0, 0, 12)),
-                    U.Field("Class › tab", null, list), every, U.Row(ok, cancel)),
-            };
+                    U.T("The spellbook shows a spell under the tab of the skill line it's linked to (SkillLineAbility.dbc). Every character of a class has that class's tabs, so pick the class and tab it belongs under. Tick \"learns it by themselves\" and every character of the class gets it at their next login; otherwise it has to be learned (trainer, quest, item or .learn).", 13, "Muted", null, true, new Thickness(0, 0, 0, 12)),
+                    U.Field("Class › tab", null, list), every, auto, U.Row(ok, cancel)),
+            });
             ((StackPanel)((Border)Content).Child).Children[^1].SetValue(MarginProperty, new Thickness(0, 16, 0, 0));
         }
     }
@@ -234,6 +245,7 @@ namespace AndersCraftStudio
         public SpellRecipe.Recipe Result { get; } = new SpellRecipe.Recipe();
         public SpellBook.Tab Tab { get; private set; }
         public bool Every { get; private set; }
+        public bool AutoLearn { get; private set; } = true;
         readonly SpellEditorPage pg;
         readonly StackPanel preview = new StackPanel();
         readonly ContentControl kindBody = new ContentControl { Focusable = false };
@@ -269,7 +281,7 @@ namespace AndersCraftStudio
                 rb.Checked += (s, e) => { Result.Kind = kk; if (kk == SpellRecipe.Kind.Buff) Result.RangeYards = 30; BuildKind(); Update(); };
                 kinds.Children.Add(rb);
             }
-            form.Children.Add(new Border { Background = U.R("Panel"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), HorizontalAlignment = HorizontalAlignment.Left, Child = kinds, Margin = new Thickness(0, 0, 0, 12) });
+            form.Children.Add(new Border { Background = Brushes.Transparent, Padding = new Thickness(3), HorizontalAlignment = HorizontalAlignment.Left, Child = kinds, Margin = new Thickness(0, 0, 0, 12) });
 
             var name = nameBox = U.Box(Result.Name); name.TextChanged += (s, e) => { Result.Name = name.Text; Update(); };
             var desc = U.Box(""); desc.TextChanged += (s, e) => { Result.Description = desc.Text; Update(); };
@@ -285,15 +297,18 @@ namespace AndersCraftStudio
             foreach (var t in tabs) tabBox.Items.Add(new ComboBoxItem { Content = t.ToString(), Tag = t });
             tabBox.SelectedIndex = 0;
             var show = new CheckBox { IsChecked = true, Content = U.T("Show it in the spellbook (adds the SkillLineAbility link)", 13, "Text", null, false), Margin = new Thickness(0, 4, 0, 0) };
-            show.Checked += (s, e) => tabBox.IsEnabled = true; show.Unchecked += (s, e) => tabBox.IsEnabled = false;
+            var auto = new CheckBox { IsChecked = true, Content = U.T("Every character of the class learns it by themselves (at their next login)", 13, "Text", null, false), Margin = new Thickness(0, 6, 0, 0),
+                ToolTip = "Off: only a trainer, a quest or the GM command .learn teaches it." };
+            show.Checked += (s, e) => { tabBox.IsEnabled = true; auto.IsEnabled = true; }; show.Unchecked += (s, e) => { tabBox.IsEnabled = false; auto.IsEnabled = false; };
             form.Children.Add(U.T("Where it shows up", 14, "Text", FontWeights.SemiBold, false, new Thickness(0, 10, 0, 4)));
             form.Children.Add(U.Field("Spellbook tab", "The class and tab it's listed under once learned.", tabBox));
             form.Children.Add(show);
+            form.Children.Add(auto);
 
             var ok = U.Btn("Create the spell", () =>
             {
                 if (string.IsNullOrWhiteSpace(Result.Name)) { name.Focus(); return; }
-                if (show.IsChecked == true) { Tab = ((ComboBoxItem)tabBox.SelectedItem).Tag as SpellBook.Tab; Every = Tab == null; }
+                if (show.IsChecked == true) { Tab = ((ComboBoxItem)tabBox.SelectedItem).Tag as SpellBook.Tab; Every = Tab == null; AutoLearn = auto.IsChecked == true; }
                 DialogResult = true;
             }, "BtnPrimary", "Makes the spell under the next free custom ID. Nothing is staged until you press Stage in the editor.");
             var cancel = U.Btn("Cancel", () => DialogResult = false, "BtnGhost");
@@ -301,10 +316,10 @@ namespace AndersCraftStudio
             form.Children.Add(btns);
             grid.Children.Add(U.Scroll(form));
 
-            var right = U.Stack(U.Card(U.Stack(U.Eyebrow("In-game tooltip (preview)"), new Border { Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0B, 0x18)), BorderBrush = new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x6E)), BorderThickness = new Thickness(1.5), CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 10, 12, 10), Child = preview }), new Thickness(16, 14, 16, 14), new Thickness(0, 0, 0, 12)),
-                U.Callout("After Create: check the tooltip and the spellbook card in the editor, press Stage (Ctrl+S), then Send to game. Learn it in game with a trainer, quest or .learn.", "info", "Then"));
+            var right = U.Stack(U.Card(U.Stack(U.Eyebrow("In-game tooltip (preview)"), DS.U.GameTooltip(new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 10, 12, 10), Child = preview })), new Thickness(16, 14, 16, 14), new Thickness(0, 0, 0, 12)),
+                U.Callout("After Create: check the tooltip and the spellbook card in the editor, press Stage (Ctrl+S), then Send to game and restart worldserver. With \"learns it by themselves\" ticked, every character of the class has it at their next login; otherwise teach it with a trainer, a quest or .learn.", "info", "Then"));
             Grid.SetColumn(right, 2); grid.Children.Add(right);
-            Content = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Child = grid };
+            Content = U.Frame(new Border { Child = grid });
             Update();
         }
 
@@ -359,7 +374,7 @@ namespace AndersCraftStudio
             var lines = pg.TooltipFor(draft);
             for (int i = 0; i < lines.Count; i++)
                 preview.Children.Add(new TextBlock { Text = lines[i], FontFamily = U.Font, FontSize = i == 0 ? 15 : 13, FontWeight = i == 0 ? FontWeights.SemiBold : FontWeights.Normal, TextWrapping = TextWrapping.Wrap,
-                    Foreground = i == lines.Count - 1 && lines.Count > 1 ? new SolidColorBrush(Color.FromRgb(0xFF, 0xD1, 0x00)) : Brushes.White, Margin = new Thickness(0, 1, 0, 1) });
+                    Foreground = i == lines.Count - 1 && lines.Count > 1 ? U.R("Game.Gold") : U.R("Game.White"), Margin = new Thickness(0, 1, 0, 1) });
         }
 
         public void ScreensSet(SpellRecipe.Kind k, string name, int amount) { Result.Kind = k; Result.Amount = amount; nameBox.Text = name; BuildKind(); Update(); }
@@ -373,6 +388,21 @@ namespace AndersCraftStudio
     /// </summary>
     public sealed class GameShipWindow : Window
     {
+        /// <summary>What the player does next to have the spell(s) just sent: automatic at login, or .learn.</summary>
+        string LearnHint()
+        {
+            try
+            {
+                var p = System.IO.Path.Combine(ConfParser.ParseFile(w.S.Profile.ConfPath).DataDir, "dbc", "SkillLineAbility.dbc");
+                var sla = System.IO.File.Exists(p) ? DbcTable.Read("SkillLineAbility.dbc", System.IO.File.ReadAllBytes(p)) : null;
+                var spells = w.S.Changes.History().Concat(new[] { w.S.Changes.Pending }).SelectMany(c => c.Changes).Where(c => c.Dbc != null && c.Dbc.File == "Spell.dbc").Select(c => (uint)c.Dbc.Key).Distinct().ToList();
+                var manual = spells.Where(id => SpellBook.Links(sla, id).Count > 0 && !SpellBook.AutoLearned(sla, id)).Take(3).ToList();
+                if (manual.Count == 0) return "Characters of the linked classes have the spell after they log in (log out and back in if you're already in game).";
+                return "Nobody learns " + string.Join(", ", manual) + " by themselves yet: teach it in game with .learn " + manual[0] + " (as a GM, with your character targeted), a trainer or a quest, or tick \"Everyone learns it automatically\" on its spellbook check and send again.";
+            }
+            catch { return "Then log in: characters learn it at login if it's set to be learned automatically, otherwise use .learn, a trainer or a quest."; }
+        }
+
         readonly MainWindow w;
         Studio S => w.S;
         public bool Installed { get; private set; }
@@ -393,7 +423,7 @@ namespace AndersCraftStudio
             WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.CanResizeWithGrip; ShowInTaskbar = false; Background = U.R("Panel"); FontFamily = U.Font; Foreground = U.R("Text");
             WindowChrome.SetWindowChrome(this, new WindowChrome { CaptionHeight = 30, GlassFrameThickness = new Thickness(0), ResizeBorderThickness = new Thickness(6) });
             PreviewKeyDown += (s, e) => { if (e.Key == Key.Escape && busy == null) Close(); };
-            Content = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Padding = new Thickness(24, 20, 24, 18), Child = body };
+            Content = U.Frame(new Border { Padding = new Thickness(24, 20, 24, 18), Child = body });
             MakePlan();
             Build();
         }
@@ -404,7 +434,7 @@ namespace AndersCraftStudio
             ClientDbcSource client = null;
             var data = string.IsNullOrEmpty(ClientDir) ? null : Path.Combine(ClientDir, "Data");
             try { if (data != null && Directory.Exists(data)) using (new SpellEditorPage.Wait()) client = new ClientDbcSource(data, Path.Combine(ProfileStore.DefaultRoot, "name_cache")); } catch { }
-            var mine = data == null ? new List<string>() : Installer.Records().Where(r => r.DataDir != null && r.DataDir.StartsWith(data, StringComparison.OrdinalIgnoreCase)).Select(r => r.Name).ToList();
+            var mine = data == null ? new List<string>() : Installer.Records().Where(r => !r.InPlace && r.DataDir != null && r.DataDir.StartsWith(data, StringComparison.OrdinalIgnoreCase)).Select(r => r.Name).ToList();   // patches Studio only added files to stay "someone else's"
             var server = ServerDbcDir;
             var cache = new Dictionary<string, DbcTable>(StringComparer.OrdinalIgnoreCase);
             Func<string, DbcTable> read = f =>
@@ -427,7 +457,7 @@ namespace AndersCraftStudio
             sp.Children.Add(U.T("One client patch with everything you've changed in DBC files (what's in History and what's staged now), built so it wins over the patches already in your client, then installed with a backup. Staged edits also go to the server's copy, so both sides match.", 13, "Muted", null, true, new Thickness(0, 0, 0, 12)));
             if (plan.PatchName != null)
             {
-                sp.Children.Add(U.CheckRow(U.Check.Ok, "Patch", plan.PatchName + (plan.TargetDir != null ? $"  (in Data\\{plan.TargetDir})" : "  (in Data)"), null, 120));
+                sp.Children.Add(U.CheckRow(plan.InPlace ? U.Check.Warn : U.Check.Ok, plan.InPlace ? "Goes into" : "Patch", plan.PatchName + (plan.TargetDir != null ? $"  (in Data\\{plan.TargetDir})" : "  (in Data)") + (plan.InPlace ? ", the patch the game reads these tables from (backed up first)" : ""), null, 120));
                 sp.Children.Add(U.T(plan.Why, 12.5, "Muted", null, true, new Thickness(0, 2, 0, 8)));
             }
             sp.Children.Add(U.CheckRow(plan.Files.Count > 0 ? U.Check.Ok : U.Check.Warn, "Files", plan.Files.Count == 0 ? "nothing to send" : string.Join(", ", plan.Files.Keys.Take(8)) + (plan.Files.Count > 8 ? $" +{plan.Files.Count - 8}" : ""), null, 120));
@@ -485,6 +515,22 @@ namespace AndersCraftStudio
                     S.Changes.SavePending();
                     if (!serverRes.Success) throw new InvalidOperationException("The server copy wasn't updated: " + string.Join(" ", serverRes.Problems.Take(3)));
                 }
+                PatchInstaller.Record rec;
+                if (plan.InPlace)
+                {
+                    busy = $"Putting your files into {name} (backed up first)…"; Build();
+                    rec = await Task.Run(() =>
+                    {
+                        foreach (var (path, data) in files.Where(x => x.Key.StartsWith("DBFilesClient\\", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            var p = Path.Combine(work, path); Directory.CreateDirectory(Path.GetDirectoryName(p));
+                            File.WriteAllBytes(p, data);
+                        }
+                        return Installer.UpdateInPlace(client, dir == null ? name : Path.Combine(dir, name), files);
+                    });
+                }
+                else
+                {
                 busy = $"Building {name}…"; Build();
                 var problems = await Task.Run(() =>
                 {
@@ -499,7 +545,8 @@ namespace AndersCraftStudio
                 });
                 if (problems.Count > 0) throw new InvalidOperationException("The patch didn't pass its check: " + string.Join(" ", problems.Take(3)));
                 busy = $"Installing {name}…"; Build();
-                var rec = await Task.Run(() => Installer.Install(built, client, name, dir));
+                rec = await Task.Run(() => Installer.Install(built, client, name, dir));
+                }
                 if (staged.Count > 0)
                 {
                     S.Changes.MarkDbcSent(staged, true, serverRes?.BackupDir);
@@ -510,10 +557,14 @@ namespace AndersCraftStudio
                 S.RaiseChanges();
                 Installed = true;
                 result = $"Installed {rec.Name} in {rec.DataDir}." + (rec.BackupOfPrevious != null ? " The previous file is backed up at " + rec.BackupOfPrevious + "." : "") +
-                         (staged.Count > 0 ? " Restart worldserver so it loads the new server DBCs." : "") + " Delete WoW's Cache folder, then start the game and learn the spell (or log out and back in if you know it already).";
+                         (staged.Count > 0 ? " Restart worldserver so it loads the new server DBCs." : "") + " Delete WoW's Cache folder and start the game. " + LearnHint();
                 w.Toast("Sent to the game: " + rec.Name, "ok");
             }
-            catch (Exception ex) { result = Friendly.Text(ex) + " Nothing in the game folder was changed by this step."; }
+            catch (Exception ex)
+            {
+                var target = Path.Combine(client ?? "", "Data", dir ?? "", name ?? "");
+                result = (ex is UnauthorizedAccessException || ex is IOException ? FileLocks.Explain(target, ex) : Friendly.Text(ex)) + " Nothing in the game folder was changed by this step.";
+            }
             busy = null; confirm = "";
             MakePlan();
             Build();

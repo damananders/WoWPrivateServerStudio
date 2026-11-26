@@ -204,10 +204,10 @@ namespace AndersCraftStudio.Tests
             A.True(R("common.MPQ") < R("lichking.MPQ"), "base");
             A.True(R("lichking.MPQ") < R("locale-enUS.MPQ", true), "locale after base");
             A.True(R("locale-enUS.MPQ", true) < R("patch.MPQ"), "patches after locale");
-            A.True(R("patch.MPQ") < R("patch-enUS.MPQ", true), "locale twin after its patch");
+            A.True(R("patch-enUS.MPQ", true) < R("patch.MPQ"), "patch-enUS.MPQ is the lowest patch (WoW.exe adds it last)");
             A.True(R("patch-enUS.MPQ", true) < R("patch-2.MPQ"), "patch-2 after patch-enUS");
             A.True(R("patch-enUS-3.MPQ", true) < R("patch-4.MPQ"), "patch-4 after patch-enUS-3");
-            A.True(R("patch-4.MPQ") < R("patch-enUS-4.MPQ", true), "enUS-4 after 4");
+            A.True(R("patch-enUS-4.MPQ", true) < R("patch-4.MPQ"), "every Data patch-X beats every enUS one (path sort)");
             A.True(R("patch-9.MPQ") < R("patch-A.MPQ"), "letters after digits");
             A.Eq(-1, R("backup-enUS.MPQ", true)); A.Eq(-1, R("base-enUS.MPQ", true)); A.Eq(-1, R("random.MPQ"));
         }

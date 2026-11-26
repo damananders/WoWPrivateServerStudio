@@ -12,6 +12,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Shell;
 using AndersCraftStudio.Core;
+using DS = global::Studio.DesignSystem;
 using Microsoft.Win32;
 
 namespace AndersCraftStudio
@@ -49,7 +50,7 @@ namespace AndersCraftStudio
             var head = U.Stack(U.Row(U.H1("Admin console"), new Border { Width = 12 }, U.Pill("runs directly", "MaroonDim", "Text", "Unlike the editors, statements here run straight away on the server.")),
                 U.T("Everything you'd open HeidiSQL for: run any SQL, manage databases, tables, indexes and views, users and permissions, connections, imports and exports, and set up AzerothCore's databases from scratch. It needs an admin login that you type in each time; Studio never saves it.", 13.5, "Muted"));
             head.Margin = new Thickness(0, 0, 0, 16);
-            view.Children.Add(head);
+            view.Children.Add(U.Hero(head));
             Grid.SetRow(host, 1); view.Children.Add(host);
             if (S.Profile != null) { hostBox.Text = S.Profile.Host ?? "127.0.0.1"; portBox.Text = S.Profile.Port.ToString(CultureInfo.InvariantCulture); }
             passBox.KeyDown += (s, e) => { if (e.Key == Key.Enter) Connect(); };
@@ -111,7 +112,7 @@ namespace AndersCraftStudio
             var bar = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
             var who = U.Row(U.Pill($"● {admin.User} @ {admin.Host}:{admin.Port}", "OkBg", "Ok", "Admin session. The password is kept in memory only."), new Border { Width = 8 }, U.Btn("Disconnect", Disconnect, "BtnGhost", "Forget the admin login now."));
             DockPanel.SetDock(who, Dock.Right); bar.Children.Add(who);
-            var tabs = new Border { Background = U.R("Panel"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), HorizontalAlignment = HorizontalAlignment.Left, Child = tabBar };
+            var tabs = new Border { Background = System.Windows.Media.Brushes.Transparent, Padding = new Thickness(3), HorizontalAlignment = HorizontalAlignment.Left, Child = tabBar };
             bar.Children.Add(tabs);
             DockPanel.SetDock(bar, Dock.Top); dock.Children.Add(bar);
             dock.Children.Add(tabBody);
@@ -217,11 +218,11 @@ namespace AndersCraftStudio
             if (backup && backupTables != null && db != null)
             {
                 try { var f = DumpTables(db, backupTables, true, null, CancellationToken.None); w.Toast("Copy saved: " + f, "ok"); }
-                catch (Exception ex) { if (MessageBox.Show(w, "The backup copy failed: " + Friendly.Text(ex) + "\n\nGo ahead anyway?", "Backup", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return false; }
+                catch (Exception ex) { if (DS.StudioDialog.Show(w, "The backup copy failed: " + Friendly.Text(ex) + "\n\nGo ahead anyway?", "Backup", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return false; }
             }
             var res = Run(stmts, db);
             var bad = res.FirstOrDefault(r => !r.Ok);
-            if (bad != null) { MessageBox.Show(w, AdminSql.Mask(bad.Sql) + "\n\n" + bad.Error, title + " — not done", MessageBoxButton.OK, MessageBoxImage.Error); return false; }
+            if (bad != null) { DS.StudioDialog.Show(w, AdminSql.Mask(bad.Sql) + "\n\n" + bad.Error, title + " — not done", MessageBoxButton.OK, MessageBoxImage.Error); return false; }
             w.Toast(title + ": done.", "ok");
             after?.Invoke();
             return true;
@@ -739,7 +740,7 @@ namespace AndersCraftStudio
                 if (!ok) return;
                 var res = Run(stmts);
                 var bad = res.FirstOrDefault(r => !r.Ok);
-                if (bad != null) { MessageBox.Show(w, AdminSql.Mask(bad.Sql) + "\n\n" + bad.Error, "Setup stopped", MessageBoxButton.OK, MessageBoxImage.Error); return; }
+                if (bad != null) { DS.StudioDialog.Show(w, AdminSql.Mask(bad.Sql) + "\n\n" + bad.Error, "Setup stopped", MessageBoxButton.OK, MessageBoxImage.Error); return; }
                 if (!plan.ImportBase) { Finish(); return; }
                 ShowTab("io");
                 ImportChain(folders, 0);
@@ -860,7 +861,7 @@ namespace AndersCraftStudio
             var cancel = U.Btn("Cancel  (Esc)", () => DialogResult = false, "BtnGhost"); cancel.IsCancel = true;
             var row = U.Row(go, cancel); row.Margin = new Thickness(0, 16, 0, 0); row.HorizontalAlignment = HorizontalAlignment.Right;
             sp.Children.Add(row);
-            Content = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Padding = new Thickness(22, 18, 22, 18), Child = sp };
+            Content = U.Frame(new Border { Padding = new Thickness(22, 18, 22, 18), Child = sp });
         }
     }
 
@@ -914,7 +915,7 @@ namespace AndersCraftStudio
             pw.KeyDown += (s, e) => { if (e.Key == Key.Enter) go.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); };
             var row = U.Row(go, close); row.Margin = new Thickness(0, 16, 0, 0); row.HorizontalAlignment = HorizontalAlignment.Right;
             sp.Children.Add(row);
-            Content = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Padding = new Thickness(22, 18, 22, 18), Child = sp };
+            Content = U.Frame(new Border { Padding = new Thickness(22, 18, 22, 18), Child = sp });
             Loaded += (s, e) => pw.Focus();
         }
     }
@@ -950,7 +951,7 @@ namespace AndersCraftStudio
             var cancel = U.Btn("Cancel  (Esc)", () => DialogResult = false, "BtnGhost"); cancel.IsCancel = true;
             var row = U.Row(ok, cancel); row.Margin = new Thickness(0, 8, 0, 0); row.HorizontalAlignment = HorizontalAlignment.Right;
             sp.Children.Add(row);
-            Content = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Padding = new Thickness(22, 18, 22, 18), Child = sp };
+            Content = U.Frame(new Border { Padding = new Thickness(22, 18, 22, 18), Child = sp });
             Loaded += (s, e) => first?.Focus();
         }
     }

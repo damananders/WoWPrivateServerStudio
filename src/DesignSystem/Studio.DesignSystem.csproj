@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Vendored from DMA Web Studio (src/DesignSystem) so this repository builds on its own; accents swapped to AndersCraft.
+    Studio design system: the shared look of the DaManAnders studio apps (DMA Web Studio, AndersCraft Studio, ...).
+    Reference this project and merge pack://application:,,,/Studio.DesignSystem;component/StudioDesignSystem.xaml,
+    then call StudioLook.Apply(app) and StudioLook.Window(window).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>Studio.DesignSystem</AssemblyName>
+    <RootNamespace>Studio.DesignSystem</RootNamespace>
+    <Description>Shared WPF design system for the DaManAnders studio apps: tonal surfaces, soft elevation, pills, motion that respects reduced-motion, Mica backdrop.</Description>
+  </PropertyGroup>
+</Project>

@@ -81,7 +81,7 @@ namespace AndersCraftStudio
                 head.Children.Add(make);
             }
             head.Children.Add(U.Stack(U.H1(D.Title), U.T($"Find a {D.Singular}, change it with plain fields, and stage the edits. The Guide on the right explains whatever field you're in.", 13.5, "Muted")));
-            view.Children.Add(head);
+            view.Children.Add(U.Hero(head));
 
             main = BuildMain();
             setupNeeded = BuildSetupNeeded();
@@ -201,7 +201,7 @@ namespace AndersCraftStudio
         }
 
         UIElement GuideIntro() => U.Stack(U.Eyebrow("Guide"), U.H2(D.Title),
-            U.T($"Click into any field and this card explains it in game terms, with a tip. Changed fields get an amber outline and show what they were before.", 13, "Muted", null, true, new Thickness(0, 0, 0, 10)),
+            U.T($"Click into any field and this card explains it in game terms, with a tip. Changed fields turn amber and show what they were before.", 13, "Muted", null, true, new Thickness(0, 0, 0, 10)),
             U.Callout("Ctrl+S stages your edits · Ctrl+D duplicates as new · Ctrl+PgUp/PgDn switches tabs · Ctrl+F searches", "info"));
 
         // ================================================================== search
@@ -340,7 +340,7 @@ namespace AndersCraftStudio
             if (tabBody.Parent is ScrollViewer oldSv) oldSv.Content = null;
             var dock = new DockPanel();
             dock.Children.Add(BuildHeader());
-            var tabs = new Border { Background = U.R("Panel"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 12), Child = tabBar };
+            var tabs = new Border { Background = Brushes.Transparent, Padding = new Thickness(3), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 12), Child = tabBar };
             DockPanel.SetDock(tabs, Dock.Top); dock.Children.Add(tabs);
             BuildTabBar();
             var sv = U.Scroll(tabBody);
@@ -457,7 +457,7 @@ namespace AndersCraftStudio
             if (!U.Technical) hint.Visibility = Visibility.Collapsed;   // the column name only when asked for (Settings › Show technical names)
             FrameworkElement control = exists ? BuildControl(f, ui) : U.T("Not in your database (column missing or no row).", 12.5, "Faint", null, true);
             var stack = U.Stack(top, control, ui.Error, hint);
-            ui.Box = new Border { Child = stack, Width = wide ? 476 : 232, Margin = new Thickness(0, 0, 12, 12), Padding = new Thickness(12, 10, 12, 10), CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1.5), BorderBrush = Brushes.Transparent, Background = U.R("Panel2") };
+            ui.Box = new Border { Child = stack, Width = wide ? 476 : 232, Margin = new Thickness(0, 0, 12, 12), Padding = new Thickness(12, 10, 12, 10), CornerRadius = new CornerRadius(16), Background = U.R("Layer5") };
             ui.Box.IsKeyboardFocusWithinChanged += (s, e) => { if (ui.Box.IsKeyboardFocusWithin) ShowGuide(f); };
             ui.Box.MouseLeftButtonDown += (s, e) => ShowGuide(f);
             ui.Box.ToolTip = f.Guide + "\n\nTip: " + f.Tip + (U.Technical ? "\n" + f.Hint : "");
@@ -478,7 +478,7 @@ namespace AndersCraftStudio
             if (!SqlGen.TryTypedLiteral(text, ColType(f), ColNullable(f), out var lit, out var err))
             {
                 ui.Error.Text = err; ui.Error.Visibility = Visibility.Visible;
-                ui.Box.BorderBrush = U.R("Bad");
+                ui.Box.Background = U.R("BadBg");
                 return;
             }
             ui.Error.Visibility = Visibility.Collapsed;
@@ -499,14 +499,14 @@ namespace AndersCraftStudio
             bool staged = Staged(f) != null;
             if (cur != orig || pending)
             {
-                ui.Box.BorderBrush = U.R("Amber");
+                ui.Box.Background = U.R("Changed");
                 ui.WasText.Text = (pending ? "Was " : "Staged · was ") + Short(OrigDisp(f));
                 ui.WasPill.Visibility = Visibility.Visible;
                 ui.WasPill.ToolTip = pending ? "Edited here, not staged yet. Ctrl+S stages it." : "Already staged in your changeset. Apply it on the Changes screen.";
             }
             else
             {
-                ui.Box.BorderBrush = staged ? U.R("LineHi") : Brushes.Transparent;
+                ui.Box.Background = staged ? U.R("Layer10") : U.R("Layer5");
                 ui.WasPill.Visibility = Visibility.Collapsed;
             }
             if (syncControl) ui.Sync?.Invoke();
@@ -799,7 +799,7 @@ namespace AndersCraftStudio
             var bb = U.Btn(b, () => { result = 1; Close(); });
             var bc = U.Btn(c, () => { result = 2; Close(); }, "BtnGhost"); bc.IsCancel = true;
             var row = U.Row(ba, bb, bc); row.Margin = new Thickness(0, 16, 0, 0);
-            Content = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), Padding = new Thickness(22, 18, 22, 18), Child = U.Stack(U.H2(title), U.T(text, 13.5, "Muted"), row) };
+            Content = U.Frame(new Border { Padding = new Thickness(22, 18, 22, 18), Child = U.Stack(U.H2(title), U.T(text, 13.5, "Muted"), row) });
         }
     }
 }

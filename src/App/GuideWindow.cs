@@ -8,6 +8,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shell;
 
+using DS = global::Studio.DesignSystem;
+
 namespace AndersCraftStudio
 {
     /// <summary>
@@ -45,7 +47,7 @@ namespace AndersCraftStudio
             PreviewKeyDown += (s, e) => { if (e.Key == Key.Escape) { Close(); e.Handled = true; } };
 
             var dp = new DockPanel();
-            var head = new DockPanel { Background = U.R("Panel"), Height = 52 };
+            var head = new DockPanel { Background = U.R("Layer5"), Height = 52 };
             var close = U.Btn("", Close, "BtnGhost", "Close (Esc)");
             close.FontFamily = new FontFamily("Segoe MDL2 Assets"); close.FontSize = 11; close.Width = 46; close.Height = 36; close.Margin = new Thickness(0, 0, 8, 0); close.VerticalAlignment = VerticalAlignment.Center;
             WindowChrome.SetIsHitTestVisibleInChrome(close, true);
@@ -62,7 +64,7 @@ namespace AndersCraftStudio
                 U.T("How to use this", 15, "Text", FontWeights.SemiBold, false));
             t.VerticalAlignment = VerticalAlignment.Center;
             head.Children.Add(t);
-            var line = new Border { BorderBrush = U.R("Line"), BorderThickness = new Thickness(0, 0, 0, 1), Child = head };
+            var line = new Border { Child = head };
             DockPanel.SetDock(line, Dock.Top); dp.Children.Add(line);
             dp.Children.Add(body);
             Content = dp;
@@ -103,7 +105,7 @@ namespace AndersCraftStudio
                 markers.Add(m);
             }
             pic.Children.Add(canvas);
-            var frame = new Border { BorderBrush = U.R("LineHi"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), ClipToBounds = true, Child = new Viewbox { Child = pic, Stretch = Stretch.Uniform } };
+            var frame = new Border { CornerRadius = new CornerRadius(16), ClipToBounds = true, Child = new Viewbox { Child = pic, Stretch = Stretch.Uniform } };
             var left = new DockPanel();
             if (guide.Parts.Count > 1)
             {
@@ -115,7 +117,7 @@ namespace AndersCraftStudio
                     r.Checked += (s, e) => { if (part != idx) { part = idx; Build(); } };
                     tabs.Children.Add(r);
                 }
-                var tb = new Border { Background = U.R("Panel"), BorderBrush = U.R("Line"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), HorizontalAlignment = HorizontalAlignment.Left, Child = tabs, Margin = new Thickness(0, 0, 0, 12) };
+                var tb = new Border { Background = Brushes.Transparent, Padding = new Thickness(3), HorizontalAlignment = HorizontalAlignment.Left, Child = tabs, Margin = new Thickness(0, 0, 0, 12) };
                 DockPanel.SetDock(tb, Dock.Top); left.Children.Add(tb);
             }
             frame.VerticalAlignment = VerticalAlignment.Top;
@@ -161,12 +163,6 @@ namespace AndersCraftStudio
             body.Content = grid;
         }
 
-        static Border Marker(int n, double size, double font) => new Border
-        {
-            Width = size, Height = size, CornerRadius = new CornerRadius(size / 2), Background = U.R("Amber"),
-            BorderBrush = Brushes.White, BorderThickness = new Thickness(size > 30 ? 3 : 0),
-            Effect = size > 30 ? new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 10, ShadowDepth = 2, Opacity = 0.7 } : null,
-            Child = new TextBlock { Text = n.ToString(), FontSize = font, FontWeight = FontWeights.Bold, Foreground = Brushes.Black, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
-        };
+        static Border Marker(int n, double size, double font) => DS.U.Marker(n, size, font);
     }
 }
