@@ -35,6 +35,9 @@ VERSION 0.9
     AndersCraft colours, Magic.cs aurora / motes, StudioLook Mica + reduced motion, StudioDialog). Screens use U.Card / U.Hero /
     U.Segments / U.Frame; Tests\DesignRulesTests.cs forbids outlines, hex colours, separators and MessageBox in src\App
     (data colours are marked "design-check: data"). Screens: --m14 (Home and a creature, the before/after pair).
+  - Colour schemes: DesignSystem\Schemes.cs (StudioScheme: hue families, luminance kept), StudioLook.Apply/SetScheme re-colour
+    the design system's XAML (embedded as text) and MainWindow.SetScheme re-opens the window. Settings.ColorScheme; --scheme <id>
+    for screenshots. Tests\SchemeTests.cs.
   - Client load order (Core\DbcChanges.cs ClientDbcSource.Rank): WoW.exe sorts Data\patch-?.MPQ and Data\<loc>\patch-<loc>-?.MPQ
     by path, highest first, then patch.MPQ, patch-<loc>.MPQ. GameShip.PickName picks a winning name or InPlace (MpqWriter.ReplaceFiles,
     PatchInstaller.UpdateInPlace). SpellBook.SetAutoLearn / AcquireMethod 1. WindowFit: WM_GETMINMAXINFO for borderless windows.

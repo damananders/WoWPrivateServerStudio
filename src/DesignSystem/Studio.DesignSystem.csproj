@@ -14,4 +14,9 @@
     <RootNamespace>Studio.DesignSystem</RootNamespace>
     <Description>Shared WPF design system for the DaManAnders studio apps: tonal surfaces, soft elevation, pills, motion that respects reduced-motion, Mica backdrop.</Description>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- also as text: colour schemes re-colour these at run time (Schemes.cs) -->
+    <EmbeddedResource Include="StudioDesignSystem.xaml" LogicalName="Studio.DesignSystem.StudioDesignSystem.xaml" />
+    <EmbeddedResource Include="Tokens.xaml" LogicalName="Studio.DesignSystem.Tokens.xaml" />
+  </ItemGroup>
 </Project>

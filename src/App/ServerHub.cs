@@ -92,6 +92,8 @@ namespace AndersCraftStudio
             };
         }
         public void Start() { if (!timer.IsEnabled) { timer.Start(); _ = Refresh(true); } }
+        /// <summary>Stops the refresh / scheduled-task timer (the window that owned it is closing).</summary>
+        public void Stop() => timer.Stop();
         public void Save() { if (!Screens) ServerSettingsStore.Save(SettingsPath, Cfg); }
 
         // ------------------------------------------------------------------ the old Control Panel's settings

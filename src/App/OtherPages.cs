@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using AndersCraftStudio.Core;
+using DS = global::Studio.DesignSystem;
 using Microsoft.Win32;
 
 namespace AndersCraftStudio
@@ -63,6 +64,19 @@ namespace AndersCraftStudio
             var sp = new StackPanel { MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left };
             sp.Children.Add(U.Hero(U.Stack(U.H1("Settings"), U.T("Everything is saved in %APPDATA%\\AndersCraftStudio. Passwords are encrypted for your Windows user.", 13.5, "Muted"))));
 
+
+            // ---- look: colour schemes, applied straight away and remembered
+            var look = new StackPanel();
+            look.Children.Add(U.H2("Look"));
+            look.Children.Add(U.T("Pick a colour scheme. Only the colours change: the layout, the glass, the light and the safety rules stay the same. It's applied straight away and remembered.", 12.5, "Muted", null, true, new Thickness(0, 0, 0, 12)));
+            var tiles = new WrapPanel();
+            foreach (var sc in DS.StudioScheme.All)
+            {
+                var pick = sc;
+                tiles.Children.Add(DS.U.SchemeTile(sc, DS.StudioLook.Scheme.Id == sc.Id, () => w.SetScheme(pick.Id)));
+            }
+            look.Children.Add(tiles);
+            sp.Children.Add(U.Card(look));
 
             // ---- profile
             var prof = new StackPanel();

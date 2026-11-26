@@ -139,10 +139,17 @@ glows and rising motes behind everything (still with Windows' reduced-motion set
 tables stay plain and readable. The design system lives in src/DesignSystem (a copy, so this repository builds on its own)
 and DesignRulesTests keep screens from drawing outlines or their own colours.
 
+**New: colour schemes** (Settings › Look, or the palette button in the top bar): Andersian (the default dark maroon and
+amber), Frostforge (blue-black and ice blue), Verdant (forest green and old gold), Arcane (plum, violet and magenta),
+Emberforge (char-black, crimson and forge orange) and Obsidian (graphite, cyan and silver). Only colours change; the crest,
+the glows, titles and buttons follow the scheme, each colour keeps the brightness it was designed with (so contrast holds
+in every scheme), and data colours (ok / problem, the game's tooltip and parchment) stay as they are. Applied straight away
+and remembered.
+
 **Fixed**: the 3D viewer's mouse wheel zooms without scrolling the page; a maximized window fills the screen above the
 taskbar (any monitor, any taskbar side); the top bar keeps the window buttons on screen at narrower widths.
 
-**Tests**: 192 automated tests (new: the client's real patch order; Send to game picking a name or updating the patch that
+**Tests**: 194 automated tests (new: every colour scheme re-colours every token and stays readable; the client's real patch order; Send to game picking a name or updating the patch that
 loads last; replacing files inside an archive keeps the rest byte for byte; a hidden copy in Data\patch-Z beating a visible
 one in Data\enUS until Studio updates patch-Z; learned-automatically links; the design rules and tokens). Before that, 183 (new: a built quest with every kind of objective, read back; editing a quest stages only what
 changed, copying adds a fresh one; a quest never removes a creature it only reads; a built NPC with look, services, place,

@@ -81,6 +81,8 @@ namespace AndersCraftStudio.Core
         public int PageSize { get; set; } = 200;
         /// <summary>Show raw engine names (tables, columns, IDs, commands) next to the plain ones. Off by default.</summary>
         public bool ShowTechnicalNames { get; set; }
+        /// <summary>Settings › Look: the colour scheme ("andersian" is the default).</summary>
+        public string ColorScheme { get; set; } = "andersian";
         /// <summary>"Duplicate as new" picks IDs at or above this, away from Blizzard's ranges.</summary>
         public long CustomIdStart { get; set; } = Duplicator.DefaultCustomStart;
     }

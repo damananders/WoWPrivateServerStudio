@@ -25,6 +25,25 @@ namespace AndersCraftStudio
     public sealed class MainWindow : Window
     {
         public static MainWindow Instance;
+        string startPage;
+
+        /// <summary>
+        /// Switches the colour scheme for the whole app and remembers it: the design system is swapped, then this window is
+        /// replaced by a fresh one on the same screen (open windows keep the brushes they were built with).
+        /// </summary>
+        public void SetScheme(string id)
+        {
+            if (DS.StudioLook.Scheme.Id == id) return;
+            S.Profiles.Settings.ColorScheme = id; S.Profiles.SaveSettings();
+            DS.StudioLook.SetScheme(Application.Current, id);
+            var nw = new MainWindow(S, null) { startPage = CurrentPage ?? "home" };
+            if (WindowState == WindowState.Normal) { nw.WindowState = WindowState.Normal; nw.WindowStartupLocation = WindowStartupLocation.Manual; nw.Left = Left; nw.Top = Top; nw.Width = Width; nw.Height = Height; }
+            hub?.Stop();
+            Application.Current.MainWindow = nw;
+            nw.Show();
+            Close();
+            nw.Toast(DS.StudioLook.Scheme.Name + " colours are on. Settings › Look changes them back.", "ok");
+        }
         public static bool OnlyM7, OnlyM8, OnlyM9, OnlyM10, OnlyM11, OnlyM12, OnlyM13, OnlyM14;
         public static bool Fresh;
         public readonly Studio S;
@@ -109,7 +128,7 @@ namespace AndersCraftStudio
             {
                 if (S.Changes.RecoveryNote != null) { Log.Write("warn", S.Changes.RecoveryNote); Toast(S.Changes.RecoveryNote, "warn"); }
                 RefreshChrome();
-                if (S.Profile == null || !S.Profile.SetupComplete) ShowWizard(1); else Navigate("home");
+                if (S.Profile == null || !S.Profile.SetupComplete) ShowWizard(1); else Navigate(startPage ?? "home");
                 // scheduled server tasks and the crash watchdog run whenever Studio is open, not only on the Server control tab
                 if (screensDir == null && File.Exists(Path.Combine(S.Profiles.Root, "server_control.json")) && (Hub.Cfg.Tasks.Any(t => t.Enabled) || Hub.Cfg.Realms.Any(r => r.AutoRestart))) Hub.Start();
                 if (screensDir != null) await ScreensMode();
@@ -175,7 +194,25 @@ namespace AndersCraftStudio
             guideBtn.VerticalAlignment = VerticalAlignment.Center; guideBtn.Margin = new Thickness(0, 0, 12, 0);
             U.AutomationName(guideBtn, "How to use this screen");
             WindowChrome.SetIsHitTestVisibleInChrome(guideBtn, true);
-            var status = U.Row(guideBtn, connBadge, targetText, reviewBtn);
+            // colour schemes, one click away (also Settings › Look)
+            var schemeBtn = U.Btn("", null, "BtnGhost", "Colour scheme: pick the look. Only colours change; it's remembered.");
+            schemeBtn.Content = new TextBlock { Text = "\uE790", FontFamily = U.IconFont, FontSize = 15, Foreground = U.R("Amber"), VerticalAlignment = VerticalAlignment.Center };
+            schemeBtn.VerticalAlignment = VerticalAlignment.Center; schemeBtn.Margin = new Thickness(0, 0, 6, 0);
+            U.AutomationName(schemeBtn, "Colour scheme");
+            WindowChrome.SetIsHitTestVisibleInChrome(schemeBtn, true);
+            schemeBtn.Click += (s, e) =>
+            {
+                var menu = new ContextMenu { PlacementTarget = schemeBtn, Placement = PlacementMode.Bottom };
+                foreach (var sc in DS.StudioScheme.All)
+                {
+                    var id = sc.Id;
+                    var mi = new MenuItem { Header = sc.Name, IsCheckable = true, IsChecked = DS.StudioLook.Scheme.Id == id, ToolTip = sc.Description };
+                    mi.Click += (a, b) => SetScheme(id);
+                    menu.Items.Add(mi);
+                }
+                menu.IsOpen = true;
+            };
+            var status = U.Row(schemeBtn, guideBtn, connBadge, targetText, reviewBtn);
             // narrower windows: the labels step back so the window buttons always stay on screen
             var guideLabel = ((StackPanel)guideBtn.Content).Children[1];
             bar.SizeChanged += (s, e) =>

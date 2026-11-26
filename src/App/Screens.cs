@@ -151,6 +151,17 @@ namespace AndersCraftStudio
             w.Navigate("creatures", p => pg = (EntityEditorPage)p);
             pg.Open(448); w.HideToast(); await Wait(2500);
             await w.Snap("171_facelift_creature.png");
+            w.Navigate("settings"); await Wait(900); w.HideToast();
+            var look = FindText(w, "Look");
+            look?.BringIntoView(); await Wait(400);
+            await w.Snap("172_settings_look.png");
+        }
+
+        static System.Windows.FrameworkElement FindText(System.Windows.DependencyObject d, string text)
+        {
+            if (d is System.Windows.Controls.TextBlock t && t.Text == text) return t;
+            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(d); i++) { var r = FindText(System.Windows.Media.VisualTreeHelper.GetChild(d, i), text); if (r != null) return r; }
+            return null;
         }
 
         public static async Task RunM13(MainWindow w, string dir)

@@ -79,6 +79,11 @@ the three databases and the server's account and loads AzerothCore's base tables
 6. Open **Home**, read *New to this? Start here*, and try a **Template** — then look at **Changes** to see exactly what
    would happen. Press F1 any time for the Getting started guide and glossary.
 
+**Colour schemes.** Settings › *Look* (or the palette button in the top bar): Andersian (dark maroon and amber, the default),
+Frostforge, Verdant, Arcane, Emberforge and Obsidian. Only the colours change, straight away, and Studio remembers your pick.
+
+![Colour schemes](docs/screens/color-schemes.png)
+
 **How to use this.** Every main screen has a visual guide: a picture of the screen with numbered markers and short steps
 (Creatures, Items, Quests, Loot, SmartAI, Spells, DBC tables, Client patches, Asset import, SQL browser, Admin console,
 Changes and the setup wizard). Open it with *How to use this* in the top bar or **Shift+F1**; Help lists them all.

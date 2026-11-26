@@ -73,7 +73,9 @@ namespace AndersCraftStudio
             string makeIcon = Arg(args, "--make-icon");
 
             Current = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
-            global::Studio.DesignSystem.StudioLook.Apply(Current);   // the shared Studio design system (src/DesignSystem), the whole look; reduced motion honoured
+            string scheme = Arg(args, "--scheme");   // screenshots: a colour scheme to show
+            if (scheme == null && screens == null) try { scheme = new ProfileStore(ProfileStore.DefaultRoot).Settings.ColorScheme; } catch { }
+            global::Studio.DesignSystem.StudioLook.Apply(Current, scheme);   // the shared Studio design system (src/DesignSystem), the whole look; reduced motion honoured
             EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent, new RoutedEventHandler((o, e) => Dress(o as Window)));   // every dialog gets the magic layer
             if (makeIcon != null) { IconMaker.Write(makeIcon); return 0; }
             try { Icon = BitmapFrame.Create(new Uri("pack://application:,,,/AndersCraftStudio;component/Studio.ico")); } catch { }

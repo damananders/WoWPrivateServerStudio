@@ -180,6 +180,22 @@ namespace Studio.DesignSystem
         /// <summary>A row of segment buttons (tabs): no track or box around them; the chosen one glows.</summary>
         public static Border Segments(UIElement child) => new Border { Background = Brushes.Transparent, Padding = new Thickness(3), HorizontalAlignment = HorizontalAlignment.Left, Child = child };
 
+        /// <summary>
+        /// A scheme to pick: its name, a line about it and four swatches (page, panel, deep, accent) in its own colours.
+        /// Clicking it calls <paramref name="pick"/>. The one in use glows.
+        /// </summary>
+        public static Grid SchemeTile(StudioScheme s, bool current, Action pick)
+        {
+            var sw = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
+            foreach (var (r, g, b) in s.Swatches)
+                sw.Children.Add(new Border { Width = 30, Height = 30, CornerRadius = new CornerRadius(15), Margin = new Thickness(0, 0, 8, 0), Background = new SolidColorBrush(Color.FromRgb(r, g, b)) });
+            var body = Stack(T(s.Name, 15, "TextStrong", FontWeights.SemiBold, false), T(s.Description, 12.5, "Muted", null, true, new Thickness(0, 3, 0, 0)), sw);
+            if (current) { var p = Pill("in use", "AmberDim", "Amber"); p.HorizontalAlignment = HorizontalAlignment.Left; p.Margin = new Thickness(0, 4, 0, 0); body.Children.Insert(1, p); }
+            var t = Tile(body, current ? "MaroonDim" : "Layer5", 16, new Thickness(18, 14, 18, 16), pick, s.Name + ": " + s.Description, current ? 0.35 : 0.2);
+            t.Width = 250; t.Margin = new Thickness(0, 0, 12, 12);
+            return t;
+        }
+
         /// <summary>The faint luminous edge of a borderless window (a dialog drawn without the Windows frame).</summary>
         public static Border Frame(Border b)
         {

@@ -20,7 +20,8 @@ previews, all staged; plain names across the editors, lists, Changes and SmartAI
 New look across every screen (the studio suite's design, AndersCraft colours). Fixed: Send to game now follows the
 client's real patch order (Data\patch-X beats every Data\enUS patch) and updates the patch that loads last when nothing
 can outrank it; spells can be learned automatically at login; the 3D viewer's wheel no longer scrolls the page; a
-maximized window stays above the taskbar.
+maximized window stays above the taskbar. Six colour schemes (Settings › Look): Andersian, Frostforge, Verdant, Arcane,
+Emberforge, Obsidian.
 
 ## 0.8.0
 Admin console (everything HeidiSQL does, including setting up AzerothCore's databases) and the rest of Keira3's editors.
